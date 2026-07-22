@@ -1,0 +1,47 @@
+{
+  "name": "murmur",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Murmur — verified anonymous campus Q&A (modular monolith API + worker + PWA client)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch server/src/index.ts",
+    "start": "node dist/server/src/index.js",
+    "worker": "tsx server/src/worker/index.ts",
+    "migrate": "tsx server/src/db/migrate.ts up",
+    "migrate:down": "tsx server/src/db/migrate.ts down",
+    "migrate:status": "tsx server/src/db/migrate.ts status",
+    "lint": "eslint . --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run tests/integration",
+    "test:nfr": "vitest run tests/nfr"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^9.0.3",
+    "pg": "^8.12.0",
+    "pino": "^9.3.2",
+    "pino-http": "^10.2.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.5.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.11.6",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.3.0",
+    "@typescript-eslint/parser": "^8.3.0",
+    "eslint": "^8.57.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

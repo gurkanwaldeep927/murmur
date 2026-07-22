@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-resilience",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "schema_version",
+    "inputs_consumed",
+    "status",
+    "open_questions",
+    "waivers_cited",
+    "dependency_map",
+    "fault_injections"
+  ],
+  "properties": {
+    "stage": {
+      "const": "resilience"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "handoff_sha256"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "handoff_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked"
+      ]
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "owner",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-"
+          },
+          "text": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "waivers_cited": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependency_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "dependency",
+          "timeout_configured",
+          "retry_policy",
+          "failure_mode_tested"
+        ],
+        "properties": {
+          "dependency": {
+            "type": "string"
+          },
+          "timeout_configured": {
+            "type": "boolean"
+          },
+          "retry_policy": {
+            "type": "string"
+          },
+          "circuit_breaker": {
+            "type": "boolean"
+          },
+          "failure_mode_tested": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "fault_injections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "fault",
+          "target",
+          "expected_behavior",
+          "observed_behavior",
+          "verdict"
+        ],
+        "properties": {
+          "fault": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "expected_behavior": {
+            "type": "string"
+          },
+          "observed_behavior": {
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "location",
+          "evidence",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string",
+            "$comment": "tool@version + rule id, or [ASSUMPTION]"
+          },
+          "fix_hint": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

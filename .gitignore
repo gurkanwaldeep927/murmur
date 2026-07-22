@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+coverage/
+.DS_Store
+
+# Build/kit artifacts — not source
+*.zip
+# Rescue copy of hooks created to unblock a stuck shell (see .claude/settings.json)
+client/.claude/

@@ -1,0 +1,11 @@
+{
+  "artifact": "plan",
+  "handoff": "build",
+  "required": ["tracer", "milestones", "tasks", "risk_register", "assumptions", "escalations", "open_questions", "handoff"],
+  "nonempty": ["milestones", "tasks"],
+  "item_required": {
+    "milestones": ["id", "theme", "p0s", "exit_criterion"],
+    "tasks": ["id", "task", "milestone", "depends_on", "size", "trace"],
+    "risk_register": ["risk", "source", "status"]
+  }
+}

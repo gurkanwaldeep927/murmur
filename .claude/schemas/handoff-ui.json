@@ -1,0 +1,10 @@
+{
+  "artifact": "ui",
+  "handoff": "plan",
+  "required": ["direction", "components", "deviations", "deferred", "assumptions", "escalations", "open_questions", "handoff"],
+  "nonempty": ["components"],
+  "item_required": {
+    "components": ["name", "screen", "fields_bound", "states", "screenshots", "iterations"],
+    "deviations": ["from", "change", "reason"]
+  }
+}

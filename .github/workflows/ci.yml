@@ -1,0 +1,78 @@
+name: ci
+
+# Plan T3 — lint, typecheck, unit + integration/NFR runners, migration apply/rollback
+# check on every push, plus Layer-1 quality-kit gates (cadence.md §1): gitleaks (secrets,
+# BLOCKING from first run), semgrep (SAST), osv-scanner (SCA). Layer 2 (per-milestone
+# agent runs) and Layer 3 (event-triggered checks) are not in this file — see
+# architecture.md §8 and quality-kit-additions/cadence.md.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: murmur
+          POSTGRES_PASSWORD: murmur
+          POSTGRES_DB: murmur_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U murmur"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://murmur:murmur@localhost:5432/murmur_test
+      EMAIL_HASH_PEPPER_ACTIVE: v1:ci-only-pepper-not-a-real-secret
+      CAMPUS_EMAIL_DOMAINS: example-college.edu
+      EMAIL_PROVIDER: memory
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Migrate up (apply check)
+        run: npm run migrate
+      - name: Migrate down + up (rollback check)
+        run: npm run migrate:down && npm run migrate
+      - name: Unit + integration + NFR tests
+        run: npm test
+
+  # --- Layer-1 quality gates (cadence.md §1) ---
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      # gitleaks is BLOCKING from the first run (no warn-only period) per cadence.md §1.
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast:
+    runs-on: ubuntu-latest
+    container: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep ci --config auto
+        continue-on-error: true # SAST advisory in Layer 1; blocking gate is the M1 security-agent run (T60)
+
+  sca:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm i -g @google/osv-scanner || npx --yes osv-scanner --version || true
+      - name: OSV scan (per lockfile)
+        run: npx --yes osv-scanner scan --lockfile=package-lock.json
+        continue-on-error: true # SCA advisory in Layer 1; escalates via the security-agent milestone gate

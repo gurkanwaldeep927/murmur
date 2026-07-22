@@ -1,0 +1,11 @@
+{
+  "artifact": "ux",
+  "handoff": "schema",
+  "required": ["flows", "screens", "navigation", "design_directions", "assumptions", "escalations", "open_questions", "handoff"],
+  "nonempty": ["flows", "screens", "design_directions"],
+  "item_required": {
+    "flows": ["id", "name", "serves", "screens", "success_state"],
+    "screens": ["id", "name", "purpose", "flows", "states", "data_needs"],
+    "design_directions": ["id", "name", "adjectives", "archetype", "optimizes_for"]
+  }
+}

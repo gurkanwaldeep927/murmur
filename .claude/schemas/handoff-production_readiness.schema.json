@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-production_readiness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "schema_version",
+    "inputs_consumed",
+    "status",
+    "open_questions",
+    "waivers_cited",
+    "reexecutions",
+    "checklist",
+    "score",
+    "verdict"
+  ],
+  "properties": {
+    "stage": {
+      "const": "production_readiness"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "handoff_sha256"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "handoff_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked"
+      ]
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "owner",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-"
+          },
+          "text": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "waivers_cited": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reexecutions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "signal",
+          "reproduced",
+          "matches_handoff"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "signal": {
+            "type": "string"
+          },
+          "reproduced": {
+            "type": "boolean"
+          },
+          "matches_handoff": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "checklist": {
+      "type": "array",
+      "minItems": 20,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "item",
+          "source_framework",
+          "verdict",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^PRR-[0-9]+$"
+          },
+          "item": {
+            "type": "string"
+          },
+          "source_framework": {
+            "enum": [
+              "google-prr",
+              "aws-well-architected",
+              "12-factor",
+              "owasp-asvs",
+              "sre-golden-signals",
+              "house-rule"
+            ]
+          },
+          "verdict": {
+            "enum": [
+              "pass",
+              "fail",
+              "n/a",
+              "waived"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "score": {
+      "type": "object",
+      "required": [
+        "passed",
+        "failed",
+        "waived",
+        "na"
+      ],
+      "properties": {
+        "passed": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer"
+        },
+        "waived": {
+          "type": "integer"
+        },
+        "na": {
+          "type": "integer"
+        }
+      }
+    },
+    "verdict": {
+      "enum": [
+        "GO",
+        "NO-GO"
+      ]
+    },
+    "no_go_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

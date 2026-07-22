@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#FFF8F1; }
+  a { color:#F26B4E; text-decoration:none; } a:hover { color:#D95538; }
+  @keyframes blobFloat { 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(12px,-16px) scale(1.06);} }
+  @keyframes blobFloat2 { 0%,100%{ transform:translate(0,0) scale(1);} 50%{ transform:translate(-14px,12px) scale(1.08);} }
+  @keyframes cardBob { 0%,100%{ transform:translateY(0) rotate(-1.5deg);} 50%{ transform:translateY(-8px) rotate(-1.5deg);} }
+  @keyframes cardBob2 { 0%,100%{ transform:translateY(0) rotate(2deg);} 50%{ transform:translateY(-12px) rotate(2deg);} }
+  input::placeholder { color:#C4AB9E; }
+  @media (max-width: 780px) {
+    .lp-navlinks a.lp-navtext { display:none !important; }
+    .lp-hero { grid-template-columns:1fr !important; gap:40px !important; padding:36px 20px 56px !important; }
+    .lp-hero h1 { font-size:36px !important; }
+    .lp-join { flex-direction:column !important; }
+    .lp-join button { width:100% !important; }
+    .lp-cards { height:auto !important; display:flex !important; flex-direction:column !important; gap:16px !important; }
+    .lp-cards > div { position:static !important; width:100% !important; animation:none !important; }
+    .lp-grid2 { grid-template-columns:1fr !important; }
+    .lp-grid3 { grid-template-columns:1fr !important; }
+    .lp-pad { padding-left:20px !important; padding-right:20px !important; }
+    .lp-howcard { padding:28px 22px !important; }
+    .lp-h2 { font-size:28px !important; }
+    .lp-footer { flex-direction:column !important; gap:12px !important; }
+  }
+</style>
+</helmet>
+<div style="font-family:'Plus Jakarta Sans',sans-serif; color:#3D2C26; background:linear-gradient(180deg,#FFF8F1 0%,#FDEFE3 100%); overflow-x:hidden">
+
+  <nav style="max-width:1140px; margin:0 auto; padding:22px 32px; display:flex; align-items:center; justify-content:space-between">
+    <div style="display:flex; align-items:center; gap:10px">
+      <div style="width:32px; height:32px; border-radius:11px; background:#F26B4E; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(242,107,78,.35)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12c2.5-5 5.5-5 8 0s5.5 5 8 0" stroke="#FFF8F1" stroke-width="2.4" stroke-linecap="round"></path></svg>
+      </div>
+      <span style="font-family:'Baloo 2',sans-serif; font-weight:700; font-size:24px; letter-spacing:-0.3px">murmur</span>
+    </div>
+    <div class="lp-navlinks" style="display:flex; align-items:center; gap:28px; font-size:14.5px; font-weight:600">
+      <a class="lp-navtext" href="#ask" style="color:#8A7168" style-hover="color:#F26B4E">Ask seniors</a>
+      <a class="lp-navtext" href="#safety" style="color:#8A7168" style-hover="color:#F26B4E">Safety</a>
+      <a href="#join" style="background:#F26B4E; color:#FFF8F1; padding:10px 20px; border-radius:13px; box-shadow:0 5px 14px rgba(242,107,78,.3); transition:transform .18s cubic-bezier(.34,1.56,.64,1)" style-hover="background:#E85A3C; color:#FFF8F1; transform:translateY(-1px)">Get verified</a>
+    </div>
+  </nav>
+
+  <header class="lp-hero" style="max-width:1140px; margin:0 auto; padding:56px 32px 80px; display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center; position:relative">
+    <div style="position:absolute; top:-40px; left:-80px; width:260px; height:260px; border-radius:50%; background:radial-gradient(circle at 40% 40%, rgba(242,107,78,.14), rgba(242,107,78,0) 70%); animation:blobFloat 10s ease-in-out infinite; pointer-events:none"></div>
+    <div style="position:absolute; bottom:-60px; right:-60px; width:300px; height:300px; border-radius:50%; background:radial-gradient(circle at 60% 40%, rgba(111,162,135,.16), rgba(111,162,135,0) 70%); animation:blobFloat2 12s ease-in-out infinite; pointer-events:none"></div>
+
+    <div style="display:flex; flex-direction:column; gap:22px; position:relative">
+      <span style="align-self:flex-start; background:#FDEDE4; color:#C25B42; font-size:13px; font-weight:600; padding:7px 14px; border-radius:999px">Verified students only · {{ campusName }}</span>
+      <h1 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:52px; line-height:1.12; letter-spacing:-0.5px; text-wrap:pretty">Ask seniors anything.<br><span style="color:#F26B4E">They'll never know it's you.</span></h1>
+      <p style="margin:0; font-size:17px; line-height:1.6; color:#8A7168; max-width:440px; text-wrap:pretty">The doubts you've been sitting on for weeks — placements, professors, hostels, life — answered honestly by your whole senior pool. You get a pseudonym; your name never appears.</p>
+      <div id="join" class="lp-join" style="display:flex; gap:10px; max-width:440px">
+        <input type="email" value="{{ email }}" onChange="{{ onEmail }}" onKeyDown="{{ onKey }}" placeholder="your college email" style="flex:1; box-sizing:border-box; border:2px solid #F0DCD0; border-radius:15px; padding:14px 16px; font-size:15.5px; font-family:'Plus Jakarta Sans',sans-serif; color:#3D2C26; background:#FFFFFF; outline:none; transition:border-color .18s ease, box-shadow .18s ease" style-focus="border:2px solid #F26B4E; box-shadow:0 0 0 4px rgba(242,107,78,.13)">
+        <button onClick="{{ submit }}" style="border:none; cursor:pointer; border-radius:15px; padding:14px 24px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:16.5px; color:#FFF8F1; background:#F26B4E; box-shadow:0 6px 18px rgba(242,107,78,.32); white-space:nowrap; transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease" style-hover="background:#E85A3C; transform:translateY(-1px)" style-active="transform:translateY(1px) scale(.98)">{{ ctaLabel }}</button>
+      </div>
+      <sc-if value="{{ heroNote }}" hint-placeholder-val="{{ false }}">
+        <span style="font-size:13.5px; color:#6FA287; font-weight:600">{{ heroNoteText }}</span>
+      </sc-if>
+      <div style="display:flex; gap:8px; align-items:center">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#6FA287" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 12l2 2 4-4.5" stroke="#6FA287" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <span style="font-size:13px; color:#8A7168">Verified once, scrambled forever — your email is never shown to anyone.</span>
+      </div>
+    </div>
+
+    <div class="lp-cards" style="position:relative; height:420px">
+      <div style="position:absolute; top:8px; left:0; width:330px; max-width:100%; box-sizing:border-box; background:#FFFFFF; border-radius:22px; padding:20px; box-shadow:0 14px 40px rgba(93,58,44,.12); animation:cardBob 7s ease-in-out infinite">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
+          <span style="width:28px; height:28px; border-radius:50%; background:#FDEDE4; display:flex; align-items:center; justify-content:center; font-size:13px">🦉</span>
+          <span style="font-family:'Baloo 2',sans-serif; font-weight:600; font-size:14px">MistyHeron</span>
+          <span style="background:#E7F1EA; color:#5D8E74; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px">'26 batch</span>
+        </div>
+        <p style="margin:0 0 10px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:16.5px; line-height:1.35">How brutal is the TCS Digital coding round, really?</p>
+        <div style="display:flex; gap:12px; font-size:12.5px; color:#8A7168; font-weight:600">
+          <span style="background:#FDEDE4; color:#C25B42; padding:3px 10px; border-radius:999px">Placements</span>
+          <span>4 answers · 2h ago</span>
+        </div>
+      </div>
+      <div style="position:absolute; top:170px; right:0; width:330px; max-width:100%; box-sizing:border-box; background:#FFFFFF; border-radius:22px; padding:20px; box-shadow:0 14px 40px rgba(93,58,44,.14); animation:cardBob2 8s ease-in-out infinite">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
+          <span style="width:28px; height:28px; border-radius:50%; background:#E7F1EA; display:flex; align-items:center; justify-content:center; font-size:13px">🦅</span>
+          <span style="font-family:'Baloo 2',sans-serif; font-weight:600; font-size:14px">VelvetOwl</span>
+          <span style="background:#E7F1EA; color:#5D8E74; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px">'24 batch</span>
+          <span style="margin-left:auto; display:flex; align-items:center; gap:4px; color:#5D8E74; font-size:12px; font-weight:700"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#5D8E74" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Accepted</span>
+        </div>
+        <p style="margin:0; font-size:14px; line-height:1.55; color:#5C4A42">"Two DSA questions — one array/string, one DP-lite. The fundamentals MCQs decide the cutoff more than people admit…"</p>
+        <div style="margin-top:10px; display:flex; gap:6px; align-items:center; font-size:12.5px; color:#8A7168; font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5l6 7h-4v7h-4v-7H6l6-7z" fill="#F26B4E"></path></svg>38 upvotes</div>
+      </div>
+      <div style="position:absolute; top:355px; left:20px; align-self:flex-start; background:#3D2C26; color:#FFF8F1; border-radius:16px; padding:12px 18px; font-size:13.5px; font-weight:600; box-shadow:0 10px 28px rgba(61,44,38,.3)">Nobody knows who asked. Everybody gets the answer. 🤫</div>
+    </div>
+  </header>
+
+  <section id="ask" class="lp-pad" style="max-width:1140px; margin:0 auto; padding:40px 32px 72px">
+    <div style="text-align:center; margin-bottom:44px; display:flex; flex-direction:column; gap:10px">
+      <h2 class="lp-h2" style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:36px; letter-spacing:-0.4px">Everything you wish a senior had told you.</h2>
+      <p style="margin:0; font-size:16px; color:#8A7168">Honest answers to the questions you'd never ask out loud — from the seniors who've already been there.</p>
+    </div>
+    <div class="lp-grid3" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:22px">
+      <div style="background:#FFFFFF; border-radius:24px; padding:30px; box-shadow:0 8px 28px rgba(93,58,44,.07); display:flex; flex-direction:column; gap:12px; transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease" style-hover="transform:translateY(-4px); box-shadow:0 14px 36px rgba(93,58,44,.12)">
+        <div style="width:46px; height:46px; border-radius:15px; background:#FDEDE4; display:flex; align-items:center; justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v10H9l-5 4V6z" stroke="#F26B4E" stroke-width="1.9" stroke-linejoin="round"></path><path d="M8 11h.01M12 11h.01M16 11h.01" stroke="#F26B4E" stroke-width="2.6" stroke-linecap="round"></path></svg></div>
+        <h3 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px">Ask seniors, anonymously</h3>
+        <p style="margin:0; font-size:14.5px; line-height:1.6; color:#8A7168; text-wrap:pretty">The questions you'd never ask your assigned senior — CGPA panic, backlog fear, "is this normal?" — answered by the whole senior pool. Your pseudonym asks; you stay invisible.</p>
+      </div>
+      <div style="background:#FFFFFF; border-radius:24px; padding:30px; box-shadow:0 8px 28px rgba(93,58,44,.07); display:flex; flex-direction:column; gap:12px; transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease" style-hover="transform:translateY(-4px); box-shadow:0 14px 36px rgba(93,58,44,.12)">
+        <div style="width:46px; height:46px; border-radius:15px; background:#E7F1EA; display:flex; align-items:center; justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#5D8E74" stroke-width="1.9" stroke-linejoin="round"></path><path d="M9 12l2 2 4-4.5" stroke="#5D8E74" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+        <h3 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px">Answers you can trust</h3>
+        <p style="margin:0; font-size:14.5px; line-height:1.6; color:#8A7168; text-wrap:pretty">Every answer comes from a senior with a verified year badge, and passes moderation before it reaches you. Upvotes and accepted answers surface the honest truth — not the loudest voice.</p>
+      </div>
+      <div style="background:#FFFFFF; border-radius:24px; padding:30px; box-shadow:0 8px 28px rgba(93,58,44,.07); display:flex; flex-direction:column; gap:12px; transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease" style-hover="transform:translateY(-4px); box-shadow:0 14px 36px rgba(93,58,44,.12)">
+        <div style="width:46px; height:46px; border-radius:15px; background:#FDEDE4; display:flex; align-items:center; justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#F26B4E" stroke-width="1.9"></circle><path d="M20 20l-4.3-4.3" stroke="#F26B4E" stroke-width="1.9" stroke-linecap="round"></path></svg></div>
+        <h3 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px">Search every batch</h3>
+        <p style="margin:0; font-size:14.5px; line-height:1.6; color:#8A7168; text-wrap:pretty">The question you're about to ask? A senior three batches ago probably answered it already. Search the whole archive across every batch before you post — the answer might be waiting.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-pad" style="max-width:1140px; margin:0 auto; padding:0 32px 72px">
+    <div class="lp-howcard" style="background:#FFFFFF; border-radius:28px; padding:44px; box-shadow:0 8px 28px rgba(93,58,44,.07)">
+      <h2 style="margin:0 0 34px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:30px; text-align:center; letter-spacing:-0.3px">In, in under a minute</h2>
+      <div class="lp-grid3" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:28px">
+        <div style="display:flex; flex-direction:column; gap:10px; text-align:center; align-items:center">
+          <span style="width:38px; height:38px; border-radius:50%; background:#F26B4E; color:#FFF8F1; font-family:'Baloo 2',sans-serif; font-weight:700; font-size:17px; display:flex; align-items:center; justify-content:center">1</span>
+          <h3 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:18px">Verify your college email</h3>
+          <p style="margin:0; font-size:14px; line-height:1.55; color:#8A7168">One-time code, then your email is hashed and locked away. Nobody sees it — ever.</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; text-align:center; align-items:center">
+          <span style="width:38px; height:38px; border-radius:50%; background:#F26B4E; color:#FFF8F1; font-family:'Baloo 2',sans-serif; font-weight:700; font-size:17px; display:flex; align-items:center; justify-content:center">2</span>
+          <h3 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:18px">Meet your pseudonym</h3>
+          <p style="margin:0; font-size:14px; line-height:1.55; color:#8A7168">You become someone like <span style="font-weight:700; color:#F26B4E">QuietFalcon '27</span> — a real identity with reputation to earn, minus your name.</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; text-align:center; align-items:center">
+          <span style="width:38px; height:38px; border-radius:50%; background:#F26B4E; color:#FFF8F1; font-family:'Baloo 2',sans-serif; font-weight:700; font-size:17px; display:flex; align-items:center; justify-content:center">3</span>
+          <h3 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:18px">Ask what you've been avoiding</h3>
+          <p style="margin:0; font-size:14px; line-height:1.55; color:#8A7168">Post the question. Real seniors answer. Upvotes and accepted answers surface the honest truth.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="safety" class="lp-pad" style="background:#3F5A4C; padding:56px 32px">
+    <div class="lp-grid2" style="max-width:1140px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:44px; align-items:center">
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:32px; color:#F2F7F0; letter-spacing:-0.3px">Anonymous never means unsafe.</h2>
+        <p style="margin:0; font-size:15.5px; line-height:1.65; color:#C4D6C8; text-wrap:pretty">Every post passes AI moderation before anyone sees it. A real, named grievance officer answers reports within the legal window. And banned means banned — for good, even on a fresh account.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <div style="display:flex; gap:12px; align-items:flex-start"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:2px"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#9DC4A8" stroke-width="1.8" stroke-linejoin="round"></path></svg><span style="font-size:14.5px; line-height:1.55; color:#E4EEE5">Your email is verified once, hashed, and never displayed — not to seniors, not to admins.</span></div>
+        <div style="display:flex; gap:12px; align-items:flex-start"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:2px"><path d="M4 12h16M12 4v16" stroke="#9DC4A8" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:14.5px; line-height:1.55; color:#E4EEE5">100% of content is moderated before publish — harassment never reaches the feed.</span></div>
+        <div style="display:flex; gap:12px; align-items:flex-start"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:2px"><circle cx="12" cy="8" r="3.4" stroke="#9DC4A8" stroke-width="1.8"></circle><path d="M5 20c.8-3.4 3.6-5 7-5s6.2 1.6 7 5" stroke="#9DC4A8" stroke-width="1.8" stroke-linecap="round"></path></svg><span style="font-size:14.5px; line-height:1.55; color:#E4EEE5">A named grievance officer, reachable in-app, required to respond — and we do.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-pad" style="max-width:1140px; margin:0 auto; padding:80px 32px; text-align:center; display:flex; flex-direction:column; gap:18px; align-items:center">
+    <h2 class="lp-h2" style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:40px; letter-spacing:-0.4px; text-wrap:pretty">Your seniors already know the answer.</h2>
+    <p style="margin:0; font-size:16.5px; color:#8A7168">Ask it tonight — without anyone knowing it was you.</p>
+    <a href="#join" style="background:#F26B4E; color:#FFF8F1; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:18px; padding:16px 36px; border-radius:16px; box-shadow:0 8px 22px rgba(242,107,78,.34); transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease" style-hover="background:#E85A3C; color:#FFF8F1; transform:translateY(-2px)">Get verified</a>
+  </section>
+
+  <footer class="lp-footer" style="border-top:1px solid #F0DCD0; padding:26px 32px; max-width:1140px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#8A7168">
+    <span style="font-family:'Baloo 2',sans-serif; font-weight:700; font-size:16px; color:#3D2C26">murmur</span>
+    <div style="display:flex; gap:22px">
+      <a href="#safety" style="color:#8A7168" style-hover="color:#F26B4E">Safety &amp; Legal</a>
+      <a href="#safety" style="color:#8A7168" style-hover="color:#F26B4E">Grievance officer</a>
+      <span>© 2026 Murmur</span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;campusName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;NIT JALANDHAR&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;}, &quot;waitlistMode&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  state = { email: "", sent: false };
+  renderVals() {
+    const waitlist = this.props.waitlistMode ?? false;
+    const submit = () => { if (this.state.email.trim()) this.setState({ sent: true }); };
+    return {
+      campusName: this.props.campusName ?? "NIT Warangal",
+      ctaLabel: this.state.sent ? "Sent ✓" : (waitlist ? "Join waitlist" : "Get verified"),
+      email: this.state.email,
+      onEmail: (e) => this.setState({ email: e.target.value, sent: false }),
+      onKey: (e) => { if (e.key === "Enter") submit(); },
+      submit,
+      heroNote: this.state.sent,
+      heroNoteText: "Check your college inbox — your code is on its way."
+    };
+  }
+}
+</script>
+</body>
+</html>

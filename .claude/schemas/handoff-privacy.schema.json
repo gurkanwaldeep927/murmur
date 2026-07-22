@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-privacy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stage", "schema_version", "inputs_consumed", "status", "open_questions", "waivers_cited", "pii_inventory", "checks", "findings", "counts", "gate_rule"],
+  "properties": {
+    "stage": { "const": "privacy" },
+    "schema_version": { "const": "1.0" },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stage", "handoff_sha256"],
+        "properties": {
+          "stage": { "type": "string" },
+          "handoff_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "status": { "enum": ["pass", "fail", "blocked"] },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "owner", "blocking"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^OQ-" },
+          "text": { "type": "string" },
+          "owner": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "waivers_cited": { "type": "array", "items": { "type": "string" } },
+    "pii_inventory": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["table", "column", "classification", "purpose", "retention", "deletion_mechanism", "legal_basis"],
+        "properties": {
+          "table": { "type": "string" },
+          "column": { "type": "string" },
+          "classification": { "enum": ["direct-pii", "pseudonymous-keyed", "content-pii-possible", "non-pii"] },
+          "purpose": { "type": "string" },
+          "retention": { "type": "string", "$comment": "duration from T43 decision, or MISSING" },
+          "deletion_mechanism": { "type": "string", "$comment": "job/trigger/manual ref, or MISSING" },
+          "legal_basis": { "type": "string", "$comment": "decisions-folder ref, or MISSING" }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["check", "executed", "verdict", "evidence"],
+        "properties": {
+          "check": { "enum": ["retention_enforcement", "consent_presence", "erasure_vs_ban", "leak_responses", "leak_logs", "leak_analytics", "third_party_flows", "breach_runbook_exists"] },
+          "executed": { "type": "boolean", "$comment": "false only with a blocking OQ explaining why" },
+          "verdict": { "enum": ["pass", "finding", "blocked"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "category", "location", "evidence", "provenance"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^PRV-[0-9]+$" },
+          "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+          "category": { "type": "string" },
+          "location": { "type": "string" },
+          "evidence": { "type": "string" },
+          "provenance": { "type": "string" },
+          "fix_hint": { "type": "string" }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["critical", "high", "medium", "low"],
+      "properties": {
+        "critical": { "type": "integer", "minimum": 0 },
+        "high": { "type": "integer", "minimum": 0 },
+        "medium": { "type": "integer", "minimum": 0 },
+        "low": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "gate_rule": { "const": "pass requires counts.critical==0 and counts.high==0 (unwaived)" }
+  }
+}

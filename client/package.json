@@ -1,0 +1,17 @@
+{
+  "name": "murmur-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Murmur PWA client — S1–S17 screens integrated to the Murmur API (plan T10+)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.10"
+  }
+}

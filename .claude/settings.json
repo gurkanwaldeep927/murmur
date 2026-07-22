@@ -1,0 +1,31 @@
+{
+  "_comment": "Pipeline-kit hooks. Stop-stage checks run via each agent's frontmatter Stop hook (per kit README) — the SubagentStop fallback is deliberately omitted so the checklist doesn't run twice.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/validate-handoff.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/schema-gates.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guardrail.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

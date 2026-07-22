@@ -1,0 +1,11 @@
+{
+  "artifact": "trd",
+  "handoff": "ux",
+  "required": ["architecture_pattern", "stack", "write_model", "components", "entities", "apis", "nfrs", "integrations", "risks", "out_of_scope", "assumptions", "escalations", "open_questions", "handoff"],
+  "nonempty": ["components", "entities", "apis"],
+  "item_required": {
+    "components": ["name", "responsibility", "talks_to", "provenance"],
+    "entities": ["name", "key_attributes", "relationships"],
+    "nfrs": ["dimension", "target", "measurement", "provenance"]
+  }
+}

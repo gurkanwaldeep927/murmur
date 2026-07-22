@@ -1,0 +1,10 @@
+{
+  "artifact": "schema",
+  "handoff": "ui",
+  "required": ["dialect", "tables", "indexes", "pii_fields", "assumptions", "escalations", "open_questions", "handoff"],
+  "nonempty": ["tables"],
+  "item_required": {
+    "tables": ["name", "purpose", "fields", "relations"],
+    "indexes": ["table", "fields", "serves"]
+  }
+}

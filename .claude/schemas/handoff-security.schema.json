@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-security",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "schema_version",
+    "inputs_consumed",
+    "status",
+    "open_questions",
+    "waivers_cited",
+    "tool_runs",
+    "findings",
+    "counts",
+    "gate_rule"
+  ],
+  "properties": {
+    "stage": {
+      "const": "security"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "handoff_sha256"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "handoff_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked"
+      ]
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "owner",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-"
+          },
+          "text": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "waivers_cited": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tool_runs": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "tool",
+          "version",
+          "exit_code",
+          "invocation"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "invocation": {
+            "type": "string"
+          },
+          "report_path": {
+            "type": "string"
+          }
+        }
+      },
+      "$comment": "must include SAST, secret scan, SCA"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "location",
+          "evidence",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string",
+            "$comment": "tool@version + rule id, or [ASSUMPTION]"
+          },
+          "fix_hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ],
+      "properties": {
+        "critical": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "medium": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "low": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "gate_rule": {
+      "const": "pass requires counts.critical==0 and counts.high==0 (unwaived)"
+    }
+  }
+}

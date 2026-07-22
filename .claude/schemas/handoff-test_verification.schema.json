@@ -1,0 +1,249 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-test_verification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "schema_version",
+    "inputs_consumed",
+    "status",
+    "open_questions",
+    "waivers_cited",
+    "suite_run",
+    "coverage",
+    "criteria_verified",
+    "iteration"
+  ],
+  "properties": {
+    "stage": {
+      "const": "test_verification"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "handoff_sha256"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "handoff_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked"
+      ]
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "owner",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-"
+          },
+          "text": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "waivers_cited": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "suite_run": {
+      "type": "object",
+      "required": [
+        "command",
+        "exit_code",
+        "passed",
+        "failed",
+        "skipped",
+        "duration_s"
+      ],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "exit_code": {
+          "type": "integer"
+        },
+        "passed": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer"
+        },
+        "skipped": {
+          "type": "integer"
+        },
+        "duration_s": {
+          "type": "number"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "line_pct",
+        "threshold_pct",
+        "meets_threshold"
+      ],
+      "properties": {
+        "line_pct": {
+          "type": "number"
+        },
+        "branch_pct": {
+          "type": "number"
+        },
+        "threshold_pct": {
+          "type": "number"
+        },
+        "meets_threshold": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mutation_sample": {
+      "type": "object",
+      "required": [
+        "tool",
+        "mutants_run",
+        "killed_pct"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "mutants_run": {
+          "type": "integer"
+        },
+        "killed_pct": {
+          "type": "number"
+        },
+        "target_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "criteria_verified": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "criterion_id",
+          "verdict"
+        ],
+        "properties": {
+          "criterion_id": {
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "verified",
+              "test-exists-but-weak",
+              "unverified"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fix_list_for_writer": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "location",
+          "evidence",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string",
+            "$comment": "tool@version + rule id, or [ASSUMPTION]"
+          },
+          "fix_hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "iteration": {
+      "type": "object",
+      "required": [
+        "round",
+        "cap"
+      ],
+      "properties": {
+        "round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cap": {
+          "const": 3
+        }
+      }
+    }
+  }
+}

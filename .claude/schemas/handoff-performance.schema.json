@@ -1,0 +1,386 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-performance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "schema_version",
+    "inputs_consumed",
+    "status",
+    "open_questions",
+    "waivers_cited",
+    "slo_targets",
+    "load_runs",
+    "query_audit"
+  ],
+  "properties": {
+    "stage": {
+      "const": "performance"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "inputs_consumed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "handoff_sha256"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "handoff_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked"
+      ]
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "owner",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-"
+          },
+          "text": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "waivers_cited": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "slo_targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "metric",
+          "target",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "$comment": "TRD NFR field path or [ASSUMPTION]"
+          }
+        }
+      }
+    },
+    "load_runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "tool",
+          "scenario",
+          "thresholds_passed",
+          "p95_ms",
+          "error_rate_pct"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "script_path": {
+            "type": "string"
+          },
+          "thresholds_passed": {
+            "type": "boolean"
+          },
+          "p95_ms": {
+            "type": "number"
+          },
+          "p99_ms": {
+            "type": "number"
+          },
+          "rps": {
+            "type": "number"
+          },
+          "error_rate_pct": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "query_audit": {
+      "type": "object",
+      "required": [
+        "n_plus_one_found",
+        "missing_indexes",
+        "unbounded_queries"
+      ],
+      "properties": {
+        "n_plus_one_found": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "severity",
+              "category",
+              "location",
+              "evidence",
+              "provenance"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+              },
+              "severity": {
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ]
+              },
+              "category": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "string",
+                "$comment": "tool@version + rule id, or [ASSUMPTION]"
+              },
+              "fix_hint": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "missing_indexes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "severity",
+              "category",
+              "location",
+              "evidence",
+              "provenance"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+              },
+              "severity": {
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ]
+              },
+              "category": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "string",
+                "$comment": "tool@version + rule id, or [ASSUMPTION]"
+              },
+              "fix_hint": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "unbounded_queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "severity",
+              "category",
+              "location",
+              "evidence",
+              "provenance"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+              },
+              "severity": {
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ]
+              },
+              "category": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "string",
+                "$comment": "tool@version + rule id, or [ASSUMPTION]"
+              },
+              "fix_hint": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "unpaginated_endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "severity",
+              "category",
+              "location",
+              "evidence",
+              "provenance"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+              },
+              "severity": {
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ]
+              },
+              "category": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "string",
+                "$comment": "tool@version + rule id, or [ASSUMPTION]"
+              },
+              "fix_hint": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "category",
+          "location",
+          "evidence",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(SEC|AIS|TST|PRF|OBS|RES|PRR)-[0-9]+$"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string",
+            "$comment": "tool@version + rule id, or [ASSUMPTION]"
+          },
+          "fix_hint": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

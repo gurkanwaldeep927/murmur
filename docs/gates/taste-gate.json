@@ -1,0 +1,8 @@
+{
+  "_instructions": "HUMAN-ONLY FILE. Copy to docs/gates/taste-gate.json and fill in. Agents are hook-blocked from writing it. selected_direction must match a design_directions[].id in docs/04-ux.md's handoff block.",
+  "selected_direction": "D2",
+  "approved_by": "gurkanwaldeep",
+  "approved_on": "18/07/2026",
+  "notes": "everything should goo on smoothlyy ithe ui must be alive to make the students feel as if they dont have burden th colour tone and typography all hook students to the screen"
+
+}

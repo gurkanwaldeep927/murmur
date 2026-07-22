@@ -1,0 +1,7 @@
+{
+  "artifact": "prd",
+  "handoff": "trd",
+  "required": ["p0_requirements", "non_goals", "open_questions", "handoff"],
+  "nonempty": ["p0_requirements"],
+  "item_required": {}
+}
