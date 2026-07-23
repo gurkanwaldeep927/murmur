@@ -15,6 +15,13 @@ export const pool = new pg.Pool({
 export type DbPool = pg.Pool;
 export type DbClient = pg.PoolClient;
 
+/**
+ * Anything that can run a query — the pool itself or a transaction's client. Repo
+ * functions that do a single read take this so callers outside a transaction (e.g.
+ * the requireSession middleware) can pass the pool directly.
+ */
+export type Queryable = Pick<DbClient, "query">;
+
 /** Run a function inside a transaction, rolling back on any error. */
 export async function withTransaction<T>(fn: (client: DbClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();

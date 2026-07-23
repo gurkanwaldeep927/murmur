@@ -12,7 +12,9 @@ import request from "supertest";
  * Criterion-ID naming per QK-6. Requires a reachable test Postgres (DATABASE_URL).
  */
 
-const TEST_EMAIL = "2023cs1234@example-college.edu";
+// Real campus format: the T6 ruleset derives the year from a trailing 2-digit
+// admission segment (`.24` -> 2024). Updated when T6 replaced the placeholder rule.
+const TEST_EMAIL = "student.cs.24@nitj.ac.in";
 
 // Fields/values that must NEVER surface in a response.
 const FORBIDDEN_KEYS = [
@@ -31,7 +33,7 @@ function assertNoIdentityLeak(body: unknown, rawEmail: string): void {
   const json = JSON.stringify(body);
   // No raw email substring anywhere.
   expect(json.toLowerCase()).not.toContain(rawEmail.toLowerCase());
-  expect(json.toLowerCase()).not.toContain("@example-college.edu");
+  expect(json.toLowerCase()).not.toContain("@nitj.ac.in");
   // No forbidden identity keys anywhere in the object graph.
   const walk = (v: unknown): void => {
     if (v && typeof v === "object") {
@@ -52,7 +54,7 @@ let pool: import("pg").Pool;
 
 beforeAll(async () => {
   process.env.EMAIL_HASH_PEPPER_ACTIVE ??= "v1:test-pepper";
-  process.env.CAMPUS_EMAIL_DOMAINS ??= "example-college.edu";
+  process.env.CAMPUS_EMAIL_DOMAINS = "nitj.ac.in";
   process.env.EMAIL_PROVIDER = "memory";
   if (!process.env.DATABASE_URL) {
     throw new Error(
@@ -106,15 +108,15 @@ describe("R1 identity non-disclosure", () => {
       .send({ email: TEST_EMAIL, token: otp });
     expect(res.status).toBe(200);
     expect(res.body.outcome).toBe("verified");
-    // Year 2023 derived from the "2023cs1234" local part, never guessed.
-    expect(res.body.profile.year_badge).toBe("2023");
+    // Year 2024 derived from the trailing ".24" admission segment, never guessed.
+    expect(res.body.profile.year_badge).toBe("2024");
     // The success payload is where a leak is most tempting — audit it hardest.
     assertNoIdentityLeak(res.body, TEST_EMAIL);
   });
 
   it("test_R1AC2_unparseable_year_blocked_never_guessed", async () => {
-    // A local part with no leading 4-digit year → blocked, never a guessed year.
-    const badEmail = "principal@example-college.edu";
+    // A local part with no trailing 2-digit admission year → blocked, never guessed.
+    const badEmail = "principal@nitj.ac.in";
     await request(app).post("/verification/initiate").send({ email: badEmail });
     const otp = await capturedOtp(badEmail);
     const res = await request(app)

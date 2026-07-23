@@ -165,6 +165,9 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
     const profile = await createProfile(client, account.id, String(parsed.year));
     emit({ eventType: RegistrationEvents.VERIFICATION_CONFIRMED, actorProfileId: profile.id });
     emit({ eventType: RegistrationEvents.ACTIVATED, actorProfileId: profile.id });
+    // 15-minute bootstrap credential, not the session itself: the client trades it at
+    // POST /session/exchange (T12, decisions/oq-14-session-mechanism.md §2). The field
+    // name is T8's and stays as-is so the A2 response shape never changed.
     const sessionToken = issueBootstrapToken(profile.id);
     return { outcome: "verified", profile, sessionToken };
   });

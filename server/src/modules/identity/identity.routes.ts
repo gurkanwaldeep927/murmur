@@ -42,7 +42,8 @@ identityRouter.post("/verification/confirm", async (req, res, next) => {
     const result = await confirmVerification(parsed.data.email, parsed.data.token);
     switch (result.outcome) {
       case "verified":
-        // S4 success state. Only public profile fields + session token — no raw email.
+        // S4 success state. Only public profile fields + the short-lived bootstrap
+        // token the client exchanges for a session (T12) — no raw email.
         res.status(200).json({
           outcome: "verified",
           profile: result.profile,

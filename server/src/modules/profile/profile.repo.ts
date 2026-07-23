@@ -1,4 +1,4 @@
-import type { DbClient } from "../../db/pool.js";
+import type { DbClient, Queryable } from "../../db/pool.js";
 import { generatePseudonym } from "./pseudonym.js";
 
 /**
@@ -12,6 +12,28 @@ export interface PublicProfile {
   year_badge: string;
   reputation_score: number;
   status: "active" | "suspended" | "banned";
+}
+
+/**
+ * Load a profile by its own id — the per-request lookup behind `requireSession`.
+ * This is what makes stateless session tokens revocable: `status` is read live on
+ * every authenticated request, so a ban lands on the next one
+ * (decisions/oq-14-session-mechanism.md §4). Soft-deleted profiles read as absent.
+ *
+ * Selects public fields only; identity_account_id is never selected back out
+ * (NFR identity non-disclosure).
+ */
+export async function findProfileById(
+  client: Queryable,
+  profileId: string,
+): Promise<PublicProfile | null> {
+  const { rows } = await client.query<PublicProfile>(
+    `SELECT id, pseudonym, year_badge, reputation_score, status
+       FROM pseudonymous_profile
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [profileId],
+  );
+  return rows[0] ?? null;
 }
 
 /**
