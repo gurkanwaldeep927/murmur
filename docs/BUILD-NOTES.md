@@ -3,6 +3,9 @@
 Running record of implementation against `docs/07-plan.md`. This file is the mutable
 build log; the frozen pipeline docs (01–07) are never edited here.
 
+> **Human-owned work lives in [`HUMAN-TASKS.md`](./HUMAN-TASKS.md)** — every task Claude Code
+> cannot do, ordered by what it unblocks, with step-by-step instructions.
+
 ---
 
 ## Milestone 1 — Tracer bullet (in progress)
