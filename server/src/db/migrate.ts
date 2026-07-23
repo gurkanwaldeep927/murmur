@@ -64,6 +64,19 @@ async function appliedVersions(): Promise<Set<string>> {
   return new Set(rows.map((r) => r.version));
 }
 
+/**
+ * The migration to roll back is the most recently APPLIED one, which is not always
+ * the highest-numbered one: 006_analytics (T44) was applied ahead of 002_content
+ * (T13), so ordering by version would have rolled back analytics instead of the
+ * content tables. schema_migrations.applied_at is the authoritative order.
+ */
+async function lastAppliedVersion(): Promise<string | null> {
+  const { rows } = await pool.query<{ version: string }>(
+    "SELECT version FROM schema_migrations ORDER BY applied_at DESC, version DESC LIMIT 1",
+  );
+  return rows[0]?.version ?? null;
+}
+
 export async function up(): Promise<void> {
   await ensureMigrationsTable();
   const migrations = await loadMigrations();
@@ -97,11 +110,16 @@ export async function up(): Promise<void> {
 export async function down(): Promise<void> {
   await ensureMigrationsTable();
   const migrations = await loadMigrations();
-  const applied = await appliedVersions();
-  const lastApplied = [...migrations].reverse().find((m) => applied.has(m.version));
-  if (!lastApplied) {
+  const version = await lastAppliedVersion();
+  if (!version) {
     logger.info("nothing to roll back");
     return;
+  }
+  const lastApplied = migrations.find((m) => m.version === version);
+  if (!lastApplied) {
+    throw new Error(
+      `schema_migrations records version ${version} but no matching migration file exists`,
+    );
   }
   if (!lastApplied.downPath) {
     throw new Error(`Migration ${lastApplied.name} has no .down.sql — cannot roll back`);
