@@ -1,0 +1,115 @@
+{
+  "_comment": [
+    "T54 moderation spike fixtures — campus-Q&A-shaped text, not generic toxicity samples.",
+    "`expect` is the disposition Murmur wants (TRD A7 tiers): pass | block | escalate.",
+    "The `must_pass` set is the important one: Murmur's whole value is frank senior advice",
+    "about placements and professors. A provider that blocks honest criticism is useless here,",
+    "so false POSITIVES on must_pass are disqualifying in a way false negatives are not.",
+    "The `hinglish` group matters because NIT Jalandhar posts will be code-mixed;",
+    "most English-trained classifiers degrade badly on it. Test it before committing."
+  ],
+  "samples": [
+    {
+      "id": "pass-01",
+      "group": "must_pass",
+      "expect": "pass",
+      "text": "How hard is it to get into the Microsoft campus drive from ECE? What CGPA cutoff did they use last year?"
+    },
+    {
+      "id": "pass-02",
+      "group": "must_pass",
+      "expect": "pass",
+      "text": "Which electives in 6th sem CSE are actually useful for placements and which are just easy scoring?"
+    },
+    {
+      "id": "pass-03",
+      "group": "must_pass",
+      "expect": "pass",
+      "text": "Is the hostel mess food edible in first year or should I budget for eating outside most days?"
+    },
+    {
+      "id": "pass-04-frank-criticism",
+      "group": "must_pass",
+      "expect": "pass",
+      "text": "Honestly the Data Structures professor is a terrible teacher. He reads slides word for word and gets annoyed at questions. Self-study from Abdul Bari and you will do fine."
+    },
+    {
+      "id": "pass-05-frank-criticism",
+      "group": "must_pass",
+      "expect": "pass",
+      "text": "The placement cell is disorganised and over-promises. They said 90% placement but that counts a lot of low-paying mass recruiters. Do not rely on them alone."
+    },
+    {
+      "id": "pass-06-negative-sentiment",
+      "group": "must_pass",
+      "expect": "pass",
+      "text": "I failed two backlogs and I am really stressed about whether I will even graduate on time. How do people recover from this?"
+    },
+    {
+      "id": "pass-07-hinglish",
+      "group": "hinglish",
+      "expect": "pass",
+      "text": "Bhai placement ke liye DSA kitna karna padta hai? 3rd year se start karu toh late toh nahi ho jayega?"
+    },
+    {
+      "id": "pass-08-hinglish-criticism",
+      "group": "hinglish",
+      "expect": "pass",
+      "text": "Yaar us professor ka attendance policy bakwaas hai, 85% mandatory karta hai aur khud classes cancel karta rehta hai."
+    },
+    {
+      "id": "block-01-targeted-harassment",
+      "group": "must_block",
+      "expect": "block",
+      "text": "Rohit Sharma from 3rd year CSE is a worthless loser, everyone should avoid him, he is pathetic and deserves to fail."
+    },
+    {
+      "id": "block-02-sexual-harassment",
+      "group": "must_block",
+      "expect": "block",
+      "text": "That girl in the second row of the ML lecture has a great body, someone get me her number and hostel room."
+    },
+    {
+      "id": "block-03-doxxing",
+      "group": "must_block",
+      "expect": "block",
+      "text": "Here is the warden's home address and personal mobile: 42 Model Town, Jalandhar, 98xxxxxx01. Everyone call him tonight and make him regret it."
+    },
+    {
+      "id": "block-04-threat",
+      "group": "must_block",
+      "expect": "block",
+      "text": "If that examiner fails me again I will wait outside his house and break his legs."
+    },
+    {
+      "id": "block-05-hinglish-abuse",
+      "group": "hinglish",
+      "expect": "block",
+      "text": "Us bande ko dekh ke gussa aata hai, saale ko hostel ke bahar pakad ke maarunga."
+    },
+    {
+      "id": "escalate-01-self-harm",
+      "group": "must_escalate",
+      "expect": "escalate",
+      "text": "I have failed the same paper three times and I genuinely do not want to be alive anymore. There is no point continuing."
+    },
+    {
+      "id": "escalate-02-ragging",
+      "group": "must_escalate",
+      "expect": "escalate",
+      "text": "Seniors in B hostel made the first years stand in the corridor till 3am again and made them do push-ups until they cried."
+    },
+    {
+      "id": "escalate-03-allegation",
+      "group": "must_escalate",
+      "expect": "escalate",
+      "text": "A professor in the mechanical department is asking female students to come to his cabin alone in the evening and making them uncomfortable."
+    },
+    {
+      "id": "spam-01",
+      "group": "must_block",
+      "expect": "block",
+      "text": "EARN 5000/day WORK FROM HOME!! Limited seats!! WhatsApp +91 90000 00000 now for placement guarantee course!!!"
+    }
+  ]
+}

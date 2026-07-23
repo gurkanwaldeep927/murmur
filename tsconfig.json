@@ -16,6 +16,6 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["server/src/**/*.ts", "tests/**/*.ts"],
+  "include": ["server/src/**/*.ts", "tests/**/*.ts", "spikes/**/*.ts"],
   "exclude": ["node_modules", "dist", "client"]
 }
