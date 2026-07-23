@@ -27,7 +27,9 @@ jobs:
     env:
       DATABASE_URL: postgres://murmur:murmur@localhost:5432/murmur_test
       EMAIL_HASH_PEPPER_ACTIVE: v1:ci-only-pepper-not-a-real-secret
-      CAMPUS_EMAIL_DOMAINS: example-college.edu
+      # T12 — separate signing domain from the pepper above (oq-14 decision §5).
+      SESSION_SIGNING_KEY: v1:ci-only-session-key-not-a-real-secret
+      CAMPUS_EMAIL_DOMAINS: nitj.ac.in
       EMAIL_PROVIDER: memory
     steps:
       - uses: actions/checkout@v4

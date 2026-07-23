@@ -4,6 +4,7 @@ import { logger } from "./shared/logger.js";
 import { AppError, sendError, errors } from "./shared/error-envelope.js";
 import { identityRouter } from "./modules/identity/identity.routes.js";
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
+import { sessionRouter } from "./modules/session/session.routes.js";
 import { pool } from "./db/pool.js";
 
 /**
@@ -29,6 +30,9 @@ export function createApp() {
   // M1 modules.
   app.use(identityRouter); // A1, A2
   app.use(analyticsRouter); // A12
+
+  // M2 — session mechanism behind the authenticated shell (T12, OQ-14).
+  app.use(sessionRouter);
 
   // 404 fallback.
   app.use((_req, _res, next) => next(errors.notFound("Route not found")));

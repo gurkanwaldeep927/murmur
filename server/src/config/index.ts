@@ -38,6 +38,14 @@ export const config = {
   emailHashPepperRetired: optional("EMAIL_HASH_PEPPER_RETIRED", ""),
   emailEncryptionKey: optional("EMAIL_ENCRYPTION_KEY", ""),
 
+  // T12 — session signing (decisions/oq-14-session-mechanism.md §5). Versioned
+  // `v<n>:<secret>` like the email pepper so keys rotate without logging users out.
+  // Deliberately NOT the email-hash pepper: separate security domains.
+  sessionSigningKey: required("SESSION_SIGNING_KEY"),
+  sessionSigningKeyRetired: optional("SESSION_SIGNING_KEY_RETIRED", ""),
+  sessionTtlDays: intOpt("SESSION_TTL_DAYS", 30),
+  sessionRefreshAfterDays: intOpt("SESSION_REFRESH_AFTER_DAYS", 7),
+
   // Single-campus allowlist (app config, not a DB table — TRD §10, schema §3.2 note).
   campusEmailDomains: optional("CAMPUS_EMAIL_DOMAINS", "example-college.edu")
     .split(",")

@@ -51,15 +51,60 @@ Claude Design's (rounds T9/T18/T25/T30/T39), per the stage-6 decision (plan `dev
   designer-added marketing surface, pre-S1, outside the S1–S17 inventory.
 
 ### Blocked on human / external inputs (not startable by Claude Code)
-- **T6 (human):** founder-documented campus year-parsing ruleset + fixtures. `identity/year-parser.ts` ships the pluggable interface + a conservative **placeholder** rule for `example-college.edu` (leading-4-digit-year `[ASSUMPTION]`) that **blocks on any ambiguity, never guesses**. Drop the real rules in and add fixtures as `test_R1AC2_*`.
+- **~~T6 (human)~~ — delivered.** `identity/year-parser.ts` now carries the founder-documented `nitj.ac.in` rule (trailing 2-digit admission segment, e.g. `…s.mc.24` → 2024) with `plausibleYear()` bounds; the `example-college.edu` placeholder is gone. Null-on-ambiguity contract intact.
 - **~~T9 (Claude Design round 1)~~ — delivered** (see above); S1–S4 ready for T10 integration.
 - **T49 (human/infra):** minimal staging deployment (managed app platform + managed Postgres) for the T11 real-phone demo.
 - **T54 (human/eng):** AI-moderation vendor shortlist + quotes (parallel track; feeds T14/M2).
 
 ### Next Claude Code steps once inputs arrive
-- **T10** integrate S1–S4 (needs T9 components) → wire to A1/A2 in `client/src/screens/`.
 - **T11** tracer demo (needs T49).
-- **T60/T61** M1 security-agent + privacy-agent runs (warn-only) once A1/A2 exist — runnable now.
+- **T60/T61** M1 security-agent + privacy-agent runs (warn-only) — runnable now, not yet run
+  (`docs/gates/` holds only `taste-gate.json`).
+
+---
+
+## Milestone 2 — Q&A core (in progress)
+
+### Done (Claude Code)
+| Task | What landed |
+|---|---|
+| **T13** | **Migration 002** (`topic_tag`, `question`, `answer`, `moderation_case`) verbatim from schema §4, the §5 indexes, `updated_at` triggers, and the fixed 5-topic seed (placements/internships/professors/courses/advice). Each migration introduces only the enums its own tables use; reputation/sync/grievance/draft enums land with 003–005. |
+| **T12** | **Session mechanism — resolves UX OQ-14** (`decisions/oq-14-session-mechanism.md`). Stateless signed tokens, **no session table** (schema stays frozen); A2's token is re-specified as a 15-min **bootstrap** credential traded at `POST /session/exchange` for a 30-day **session** token; `typ` is signed and checked, so the two are not interchangeable. Sliding refresh via `X-Session-Refresh`. Revocation without a session table: `requireSession` reads `pseudonymous_profile.status` live, so a ban lands on the next request. Dedicated versioned `SESSION_SIGNING_KEY` retires M1's reuse of the email-hash pepper. Client: `client/src/session.ts` persistence + boot-time restore in `main.ts` (no re-verification on re-open). |
+
+### Verified against a real Postgres (this session)
+The M1 note below that "nothing DB-backed has been verified" no longer holds — `DATABASE_URL`
+points at a live Postgres with migrations 001/006 already applied.
+- **T13:** apply → rollback → re-apply cycle leaves an identical schema (4 tables, 3 enums,
+  16 indexes, 5 seed rows); 001/006 tables untouched.
+- **T12:** 14/14 endpoint checks green — exchange, `typ` separation in both directions,
+  missing/garbage credentials, ban/suspend/soft-delete revocation, sliding refresh, and no
+  identity material in any session response.
+- Both runs were **scoped**: they created and then deleted only their own rows (row counts
+  returned to 10/2/21 exactly). The truncating suites in `tests/integration` + `tests/nfr`
+  were **not** pointed at this database — they need a disposable one, and CI provides it.
+- Local: `typecheck`, `lint`, client `tsc`, and `vitest run tests/unit` (22/22) all clean.
+  Bare `npm test` still fails locally on the two DB-backed suites, which throw rather than
+  skip when `DATABASE_URL` is unset — by design (plan §5).
+
+### Fixed along the way (pre-existing, found by this work)
+- **Migration runner rollback targeted the wrong migration.** `migrate.ts down()` picked the
+  highest-*version* applied migration, not the most recently *applied* one. Since 006 was
+  applied ahead of 002, `npm run migrate:down` would have dropped `analytics_event`. It now
+  reads `schema_migrations.applied_at`.
+- **T55 NFR fixture was stale after T6 landed.** `identity-nondisclosure.test.ts` still
+  expected `2023cs1234@example-college.edu` to verify as year 2023; with the real `nitj.ac.in`
+  rule that address has no rule at all and returns 422, so `test_R1_identity_nondisclosure_A2_verified_success`
+  was failing in CI. Fixtures updated to the shipped format and re-verified (year 2024 derived;
+  `principal@nitj.ac.in` still blocks). CI now also sets `SESSION_SIGNING_KEY` — without it the
+  new config key would have failed every job at import.
+
+### Next
+- **T14** Moderation Gateway + A7 (needs **T54**, the vendor shortlist — still human-blocked).
+- **T15/T16** A3/A4 create question/answer — unblocked by T12/T13; their ban/suspend guard is
+  already satisfied by `requireSession`.
+- **T17** A5 browse feed — unblocked by T13.
+- **T18** Claude Design round 2 (human) — QuestionFeedCard, AskComposer, QuestionThread, AnswerComposer.
+- `client/src/screens/signed-in-stub.ts` is scaffolding: delete it when S5 lands.
 
 ### Config a real environment must set (see `.env.example`)
 `DATABASE_URL`, `EMAIL_HASH_PEPPER_ACTIVE` (real secret, `v1:...`), `EMAIL_ENCRYPTION_KEY`

@@ -1,4 +1,11 @@
-import { ApiCallError, confirmVerification, emitEvent, initiateVerification } from "../api";
+import {
+  ApiCallError,
+  confirmVerification,
+  emitEvent,
+  exchangeBootstrapToken,
+  initiateVerification,
+} from "../api";
+import { saveSession } from "../session";
 import { render } from "./dom";
 import { emailErrorCopy, renderEmailEntry } from "./email-entry";
 import { renderVerificationPending } from "./verification-pending";
@@ -15,7 +22,6 @@ import { renderRegistrationOutcome, type OutcomeKind } from "./registration-outc
  */
 
 const CAMPUS_DOMAIN = import.meta.env.VITE_CAMPUS_DOMAIN ?? "nitw.ac.in";
-const SESSION_KEY = "murmur.session"; // bootstrap token stored for the M2 authed shell (T12)
 
 interface FlowState {
   screen: "s1" | "s2" | "s3" | "s4";
@@ -226,10 +232,15 @@ export function mountVerificationFlow(mount: HTMLElement): void {
     try {
       const res = await confirmVerification(state.email.trim(), code);
       if (res.outcome === "verified") {
+        // A2 returns a 15-minute BOOTSTRAP token, not a session (T12 §2). Trade it for
+        // the real credential immediately and persist that. A failed exchange is not
+        // fatal to S4 — the user is verified either way; they just land signed-out and
+        // the M2 shell will send them back through sign-in.
         try {
-          localStorage.setItem(SESSION_KEY, res.sessionToken);
+          const { sessionToken, profile } = await exchangeBootstrapToken(res.sessionToken);
+          saveSession({ token: sessionToken, profile });
         } catch {
-          /* storage may be unavailable; non-fatal for the tracer */
+          /* verified but not signed in; S4 still shows the success outcome */
         }
         emitEvent("client.registration.verification_confirmed");
         state.s3Phase = "success";
