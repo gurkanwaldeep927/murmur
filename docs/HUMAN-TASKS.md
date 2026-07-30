@@ -3,7 +3,13 @@
 Living checklist of every task in `docs/07-plan.md` that Claude Code cannot do, ordered by
 how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 
-**Last updated:** 2026-07-24, after T12/T13 landed.
+**Last updated:** 2026-07-30 — human-task end-loading revision (see `docs/07-plan.md` §1,
+"Third revision note"). Audited all 13 human-owned tasks: 5 that gate nothing but the final
+T48 launch checklist (**T42, T72, T73, T74, T75**) moved out of the milestone hot path into a
+new end-of-project tier, so they stop competing with build-blocking work for your time. The
+other 8 (T6, T9, T18, T25, T30, T39, T43, T54) are unchanged — each either gates a real
+Claude Code task or carries external lead-time risk that gets worse if delayed. Previously
+updated 2026-07-24, after T12/T13 landed.
 
 ---
 
@@ -15,9 +21,14 @@ how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 | 2 | **T18** — Claude Design round 2 | T19 | 15–60 min | **Now** |
 | 3 | **T49** — staging deploy | T11 (closes M1) | 1–2 hrs | **Now** |
 | 4 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 | Weeks (external) | **Start now, finishes later** |
-| 5 | **T42** — grievance officer details | R7 AC3 — **launch-blocking** | ~1 hr | Before M5 |
-| 6 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Before M6 |
-| 7 | **T25 / T30 / T39** — design rounds 3–5 | T26, T31, T40, T41 | 15–60 min each | At each milestone |
+| 5 | **T25 / T30 / T39** — design rounds 3–5 | T26, T31, T40, T41 | 15–60 min each | At each milestone |
+| 6 | **T42** — grievance officer details | R7 AC3 — launch-blocking, **but only at T48/M6** | ~1 hr | Anytime before M6 |
+| 7 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Anytime before M6 |
+
+*(T42 and T72–T75 moved out of the milestone hot path on 2026-07-30 — see note above. Nothing
+in M2–M5 depends on their content, so there's no reason to context-switch to them until you're
+clearing the M6 launch checklist. T25/T30/T39 stayed in the "at each milestone" tier because
+T26/T31/T40/T41 genuinely can't integrate without them.)*
 
 **I am not idle while you do these.** Startable today without you: **T17** (browse feed),
 **T60** (security gate), **T61** (privacy gate). Say the word and I'll take those next.
@@ -208,9 +219,35 @@ The confirmed SLA numbers, the consent copy, and the retention period. I wire th
 
 ---
 
-# TIER 3 — before their milestone
+# TIER 3 — before their milestone (structural — keep doing these as scheduled)
 
-## 5. T42 — Grievance officer details (launch-blocking for R7 AC3)
+## 5. T25 / T30 / T39 — Claude Design rounds 3–5
+
+Same shape as T18. If all 17 screens are already in the design project, these are copies.
+
+| Task | Milestone | Prompts | Components |
+|---|---|---|---|
+| T25 | M3 | §3.9–§3.11 | SearchPanel, TopicBrowseList, ProfileCard |
+| T30 | M4 | §3.12 | SyncStatusList |
+| T39 | M5 | §3.13–§3.17 | ReportContentModal, MyReportsList, GrievanceContactPanel, EscalationQueueTable, GrievanceResolutionPanel |
+
+Components go in `client/src/components/`; I integrate from `client/src/screens/`.
+
+**Why this stays here and doesn't move to the end:** T26/T31/T40/T41 (the M3–M5 UI
+integration tasks) cannot wire screens that don't exist yet. Per RR-18 you can actually run
+all of T25/T30/T39 *earlier* than shown — the moment T9 lands — since none of them depend on
+anything but T9. Deferring them later than their milestone would stall that milestone's UI
+integration, which is the opposite of what this revision is for.
+
+---
+
+# TIER 4 — anytime before the M6 launch gate (deferred here on 2026-07-30)
+
+Nothing below blocks any Claude Code build task. They only feed the T48 GO/NO-GO checklist,
+so batch them whenever is convenient — the natural moment is once M5 is substantially done and
+before T48 runs.
+
+## 6. T42 — Grievance officer details (launch-blocking for R7 AC3)
 
 IT Rules require a **named, reachable grievance officer**. This is a real person with a real
 email and phone, published in-app on S15.
@@ -227,7 +264,7 @@ email and phone, published in-app on S15.
 Until this lands the app ships placeholder copy, which is fine for staging and **not** fine for
 launch.
 
-## 6. T72–T75 — Four runbooks
+## 7. T72–T75 — Four runbooks
 
 Each has `[HUMAN:` markers to fill. T48 (the final GO/NO-GO gate) checks that **no `[HUMAN:`
 markers remain** — they're launch-blocking in aggregate.
@@ -255,18 +292,6 @@ markers remain** — they're launch-blocking in aggregate.
 
 > The T75 runbook flags something worth reading: the notification channel *is* the PII. If email
 > is what leaked, counsel must confirm an acceptable alternative channel.
-
-## 7. T25 / T30 / T39 — Claude Design rounds 3–5
-
-Same shape as T18. If all 17 screens are already in the design project, these are copies.
-
-| Task | Milestone | Prompts | Components |
-|---|---|---|---|
-| T25 | M3 | §3.9–§3.11 | SearchPanel, TopicBrowseList, ProfileCard |
-| T30 | M4 | §3.12 | SyncStatusList |
-| T39 | M5 | §3.13–§3.17 | ReportContentModal, MyReportsList, GrievanceContactPanel, EscalationQueueTable, GrievanceResolutionPanel |
-
-Components go in `client/src/components/`; I integrate from `client/src/screens/`.
 
 ---
 
