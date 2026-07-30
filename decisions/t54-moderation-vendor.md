@@ -1,10 +1,24 @@
 # T54 — AI-moderation vendor shortlist: IN PROGRESS
 
-Status: **open — blocking T14** (and therefore T15 → T16 → T19 → T56, plus the T73 runbook).
+Status: **open — no longer blocking any build task** (changed 2026-07-30). Milestone: **M6**.
 Owner: human/engineering. Started 2026-07-24.
 
 Sizes **RR-9** ("AI-moderation cost per active user unsized in rupees") and answers PRD
-**OQ-3**. The plan wants this settled *before* T14 picks a provider, not during it.
+**OQ-3**. The plan wants this settled *before* a provider is bound, not during it.
+
+> **Re-scoped 2026-07-30 — `docs/07-plan.md` fourth revision.** T14 was split. **T14a**
+> (built at M2) is the provider-agnostic gateway: the A7 port, tiered routing, the
+> `moderation_case` lifecycle, the fail-closed hold posture, and the retry/escalate worker —
+> none of which needed a vendor name. **T14b** (M6) is the adapter that binds the vendors
+> chosen here onto that port. So this decision no longer gates T15/T16/T19/T56; it gates
+> **T14b**, **T64** (adversarial probe of the live provider), **T73** (outage runbook), and
+> through them **T48**.
+>
+> **What still argues for doing it early:** with no provider bound, the hold-all default holds
+> every question and answer and publishes nothing outside the test suite. That is R6's
+> fail-closed posture behaving correctly — but it means real-classifier accuracy, the
+> `FP(must_pass)` disqualifier below, and per-item cost all stay unmeasured until M6
+> (**RR-21**). Everything below is unchanged and still ~30 minutes.
 
 ---
 

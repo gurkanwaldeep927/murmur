@@ -18,8 +18,10 @@
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
-    "test:nfr": "vitest run tests/nfr"
+    "test:nfr": "vitest run tests/nfr",
+    "sql:check": "tsx scripts/sql-explain-check.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

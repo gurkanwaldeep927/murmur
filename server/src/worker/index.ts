@@ -1,22 +1,21 @@
 import { logger } from "../shared/logger.js";
 import { closePool } from "../db/pool.js";
+import { moderationRetryJob } from "../modules/moderation/moderation-retry.job.js";
 
 /**
  * Background worker process (architecture §5). Runs the async/retry jobs the API must
  * not do inline. Jobs land as their milestones do:
- *   - moderation-retry.job.ts        (T14, M2)  — fail-closed moderation retry/escalate
+ *   - moderation-retry.job.ts        (T14a, M2) — fail-closed moderation retry/escalate ✓
  *   - grievance-sla.job.ts           (T38, M5)  — acknowledgement + resolution SLA timers
  *   - sync-reconciliation.job.ts     (T32, M4)  — no sync item stuck non-terminal
  *
- * M1 has no scheduled jobs; this skeleton exists so the two-process shape (api + worker)
- * is established from the tracer and later jobs plug in without restructuring.
+ * The two-process shape (api + worker) was established at M1 with no jobs, so later
+ * jobs plug in without restructuring — which is what M2's first job is doing here.
  */
 
 type Job = { name: string; intervalMs: number; run: () => Promise<void> };
 
-const jobs: Job[] = [
-  // Registered by later milestones. Empty at M1 by design.
-];
+const jobs: Job[] = [moderationRetryJob];
 
 const timers: NodeJS.Timeout[] = [];
 
