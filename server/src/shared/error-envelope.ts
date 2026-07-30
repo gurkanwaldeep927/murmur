@@ -29,7 +29,12 @@ export type ErrorCode =
   | "session_required"
   | "session_invalid_or_expired"
   | "account_suspended"
-  | "account_banned";
+  | "account_banned"
+  // A3 / A4 (content). Note `blocked` is NOT an error: A3/A4 return the resource
+  // with its moderation status, per TRD apis[A3].outputs.
+  | "topic_invalid"
+  | "parent_question_not_found"
+  | "idempotency_key_conflict";
 
 export class AppError extends Error {
   readonly status: number;
@@ -64,6 +69,19 @@ export const errors = {
     new AppError(403, "account_suspended", message),
   accountBanned: (message = "Your account has been removed.") =>
     new AppError(403, "account_banned", message),
+
+  // A3 / A4 (T15/T16).
+  topicInvalid: (message = "Pick one of the available topics.") =>
+    new AppError(400, "topic_invalid", message),
+  parentQuestionNotFound: (message = "That question is no longer available.") =>
+    new AppError(404, "parent_question_not_found", message),
+  /**
+   * The same idempotency key was replayed against a *different* payload or a
+   * different author. A true replay (same key, same author) is not an error — it
+   * returns the original resource (TRD apis[A3].errors "idempotent replay").
+   */
+  idempotencyKeyConflict: (message = "This submission conflicts with an earlier one.") =>
+    new AppError(409, "idempotency_key_conflict", message),
 };
 
 export function sendError(res: Response, err: AppError): void {

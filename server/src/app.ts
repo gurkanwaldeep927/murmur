@@ -5,6 +5,7 @@ import { AppError, sendError, errors } from "./shared/error-envelope.js";
 import { identityRouter } from "./modules/identity/identity.routes.js";
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { sessionRouter } from "./modules/session/session.routes.js";
+import { contentRouter } from "./modules/content/content.routes.js";
 import { pool } from "./db/pool.js";
 
 /**
@@ -33,6 +34,8 @@ export function createApp() {
 
   // M2 — session mechanism behind the authenticated shell (T12, OQ-14).
   app.use(sessionRouter);
+  // M2 — Q&A core behind the T14a moderation gateway (T15 A3, T16 A4, T17 A5-browse).
+  app.use(contentRouter);
 
   // 404 fallback.
   app.use((_req, _res, next) => next(errors.notFound("Route not found")));

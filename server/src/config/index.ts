@@ -65,6 +65,22 @@ export const config = {
   verificationResendCooldownSeconds: intOpt("VERIFICATION_RESEND_COOLDOWN_SECONDS", 60),
   verificationMaxAttemptsPerWindow: intOpt("VERIFICATION_MAX_ATTEMPTS_PER_WINDOW", 5),
   verificationRateWindowMinutes: intOpt("VERIFICATION_RATE_WINDOW_MINUTES", 60),
+
+  // T14a — Moderation Gateway. Deliberately DEFAULTS TO EMPTY.
+  //
+  // Empty means "no provider configured", which resolves to the hold-all adapter:
+  // every UGC item is held `pending` and nothing publishes. That is not a placeholder
+  // to be filled in before this code is safe to run — it is R6's fail-closed posture
+  // (TRD §8, apis[A7] errors) taking its normal path with an unreachable provider.
+  // T14b (M6) sets these once T54 picks the vendors; until then the safe value is "".
+  moderationProvider: optional("MODERATION_PROVIDER", ""),
+  moderationProviderTier2: optional("MODERATION_PROVIDER_TIER2", ""),
+  moderationTimeoutMs: intOpt("MODERATION_TIMEOUT_MS", 5_000),
+  // Bounded backoff, then auto-route to the Human Escalation Queue — never publish,
+  // never drop (TRD apis[A7] failure posture; plan §5 external-signal rule).
+  moderationMaxAttempts: intOpt("MODERATION_MAX_ATTEMPTS", 5),
+  moderationRetryBackoffSeconds: intOpt("MODERATION_RETRY_BACKOFF_SECONDS", 30),
+  moderationRetryIntervalSeconds: intOpt("MODERATION_RETRY_INTERVAL_SECONDS", 60),
 } as const;
 
 export type Config = typeof config;
