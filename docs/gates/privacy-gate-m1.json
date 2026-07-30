@@ -1,0 +1,98 @@
+{
+  "_note": "Agent-written gate record for the stage-16 privacy gate, M1 run (T61). Not a human-approval file — the only human-owned gate file in this folder is taste-gate.json. Waivers are human-created files under .pipeline/waivers/<finding-id>.json and are never self-granted by an agent.",
+  "gate": "privacy",
+  "stage": 16,
+  "agent": "privacy-agent",
+  "task": "T61",
+  "milestone": "M1",
+  "run_number": 1,
+  "run_date": "2026-07-30",
+  "mode": "warn-only",
+  "mode_authority": "DECISION QK-7; quality-kit-additions/cadence.md §2 (M1 row) and §3 promotion mechanic (first-ever run is warn-only; second run at M5/T70 is blocking)",
+  "blocks_milestone_exit": false,
+  "gate_rule": "pass requires counts.critical==0 and counts.high==0 (unwaived)",
+  "status": "fail",
+  "status_note": "Objective application of the gate rule: 8 unwaived high findings. Warn-only, so M1 exit is NOT blocked — findings become the M2-entry fix list per cadence.md §2. No critical finding was found, so the §3 immediate-escalation exception did not trigger.",
+  "counts": { "critical": 0, "high": 8, "medium": 7, "low": 3 },
+  "waivers_cited": [],
+  "waivers_available": "none — .pipeline/waivers/ contains no files",
+  "phase_0_gate": {
+    "plan_handoff_validates": true,
+    "plan_handoff_sha256": "78cb95758b9dacd9f30c491fba071772d5b8ce7f93d37aa57c16bbd2ea645997",
+    "schema_handoff_readable": true,
+    "schema_handoff_sha256": "b7ed682856059cb7de647649666da43d58f6261b53b0de735fe2604c47d567fb",
+    "codebase_present": true,
+    "skill_readable": true
+  },
+  "scope": {
+    "in": [
+      "PII inventory over migration 001 (identity_account, pseudonymous_profile), extended to every table named in the schema handoff so none is skipped",
+      "Leakage baseline: API responses (A1/A2, session, content), logs (shared/logger.ts + all logger.* call sites), analytics (analytics_event.metadata)",
+      "Existence checks: breach-notification runbook, documented legal-basis note"
+    ],
+    "out": [
+      "Retention enforcement execution — T70 (M5)",
+      "Erasure path execution — T70 (M5)",
+      "Consent copy and retention duration — T43 (human/legal), recorded not resolved",
+      "Grievance PII (migrations 003–005 absent) — T70"
+    ]
+  },
+  "execution_environment": {
+    "database_reachable": false,
+    "database_evidence": "DATABASE_URL host db.yinckproedjodpbvzdhb.supabase.co — IPv4 lookup ENOTFOUND, IPv6 lookup ENOENT (DNS-only probe, no connection attempted)",
+    "method": "static analysis plus locally-executed probes; no database was read or written",
+    "truncating_suites_run": false,
+    "truncating_suites_note": "tests/integration/* and tests/nfr/* were deliberately NOT run — they TRUNCATE a live instance holding real user data. The guard in tests/helpers/test-db.ts was not bypassed.",
+    "commands_executed": [
+      "npx vitest run tests/unit  -> 4 files, 35/35 passed (also the live pino-http log-capture source)",
+      "node -e pino redaction probe (PROBE-A/B/C) — no DB",
+      "node -e DNS-only reachability probe — no connection",
+      "python jsonschema validation of the plan handoff and of this stage's own handoff",
+      "grep sweeps: retention/erasure mechanism existence, logger call sites, consent, legal basis, [HUMAN: markers"
+    ]
+  },
+  "checks": [
+    { "check": "retention_enforcement", "executed": false, "verdict": "blocked", "blocking_oq": "OQ-PRV-3" },
+    { "check": "consent_presence", "executed": true, "verdict": "finding" },
+    { "check": "erasure_vs_ban", "executed": false, "verdict": "finding", "blocking_oq": "OQ-PRV-3" },
+    { "check": "leak_responses", "executed": true, "verdict": "finding" },
+    { "check": "leak_logs", "executed": true, "verdict": "finding" },
+    { "check": "leak_analytics", "executed": true, "verdict": "finding" },
+    { "check": "third_party_flows", "executed": true, "verdict": "finding" },
+    { "check": "breach_runbook_exists", "executed": true, "verdict": "finding" }
+  ],
+  "high_findings": [
+    { "id": "PRV-1", "category": "retention_enforcement", "summary": "No retention or deletion mechanism of any kind exists; deleted_at is read but never written" },
+    { "id": "PRV-2", "category": "erasure_vs_ban", "summary": "The only erasure path hard-deletes (schema §6 says soft) and, pre-ban_record, erases the ban along with the user" },
+    { "id": "PRV-3", "category": "legal_basis_missing", "summary": "No documented legal-basis note for ban_record.email_hash survival or any retained PII — owner human/legal" },
+    { "id": "PRV-4", "category": "consent_presence", "summary": "No DPDP consent notice and no capture record (no column, no event) anywhere in the flow or data model" },
+    { "id": "PRV-5", "category": "leak_logs", "summary": "Every request logs req.headers.authorization (live session token), cookie, and client IP — uncovered by the redact list" },
+    { "id": "PRV-6", "category": "leak_logs", "summary": "EMAIL_PROVIDER defaults to console → raw email + live OTP to stdout, bypassing pino redaction" },
+    { "id": "PRV-7", "category": "leak_analytics", "summary": "A12 POST /events is unauthenticated and accepts arbitrary metadata into a never-deleted table" },
+    { "id": "PRV-8", "category": "breach_runbook", "summary": "runbooks/dpdp-breach-notification.md is placeholder — 5 [HUMAN: markers, no owner, no clock" }
+  ],
+  "blocking_open_questions": [
+    { "id": "OQ-PRV-1", "owner": "human/legal", "ref": "RR-10 (docs/07-plan.md §6), T43" },
+    { "id": "OQ-PRV-2", "owner": "human/legal", "ref": "T43 items 2–4 (docs/HUMAN-TASKS.md:160-163)" },
+    { "id": "OQ-PRV-3", "owner": "engineering", "ref": "No ephemeral test DB; live instance unreachable — retention/erasure execution deferred to T70" }
+  ],
+  "risk_register_trace": ["RR-10"],
+  "next_run": {
+    "task": "T70",
+    "milestone": "M5",
+    "mode": "blocking",
+    "depends_on": ["T43", "T33", "T34", "T35", "T61"],
+    "must_execute": [
+      "Retention deletion against an ephemeral DB using the T43 duration",
+      "Erasure path end-to-end: PII gone, ban_record.email_hash survives, legal-basis note exists",
+      "Stored analytics_event.metadata inspection after firing T45/T51–T53 events",
+      "Captured real A7 moderation request once a provider is bound (T14b)",
+      "Full leakage sweep across operator routes S16/S17"
+    ]
+  },
+  "artifacts": {
+    "report": "docs/16-privacy.md",
+    "handoff_schema": ".claude/schemas/handoff-privacy.schema.json",
+    "handoff_validates": true
+  }
+}

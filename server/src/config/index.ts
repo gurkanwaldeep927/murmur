@@ -13,6 +13,38 @@ function required(name: string): string {
   return v;
 }
 
+/**
+ * Placeholder fragments shipped in `.env.example`. A secret containing one of these was
+ * copied from the sample and never changed.
+ *
+ * This guard exists because that is exactly what happened (T60 security gate,
+ * OQ-SEC-01): `EMAIL_HASH_PEPPER_ACTIVE` ran as the literal
+ * `v1:change-me-in-every-real-environment` — a value published in git — so every
+ * `identity_account.email_hash` was computed with a pepper any reader of the repo knows.
+ * Campus addresses are low-entropy, so that reduces the keyed HMAC to a confirmation
+ * oracle against the product's core anonymity promise (RR-7 / RR-13).
+ *
+ * A comment saying "change me" demonstrably does not prevent this; refusing to boot does.
+ * Tests are exempt — they set their own obvious fixtures.
+ */
+const PLACEHOLDER_MARKERS = ["change-me", "changeme", "your-secret", "example-secret"];
+
+function requiredSecret(name: string): string {
+  const v = required(name);
+  if (process.env.NODE_ENV === "test") return v;
+  const lowered = v.toLowerCase();
+  const hit = PLACEHOLDER_MARKERS.find((m) => lowered.includes(m));
+  if (hit) {
+    throw new Error(
+      `${name} is still set to the placeholder from .env.example (contains "${hit}"). ` +
+        `Generate a real value:\n` +
+        `  node -e "console.log('v1:'+require('crypto').randomBytes(32).toString('base64url'))"\n` +
+        `Refusing to start: this secret keys identity hashing, and a known value defeats it.`,
+    );
+  }
+  return v;
+}
+
 function optional(name: string, fallback: string): string {
   const v = process.env[name];
   return v === undefined || v === "" ? fallback : v;
@@ -34,14 +66,14 @@ export const config = {
   databaseUrl: required("DATABASE_URL"),
 
   // T50 — shared email-hash pepper (versioned for rotation, RR-13).
-  emailHashPepperActive: required("EMAIL_HASH_PEPPER_ACTIVE"),
+  emailHashPepperActive: requiredSecret("EMAIL_HASH_PEPPER_ACTIVE"),
   emailHashPepperRetired: optional("EMAIL_HASH_PEPPER_RETIRED", ""),
   emailEncryptionKey: optional("EMAIL_ENCRYPTION_KEY", ""),
 
   // T12 — session signing (decisions/oq-14-session-mechanism.md §5). Versioned
   // `v<n>:<secret>` like the email pepper so keys rotate without logging users out.
   // Deliberately NOT the email-hash pepper: separate security domains.
-  sessionSigningKey: required("SESSION_SIGNING_KEY"),
+  sessionSigningKey: requiredSecret("SESSION_SIGNING_KEY"),
   sessionSigningKeyRetired: optional("SESSION_SIGNING_KEY_RETIRED", ""),
   sessionTtlDays: intOpt("SESSION_TTL_DAYS", 30),
   sessionRefreshAfterDays: intOpt("SESSION_REFRESH_AFTER_DAYS", 7),

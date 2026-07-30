@@ -1,7 +1,12 @@
 import { config } from "../../config/index.js";
 import { pool, withTransaction } from "../../db/pool.js";
 import { AppError } from "../../shared/error-envelope.js";
-import { hashNormalizedEmail, isCampusDomain, normalizeEmail } from "../../shared/email-identity.js";
+import {
+  candidateHashes,
+  hashNormalizedEmail,
+  isCampusDomain,
+  normalizeEmail,
+} from "../../shared/email-identity.js";
 import { encryptEmail } from "../../shared/email-encryption.js";
 import { issueBootstrapToken } from "../../shared/session.js";
 import { logger } from "../../shared/logger.js";
@@ -42,8 +47,11 @@ export async function initiateVerification(rawEmail: string): Promise<InitiateRe
     );
   }
 
+  // Write with the ACTIVE pepper; look up against active + retired (RR-13). An
+  // active-only lookup would stop recognising existing accounts the instant the
+  // pepper rotates, letting a registered student register again (RR-7).
   const emailHash = hashNormalizedEmail(normalized.normalized);
-  const existing = await repo.findByEmailHash(pool, emailHash);
+  const existing = await repo.findByAnyEmailHash(pool, candidateHashes(normalized.normalized));
   const otp = generateOtp();
   const tokenHash = hashToken(otp);
   const expiresAt = tokenExpiry();
@@ -128,10 +136,16 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
   if (!normalized) {
     throw new AppError(400, "email_malformed", "That doesn't look like a valid email address.");
   }
-  const emailHash = hashNormalizedEmail(normalized.normalized);
-
   return withTransaction(async (client) => {
-    const account = await repo.findByEmailHash(client, emailHash);
+    // Rotation-safe (RR-13) — see the note in initiateVerification. A2 only reads the
+    // account here, so it needs no active-pepper hash of its own.
+    //
+    // Deliberately NOT done here: lazily re-hashing a matched `v1$…` row up to the
+    // active pepper. That is how a dual-hash rollout converges so the retired pepper can
+    // eventually be dropped, but the rollout thresholds are human-owned and unfilled
+    // (T72, runbooks/pepper-rotation.md). Until they are, every row stays readable via
+    // candidateHashes and nothing is lost by waiting.
+    const account = await repo.findByAnyEmailHash(client, candidateHashes(normalized.normalized));
 
     // No account, already-consumed token, or bad/expired token → uniform invalid response.
     if (!account || account.verification_status !== "pending") {

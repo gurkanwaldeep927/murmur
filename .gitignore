@@ -10,3 +10,7 @@ coverage/
 *.zip
 # Rescue copy of hooks created to unblock a stuck shell (see .claude/settings.json)
 client/.claude/
+
+# Byte-compiled artifacts from the repo's own pipeline hooks
+__pycache__/
+*.pyc
