@@ -3,13 +3,16 @@
 Living checklist of every task in `docs/07-plan.md` that Claude Code cannot do, ordered by
 how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 
-**Last updated:** 2026-07-30 — human-task end-loading revision (see `docs/07-plan.md` §1,
-"Third revision note"). Audited all 13 human-owned tasks: 5 that gate nothing but the final
-T48 launch checklist (**T42, T72, T73, T74, T75**) moved out of the milestone hot path into a
-new end-of-project tier, so they stop competing with build-blocking work for your time. The
-other 8 (T6, T9, T18, T25, T30, T39, T43, T54) are unchanged — each either gates a real
-Claude Code task or carries external lead-time risk that gets worse if delayed. Previously
-updated 2026-07-24, after T12/T13 landed.
+**Last updated:** 2026-07-30 — **moderation end-loading** (fourth revision, `docs/07-plan.md`
+§1), on top of the same day's human-task end-loading (third revision). **T54 (the moderation
+vendor decision) is no longer blocking anything and has moved to Tier 4.** It used to be the
+single biggest lever here; it isn't any more, because T14 was split: the gateway (**T14a**) is
+provider-agnostic and I build it now, and only the provider binding (**T14b**, M6) needs your
+vendor choice. Six tasks that were queued behind you are now queued behind me instead.
+
+Earlier that day, 5 tasks that gate nothing but the T48 launch checklist (**T42, T72–T75**)
+moved to Tier 4. The 7 remaining load-bearing tasks (T6, T9, T18, T25, T30, T39, T43) are
+unchanged. Previously updated 2026-07-24, after T12/T13 landed.
 
 ---
 
@@ -17,86 +20,32 @@ updated 2026-07-24, after T12/T13 landed.
 
 | # | Task | Blocks | Your time | When |
 |---|---|---|---|---|
-| 1 | **T54** — moderation vendor | T14 → T15 → T16 → T19 → T56, T73 | ~30 min | **Now** |
-| 2 | **T18** — Claude Design round 2 | T19 | 15–60 min | **Now** |
-| 3 | **T49** — staging deploy | T11 (closes M1) | 1–2 hrs | **Now** |
-| 4 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 | Weeks (external) | **Start now, finishes later** |
-| 5 | **T25 / T30 / T39** — design rounds 3–5 | T26, T31, T40, T41 | 15–60 min each | At each milestone |
+| 1 | **T18** — Claude Design round 2 | T19 | 15–60 min | **Now** |
+| 2 | **T49** — staging deploy | T11 (closes M1) | 1–2 hrs | **Now** |
+| 3 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 | Weeks (external) | **Start now, finishes later** |
+| 4 | **T25 / T30 / T39** — design rounds 3–5 | T26, T31, T40, T41 | 15–60 min each | At each milestone |
+| 5 | **T54** — moderation vendor | T14b, T64, T73 — all M6 | ~30 min | Anytime before M6 |
 | 6 | **T42** — grievance officer details | R7 AC3 — launch-blocking, **but only at T48/M6** | ~1 hr | Anytime before M6 |
 | 7 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Anytime before M6 |
 
-*(T42 and T72–T75 moved out of the milestone hot path on 2026-07-30 — see note above. Nothing
-in M2–M5 depends on their content, so there's no reason to context-switch to them until you're
-clearing the M6 launch checklist. T25/T30/T39 stayed in the "at each milestone" tier because
-T26/T31/T40/T41 genuinely can't integrate without them.)*
+*(T54 dropped from #1 to #5 on 2026-07-30 — the T14a/T14b split removed the dependency instead
+of deferring it. T42 and T72–T75 moved out of the hot path the same day. T25/T30/T39 stayed in
+the "at each milestone" tier because T26/T31/T40/T41 genuinely can't integrate without them.)*
 
-**I am not idle while you do these.** Startable today without you: **T17** (browse feed),
-**T60** (security gate), **T61** (privacy gate). Say the word and I'll take those next.
+**What this costs you to know:** until T54 + T14b land at M6, Murmur holds every question and
+answer for moderation and publishes nothing outside the test suite. That is R6's fail-closed
+posture working correctly, not a bug — but it does mean you won't see a post go live on
+staging until you pick a vendor. Running T54 early un-does that at any time. See **RR-21**.
+
+**I am not idle while you do these.** Now unblocked and being built: **T14a** (moderation
+gateway), **T15** (A3 create question), **T16** (A4 create answer), **T17** (A5 browse feed),
+**T56** (moderation NFR tests). Still queued: **T60** (security gate), **T61** (privacy gate).
 
 ---
 
 # TIER 1 — do these now
 
-## 1. T54 — AI-moderation vendor shortlist ⚠️ biggest lever
-
-**Why it blocks:** T14 builds the moderation gateway around a *chosen* provider. Everything
-that publishes content (T15 create-question, T16 create-answer, T19 integration, T56 tests)
-sits behind it. Six tasks, one decision.
-
-**Full instructions + results table:** `decisions/t54-moderation-vendor.md`
-**Harness (already built):** `spikes/t54-moderation/`
-
-### Steps
-
-**a. OpenAI — tier-1 candidate (~10 min)**
-1. Sign in at <https://platform.openai.com>
-2. **API keys → Create new secret key**, name it `murmur-t54-spike`
-3. Add to `.env`: `OPENAI_API_KEY=sk-...`
-4. Note your rate limits under **Settings → Limits** — tier 1 sits in the publish path, so a
-   low RPM cap is a real constraint. Record it in the decision doc.
-
-**b. Azure AI Content Safety — tier-2 candidate (~20 min)**
-1. Create a free account at <https://azure.microsoft.com/free> (card needed for identity
-   verification only; the F0 tier is free)
-2. **Create a resource → Content Safety → Create**
-3. Region: **Central India** or Southeast Asia — latency matters, this call is synchronous
-4. Pricing tier: **F0 (free)** — 5,000 text records/month, plenty for the spike
-5. From **Keys and Endpoint**, add to `.env`:
-   ```
-   AZURE_CONTENT_SAFETY_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com
-   AZURE_CONTENT_SAFETY_KEY=<key1>
-   ```
-
-**c. Run the spike (~1 min)**
-```bash
-npx tsx spikes/t54-moderation/run-spike.ts
-```
-
-**d. Read the scorecard in this order**
-1. **`FP(must_pass)`** — false positives on frank senior advice. Two fixtures are deliberately
-   harsh criticism of a professor and of the placement cell. **They must pass.** Murmur's whole
-   value is honest talk; a provider that censors it is disqualified as tier 1 at any price.
-2. **`hinglish`** — NITJ posts will be code-mixed Hindi/Punjabi-English. English-trained
-   classifiers fail *both* ways on it: under-blocking real abuse and over-blocking normal posts.
-3. **`miss(block)` / `miss(esc)`** — under-blocking. Less fatal (tier 2 + user reports catch it),
-   but self-harm or ragging reaching `pass` is serious.
-4. **`p50ms`** — synchronous, in the publish path.
-5. **`INR/mo`** — only compare among providers that cleared #1.
-
-**e. Fill in the results table** in `decisions/t54-moderation-vendor.md`, set Status to
-RESOLVED, and tell me.
-
-### ⚠️ Already-found landmine
-**Google Perspective API is disqualified** — it sunsets **31 Dec 2026**, hard deadline, no
-migration path, and quota-increase requests stopped in Feb 2026. It was the obvious free
-tier-1 pick. Verify sunset status for any vendor you add.
-
-### Send me
-Vendor names for tier 1 + tier 2, the scorecard output, and the rate limits. Then I build T14.
-
----
-
-## 2. T18 — Claude Design round 2
+## 1. T18 — Claude Design round 2
 
 **Why it blocks:** T19 integrates the M2 screens. Needed: **QuestionFeedCard, AskComposer,
 QuestionThread, AnswerComposer** (S5–S8).
@@ -130,7 +79,7 @@ Either the project UUID, or the four files in place.
 
 ---
 
-## 3. T49 — Staging deployment
+## 2. T49 — Staging deployment
 
 **Why it blocks:** T11 (the tracer demo on a real phone with a real email) is the **last M1
 task**. Closing it takes M1 from 73% to done.
@@ -199,7 +148,7 @@ The staging API URL and client URL. Then I run T11 and M1 is closed.
 
 # TIER 2 — start now, finishes later
 
-## 4. T43 — Legal review (IT Rules 2021 + DPDP) 🕐 long lead time
+## 3. T43 — Legal review (IT Rules 2021 + DPDP) 🕐 long lead time
 
 **Start this now even though it's M5.** Engaging counsel takes weeks, and it blocks five tasks
 (T34, T35, T42, T75, T70). It is the single longest-lead item in the project.
@@ -221,7 +170,7 @@ The confirmed SLA numbers, the consent copy, and the retention period. I wire th
 
 # TIER 3 — before their milestone (structural — keep doing these as scheduled)
 
-## 5. T25 / T30 / T39 — Claude Design rounds 3–5
+## 4. T25 / T30 / T39 — Claude Design rounds 3–5
 
 Same shape as T18. If all 17 screens are already in the design project, these are copies.
 
@@ -246,6 +195,85 @@ integration, which is the opposite of what this revision is for.
 Nothing below blocks any Claude Code build task. They only feed the T48 GO/NO-GO checklist,
 so batch them whenever is convenient — the natural moment is once M5 is substantially done and
 before T48 runs.
+
+**T54 is the exception worth reading.** It qualifies for this tier on the same test as the
+others (it blocks no build task), but unlike the others it has a real cost to deferring: no
+content publishes until it lands, and vendor risk stays undiscovered. It's ~30 minutes. Doing
+it in any idle moment before M6 is strictly better than doing it at M6.
+
+## 5. T54 — AI-moderation vendor shortlist
+
+**No longer blocking** (changed 2026-07-30, `docs/07-plan.md` fourth revision). It used to
+gate six tasks: T14 built the gateway *around* a chosen provider, and everything that
+publishes content sat behind it. T14 is now split — **T14a** is the provider-agnostic gateway
+(port, tiered routing, `moderation_case` lifecycle, fail-closed hold, retry worker) and I
+build it without a vendor; **T14b** is just the adapter that binds your chosen providers to
+that port. So T15/T16/T19/T56 no longer wait on you.
+
+**What it still gates, all at M6:** **T14b** (provider binding), **T64** (adversarial probe of
+the live provider), **T73** (the outage runbook, whose provider-switch criteria are meaningless
+before a provider exists), and therefore **T48**, the GO/NO-GO gate.
+
+**Why doing it early is still better:** until it lands, nothing publishes outside the test
+suite (fail-closed default), the per-item cost stays unsized (**RR-9**), and any vendor you
+would have rejected on the `FP(must_pass)` disqualifier gets discovered at the last milestone
+instead of the first (**RR-21**). Nothing forces you to wait — this is a ~30-minute task whose
+deadline is now M6 rather than today.
+
+**Full instructions + results table:** `decisions/t54-moderation-vendor.md`
+**Harness (already built):** `spikes/t54-moderation/`
+
+### Steps
+
+**a. OpenAI — tier-1 candidate (~10 min)**
+1. Sign in at <https://platform.openai.com>
+2. **API keys → Create new secret key**, name it `murmur-t54-spike`
+3. Add to `.env`: `OPENAI_API_KEY=sk-...`
+4. Note your rate limits under **Settings → Limits** — tier 1 sits in the publish path, so a
+   low RPM cap is a real constraint. Record it in the decision doc.
+
+**b. Azure AI Content Safety — tier-2 candidate (~20 min)**
+1. Create a free account at <https://azure.microsoft.com/free> (card needed for identity
+   verification only; the F0 tier is free)
+2. **Create a resource → Content Safety → Create**
+3. Region: **Central India** or Southeast Asia — latency matters, this call is synchronous
+4. Pricing tier: **F0 (free)** — 5,000 text records/month, plenty for the spike
+5. From **Keys and Endpoint**, add to `.env`:
+   ```
+   AZURE_CONTENT_SAFETY_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com
+   AZURE_CONTENT_SAFETY_KEY=<key1>
+   ```
+
+**c. Run the spike (~1 min)**
+```bash
+npx tsx spikes/t54-moderation/run-spike.ts
+```
+
+**d. Read the scorecard in this order**
+1. **`FP(must_pass)`** — false positives on frank senior advice. Two fixtures are deliberately
+   harsh criticism of a professor and of the placement cell. **They must pass.** Murmur's whole
+   value is honest talk; a provider that censors it is disqualified as tier 1 at any price.
+2. **`hinglish`** — NITJ posts will be code-mixed Hindi/Punjabi-English. English-trained
+   classifiers fail *both* ways on it: under-blocking real abuse and over-blocking normal posts.
+3. **`miss(block)` / `miss(esc)`** — under-blocking. Less fatal (tier 2 + user reports catch it),
+   but self-harm or ragging reaching `pass` is serious.
+4. **`p50ms`** — synchronous, in the publish path.
+5. **`INR/mo`** — only compare among providers that cleared #1.
+
+**e. Fill in the results table** in `decisions/t54-moderation-vendor.md`, set Status to
+RESOLVED, and tell me.
+
+### ⚠️ Already-found landmine
+**Google Perspective API is disqualified** — it sunsets **31 Dec 2026**, hard deadline, no
+migration path, and quota-increase requests stopped in Feb 2026. It was the obvious free
+tier-1 pick. Verify sunset status for any vendor you add.
+
+### Send me
+Vendor names for tier 1 + tier 2, the scorecard output, and the rate limits. Then I build T14.
+
+---
+
+---
 
 ## 6. T42 — Grievance officer details (launch-blocking for R7 AC3)
 
@@ -304,9 +332,13 @@ running against staging. I inspect the responses for identity leakage. Needs T49
 
 ## What I'll build meanwhile
 
-Nothing above blocks all of my work. Unblocked right now:
+Nothing above blocks any of my work now. In progress or unblocked:
 
-- **T17** — A5 browse feed (published-questions query powering S5). Needs only T13, which landed.
+- **T14a** — moderation gateway, provider-agnostic. The A7 port, tiered routing,
+  `moderation_case` lifecycle, fail-closed hold-all default, retry/escalate worker.
+- **T15 / T16** — A3 create-question and A4 create-answer, both behind the gateway.
+- **T17** — A5 browse feed (published-questions query powering S5).
+- **T56** — moderation-coverage + outage-drill NFR tests.
 - **T60** — security-agent gate over A1/A2/T50/T12 (warn-only, was due at M1)
 - **T61** — privacy-agent gate: PII inventory + leakage baseline (warn-only, was due at M1)
 
