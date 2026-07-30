@@ -1,0 +1,116 @@
+{
+  "_note": "Gate record for plan task T63 (resilience-agent, first run). Written by chaos-resilience-agent. The authoritative findings document is docs/14-resilience.md; this file is the machine-readable gate outcome. Waivers are human-only files under .pipeline/waivers/ and none exist.",
+
+  "gate": "resilience",
+  "stage": 14,
+  "task": "T63",
+  "milestone": "M2",
+  "run_ordinal": 1,
+  "mode": "warn-only",
+  "mode_provenance": "quality-kit-additions/cadence.md §2 (M2 row: 'resilience/ai-security: warn-only') and §3 promotion mechanic ('An agent's first-ever run is warn-only: schema registered, findings recorded, exit-2 disabled').",
+  "date": "2026-07-30",
+  "agent": "chaos-resilience-agent",
+  "skill": ".claude/skills/resilience-audit/SKILL.md",
+  "report": "docs/14-resilience.md",
+
+  "verdict": "fail",
+  "exit_code_enforced": 0,
+  "blocks_milestone_exit": false,
+  "blocks_milestone_exit_reason": "First run is warn-only per cadence.md §3; findings become the M3-entry fix list. The next resilience run (T67, M4) is BLOCKING.",
+  "next_run": {
+    "task": "T67",
+    "milestone": "M4",
+    "mode": "blocking",
+    "precondition_unmet": "OQ-R1 — no disposable Postgres exists; T67's scope (kill mid-batch, latency/partition injection, restore drill with RPO/RTO) has no DB-free form."
+  },
+
+  "scope": [
+    "T14a Moderation Gateway (server/src/modules/moderation/) — the primary subject; the claim tested verbatim in docs/14-resilience.md §2",
+    "Dependency map: External AI Moderation API (T14a port), Email/OTP Delivery Provider (nodemailer SMTP), PostgreSQL (pg pool)",
+    "Independent execution of the T56 outage drill (docs/07-plan.md §4, T63 row), run separately from the code author",
+    "RR-4 (trd:risks[moderation outage])"
+  ],
+
+  "phase_0": {
+    "observability_handoff_pass": false,
+    "observability_disposition": "docs/13-observability.md does not exist. Not a bypass: DECISION QK-4 (quality-kit-additions/cadence.md §2) schedules resilience-agent's first run at M2 (T63) and observability-agent's first run at M5 (T71), superseding the kit's generic 13->14 stage order. Recorded as OQ-R2 rather than applied silently.",
+    "sandbox_rule_held": true,
+    "skill_readable": true,
+    "restore_drill_in_scope": false,
+    "restore_drill_disposition": "DECISION QK-8 (cadence.md §5.3) places the restore drill at the M4 resilience gate (T67), not here."
+  },
+
+  "environment_constraints": [
+    "No disposable test database exists. DATABASE_URL points at a live Supabase instance holding real user data and is currently unreachable (IPv6-only host on an IPv4 network).",
+    "npm test, tests/integration/*, and tests/nfr/* were NOT run — their harness (tests/helpers/test-db.ts) truncates. The guard was not bypassed.",
+    "Fault injection was therefore in-process at the ModerationProvider port with server/src/db/pool.js module-mocked. No container, VM, database, queue, or external account was created."
+  ],
+
+  "execution": {
+    "runner": "vitest@2.1.9 / node v22.17.0 / win32-x64",
+    "control_suite": "npx vitest run tests/unit -> 35 passed / 4 files (unchanged by this run)",
+    "harness_command": "DATABASE_URL=\"postgres://qk-chaos:qk-chaos@127.0.0.1:1/qk_chaos_never_connected\" EMAIL_HASH_PEPPER_ACTIVE=\"v1:qk-chaos\" SESSION_SIGNING_KEY=\"v1:qk-chaos\" MODERATION_TIMEOUT_MS=300 MODERATION_MAX_ATTEMPTS=3 MODERATION_RETRY_BACKOFF_SECONDS=0 npx vitest run tests/unit/qk-chaos-*.test.ts",
+    "fault_injections_total": 13,
+    "fault_injections_pass": 9,
+    "fault_injections_fail": 4,
+    "failed_injections": [
+      "MALFORMED provider verdict (RES-1)",
+      "MISCONFIGURED provider name (RES-2)",
+      "DB fault inside applyVerdict (RES-3)",
+      "Retry worker under MALFORMED — 8 passes, attempts frozen at 0, never escalated (RES-3)"
+    ]
+  },
+
+  "claim_under_test": {
+    "subject": "T14a Moderation Gateway",
+    "claim": "No verdict from the provider — timeout, outage, malformed response, or no provider configured at all — can ever result in published content. All four collapse to one ProviderUnavailableError with one handler, which holds the item pending and schedules a retry; past an attempt ceiling it auto-escalates to the human queue. It never publishes and never drops.",
+    "assertions": [
+      { "id": "A", "assertion": "never publishes on a missing verdict", "result": "holds", "note": "Not falsified by any of 13 injections. Insert + openCase share one transaction (content.service.ts:66-76, :154-163), and every content-mutating statement is guarded by AND moderation_status = 'pending'." },
+      { "id": "B", "assertion": "never drops", "result": "holds", "note": "A crash between the insert transaction and the verdict transaction leaves exactly claimRetryableCases' predicate. Statically verified; the kill test itself is deferred (OQ-R1)." },
+      { "id": "C", "assertion": "all four failure modes collapse to one ProviderUnavailableError", "result": "FALSE", "note": "Malformed response surfaces as Postgres 23502 (RES-1); 'no provider configured' holds only for UNSET — a misconfigured name surfaces as a plain Error (RES-2). Timeout and outage do collapse correctly." },
+      { "id": "D", "assertion": "past an attempt ceiling it auto-escalates to the human queue", "result": "FALSE in the modes C exposes", "note": "recordFailedAttempt sits inside the ProviderUnavailableError branch, so any other error freezes the attempt counter. Observed: 8 retry passes, attempts never left 0, risk_tier never left NULL — held forever and invisible to the S16 escalation index (RES-3)." }
+    ]
+  },
+
+  "findings_summary": {
+    "critical": 0,
+    "high": 4,
+    "medium": 5,
+    "low": 3,
+    "info": 1,
+    "high_ids": ["RES-1", "RES-2", "RES-3", "RES-9"],
+    "note": "RES-9 (no circuit breaker on the TRD critical-path dependency) is high per the skill's own severity rule but is not reachable until T14b binds a network provider; it must ship with T14b and before T67."
+  },
+
+  "open_questions": [
+    { "id": "OQ-R1", "owner": "human", "blocking": true, "summary": "No disposable test database exists; the entire DB half of stage 14 is unexecuted, and T67 (M4, blocking) has no DB-free form." },
+    { "id": "OQ-R2", "owner": "human", "blocking": false, "summary": "docs/13-observability.md does not exist (QK-4 ordering); every observation here is harness stdout, not deployed telemetry." },
+    { "id": "OQ-R3", "owner": "human", "blocking": false, "summary": "Dual-provider fallback deferred (RR-4) plus no circuit breaker (RES-9) — accepted for launch, or does T14b need a second adapter?" }
+  ],
+
+  "waivers_cited": [],
+
+  "teardown": {
+    "prefix": "qk-chaos-",
+    "artifacts_created": [
+      "tests/unit/qk-chaos-gateway-injection.test.ts",
+      "tests/unit/qk-chaos-retry-loop.test.ts"
+    ],
+    "artifacts_remaining": [],
+    "proof": "find . -name \"qk-chaos*\" -not -path \"./node_modules/*\" -> no output; docker ps -a | grep qk-chaos -> none matching",
+    "containers_created": 0,
+    "databases_touched": 0,
+    "env_file_read_or_modified": false
+  },
+
+  "fix_list_for_next_milestone": [
+    "RES-3 — record a failed attempt for ANY error, not only ProviderUnavailableError (highest leverage; closes the permanent-invisible-hold class).",
+    "RES-1 — validate ProviderVerdict at the port boundary.",
+    "RES-2 — resolve providers at boot and surface provider resolution on /health.",
+    "RES-9 + RES-10 — circuit breaker and AbortSignal; cheap now, port changes after T14b. Ship with T14b.",
+    "RES-4 — stamp a lease in the claim transaction and guard the setInterval before any paid provider is bound.",
+    "RES-5 / RES-6 / RES-7 / RES-8 — statement timeouts, safe rollback, SMTP timeouts, retry jitter.",
+    "RES-14 — for test-writer-agent (QK-6): add SLOW, FLAKY and MALFORMED cases to tests/nfr/moderation-coverage.test.ts plus SECREG-RES-1/2/3 pinning tests.",
+    "OQ-R1 — procure the disposable database; longest lead time, and it gates T67/M4 exit."
+  ]
+}

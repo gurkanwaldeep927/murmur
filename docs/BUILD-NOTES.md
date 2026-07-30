@@ -107,6 +107,61 @@ points at a live Postgres with migrations 001/006 already applied.
   `principal@nitj.ac.in` still blocks). CI now also sets `SESSION_SIGNING_KEY` — without it the
   new config key would have failed every job at import.
 
+### Quality gates T60/T61/T63 — run 2026-07-30, and the critical they found
+
+Run as independent agents per the plan (security-agent, privacy-agent, resilience-agent),
+deliberately *not* by the author of the code under audit — DECISION QK-3's separation.
+Reports: `docs/16-privacy.md`, `docs/14-resilience.md`, gate records in `docs/gates/`.
+**`docs/08-security.md` was not written** — see OQ-SEC-06 below.
+
+**CRITICAL, fixed (OQ-SEC-01).** `EMAIL_HASH_PEPPER_ACTIVE` was running as the literal
+`.env.example` placeholder `v1:change-me-in-every-real-environment` — a value published in
+git. Every `identity_account.email_hash` was therefore keyed with a pepper any reader of the
+repo knows, and since campus addresses are low-entropy (`first.last.YY@nitj.ac.in`) that
+reduces the HMAC to a confirmation oracle against the product's core anonymity promise.
+Three changes:
+
+1. **Rotated** to a fresh `v2` pepper; the exposed value moved to
+   `EMAIL_HASH_PEPPER_RETIRED` so existing `v1$…` hashes still match during the dual-hash
+   window (RR-13).
+2. **Made lookups rotation-safe first — this was a prerequisite, not a nicety.**
+   `ban-check.ts` already used `candidateHashes` (active + retired), but the A1/A2 duplicate
+   check used `hashNormalizedEmail` (**active only**). Rotating without fixing that would have
+   made A1 compute `v2$…` against rows holding `v1$…`, silently stop recognising every
+   existing account, and let registered students register again — RR-7's failure mode reached
+   through the rotation RR-13 mandates. New `findByAnyEmailHash` widens reads; writes still
+   use the active pepper so the rollout converges. Pinned by
+   `tests/unit/pepper-rotation-lookup.test.ts` (`SECREG-RR13-LOOKUP`).
+3. **Added a boot guard** (`config/index.ts` `requiredSecret`): the service now refuses to
+   start if a keying secret still contains a `.env.example` placeholder marker. A comment
+   saying "change me in every real environment" demonstrably did not prevent this; refusing to
+   boot does. Exempt under `NODE_ENV=test`. Verified to fire in dev and not false-positive.
+
+**Not yet fixed** — carried forward for the next batch: RES-1 (unvalidated `ProviderVerdict`
+→ NOT NULL violation), RES-3 (non-provider errors freeze the attempt counter, so held content
+can never escalate to a human — breaks R6 AC3), RES-2 (lazy provider resolution defeats the
+"fail at startup" comment), PRV-5 (`authorization` header not in the pino redact list — live
+session tokens in logs), PRV-6 (`EMAIL_PROVIDER` defaults to `console`, which logs raw address
++ OTP), PRV-7 (A12 `POST /events` unauthenticated), PRV-2 (`admin-delete-identity.ts`
+hard-deletes and currently defeats the ban).
+
+**OQ-SEC-06 — stage-08 doc frozen, my sequencing error.** T60/T61/T63 were spawned in
+parallel; T61 and T63 finished first and created `docs/16-privacy.md` and
+`docs/14-resilience.md`, which tripped the guardrail rule freezing `docs/0N-*.md` once a
+higher-numbered stage doc exists. Stage 08 was frozen out by stages it should have preceded.
+The agent correctly refused to self-grant `.pipeline/unlock`. Findings are intact in
+`.pipeline/sec/handoff-08-security.json`. **Lesson: run stage gates in stage order, not in
+parallel.**
+
+**OQ-SEC-02 — the Layer-1 toolchain has never produced a signal.** gitleaks and osv-scanner
+are not installed and semgrep cannot reach its registry. T3 wired them into CI, but CI has
+never run either (no git remote). T62 is *blocking* for M2 exit and is being held until the
+toolchain is installed, so its verdict rests on real evidence.
+
+**OQ-R1 (blocking, resilience) — no disposable Postgres.** Half of stage 14 is unexecuted.
+**T67 at M4 is blocking and has no DB-free form** (kill-mid-batch, latency injection, restore
+drill), making this the longest-lead item on the list.
+
 ### Verification status of this session's work — read this before trusting it
 
 **Verified:** `npm run typecheck` clean · `npm run lint` clean · `npx vitest run tests/unit`

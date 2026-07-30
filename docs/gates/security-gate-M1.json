@@ -1,0 +1,165 @@
+{
+  "gate": "security",
+  "stage": 8,
+  "task": "T60",
+  "milestone": "M1",
+  "run_number": 1,
+  "mode": "warn-only",
+  "mode_source": "quality-kit-additions/cadence.md §2 (M1 row) + promotion mechanic — an agent's first-ever run is warn-only; its second run (T62, M2) is blocking",
+  "run_date": "2026-07-30",
+  "agent": "security-agent",
+  "skill": ".claude/skills/security-audit/SKILL.md",
+  "repo_root": "C:\\Users\\Gurka\\OneDrive\\Desktop\\nit",
+  "repo_root_provenance": "[ASSUMPTION: repo root = cwd] — the plan handoff names no repo_root field",
+  "commit": "369e467",
+  "branch": "main",
+  "git_remote": null,
+
+  "phase_0_gate": {
+    "plan_doc_present": true,
+    "plan_handoff_parses": true,
+    "plan_handoff_sha256": "78cb95758b9dacd9f30c491fba071772d5b8ce7f93d37aa57c16bbd2ea645997",
+    "plan_status_not_blocked": true,
+    "plan_blocking_open_questions": 0,
+    "codebase_present": true,
+    "skill_readable": true,
+    "disposition": "pass"
+  },
+
+  "gate_rule": "pass requires counts.critical==0 and counts.high==0 (unwaived)",
+  "result": "fail",
+  "blocks_milestone_exit": false,
+  "blocks_milestone_exit_reason": "cadence.md §2 M1 row is warn-only (first run); findings become the M2-entry fix list. cadence.md §6.4 exempts CRITICAL findings from warn-only for notification purposes — SEC-001 is escalated same-day, out-of-band, as blocking OQ-SEC-01.",
+
+  "counts": { "critical": 1, "high": 6, "medium": 7, "low": 3, "info": 1, "total": 18 },
+  "counts_verified_against_findings_array": true,
+
+  "waivers": {
+    "directory": ".pipeline/waivers/",
+    "exists": false,
+    "files_found": 0,
+    "waivers_cited": [],
+    "note": "No finding in this run is waived. Per cadence.md §6.2 only a human waives, via .pipeline/waivers/<finding-id>.json. This agent granted none."
+  },
+
+  "tool_coverage": {
+    "sast": {
+      "mandated": "semgrep scan --config auto --json",
+      "status": "degraded",
+      "installed": true,
+      "version": "1.172.0",
+      "exit_code": 2,
+      "reason": "semgrep.dev registry unreachable — SSLError CERTIFICATE_VERIFY_FAILED on https://semgrep.dev/c/auto (TLS egress interception on this host). The default registry ruleset never ran.",
+      "substitute": "semgrep 1.172.0 with .pipeline/sec/local-rules.yaml — 10 self-authored rules, 54 files, 10 findings, exit 0",
+      "substitute_caveat": "Not the default ruleset; rules authored by the auditing agent, so objectivity is reduced. Recorded as a deviation, not a pass."
+    },
+    "secrets": {
+      "mandated": "gitleaks detect --report-format json (full history)",
+      "status": "not_installed",
+      "installed": false,
+      "exit_code": 127,
+      "reason": "gitleaks absent; binary download blocked — curl CRYPT_E_NO_REVOCATION_CHECK against github.com releases.",
+      "substitutes": [
+        "detect-secrets 1.5.0 over all git-tracked files (node_modules excluded) — 8 hits, all triaged false-positive with file:line evidence",
+        "detect-secrets 1.5.0 over a 31,002-line `git log -p --all` dump — 0 hits",
+        "git 2.53.0 high-signal regex sweep (AWS/GitHub/OpenAI/Slack/Google/SendGrid/PEM) across all 14 commits — 0 hits",
+        "git log --diff-filter=A -- .env — empty; .env has never been tracked and is in .gitignore:3"
+      ],
+      "note": "The scanner-invisible variant was found by manual triage instead: SEC-001, a live secret whose value is committed as a placeholder in .env.example."
+    },
+    "sca": {
+      "mandated": "osv-scanner --lockfile <each lockfile> --json",
+      "status": "not_installed",
+      "installed": false,
+      "exit_code": 127,
+      "reason": "osv-scanner absent; trivy (the skill's named fallback) also absent; binary download blocked by the same TLS interception.",
+      "substitutes": [
+        "npm 10.9.2 audit --json over package-lock.json — critical 1 / high 10 / moderate 3, exit 1",
+        "npm 10.9.2 audit --omit=dev --json — 0 of every severity (production dependency tree is clean), exit 0"
+      ],
+      "lockfiles_not_scanned": ["client/package-lock.json"]
+    },
+    "all_three_categories_attempted": true,
+    "all_three_categories_ran_as_mandated": false,
+    "escalated_as": "OQ-SEC-02 (blocking, owner: human)"
+  },
+
+  "manual_check_classes": {
+    "secrets_outside_git_history": "finding → SEC-001",
+    "secrets_in_git_history": "pass",
+    "authz_not_just_authn": "pass for M1 scope; finding → SEC-009 (unauthenticated A12 write with spoofable actorProfileId)",
+    "storage_db_rules_default_open": "finding → SEC-003 (0 RLS statements across all migrations, Supabase-hosted)",
+    "webhook_signature_verification": "n/a — no inbound webhook/callback route exists; re-check at T14b (Layer-3 trigger: new external integration)",
+    "rate_limiting_on_auth_paths": "finding → SEC-004 (A2 OTP brute force), SEC-007 (A1 new-account path unthrottled)",
+    "input_validation_at_trust_boundaries": "pass — every route zod-parsed; all SQL parameterized (semgrep local-sql-string-concat: 0 hits over 54 files)",
+    "cryptographic_primitives": "pass on primitives (crypto.randomInt, timingSafeEqual, AES-256-GCM, typed token verification); finding on key management → SEC-001"
+  },
+
+  "t55_independent_recheck": {
+    "question": "Does any API response actually leak raw email, email_hash, or identity_account_id?",
+    "method": "Enumerated every response-construction site in server/src and traced each field to its query projection; decoded the A2 sessionToken payload.",
+    "verdict": "claim holds — no response path returns raw email, email_hash, email_encrypted, verification_token_hash, or identity_account_id",
+    "structural_controls_confirmed": [
+      "profile.repo.ts:31,56 — explicit column lists; identity_account_id is in the INSERT but never the RETURNING",
+      "content.repo.ts:49-54 — one shared AUTHOR_SELECT jsonb_build_object of pseudonym/year_badge/reputation_score; author_profile_id used only in WHERE clauses",
+      "error-envelope.ts:87-95 — fixed code+message; A1/A2 call sites pass no details, so no echo of submitted input",
+      "session.ts:79 — token payload sub is the pseudonymous_profile id (already public in the same response), not identity_account_id"
+    ],
+    "qualifications": [
+      "Coverage is A1/A2 only — GET /session, POST /session/exchange, POST /events, GET /questions, GET /questions/:id, GET /topics and GET /health are never asserted. Clean today by hand-verification, but unpinned; T62 should extend rather than assume.",
+      "The 409 duplicate branch is untested — see SEC-008, the one disclosure-class defect that does exist on A1.",
+      "T55 could not be executed in this environment (no disposable DB); the green claim rests on a run with no artifact in the repo. Escalated as OQ-SEC-03."
+    ]
+  },
+
+  "secreg_regression_seeds": {
+    "rule_source": "docs/07-plan.md §5 + cadence.md §5.2 (write-tests skill rule 5) — every fixed critical/high gets a pinning test SECREG-<finding-id> in the T47 suite",
+    "required": [
+      "SECREG-SEC-001", "SECREG-SEC-002", "SECREG-SEC-003",
+      "SECREG-SEC-004", "SECREG-SEC-005", "SECREG-SEC-006", "SECREG-SEC-007"
+    ],
+    "optional_medium_low": ["SECREG-SEC-008", "SECREG-SEC-009", "SECREG-SEC-010", "SECREG-SEC-011", "SECREG-SEC-013"]
+  },
+
+  "recommended_fix_order": [
+    "SEC-005 — one line in logger.ts; live credentials stop reaching logs immediately",
+    "SEC-001 — rotate the pepper (needs T72's runbook filled: 6 open [HUMAN: markers); everything else is downstream",
+    "SEC-002 / SEC-003 — TLS + RLS; both configuration, both close SEC-001's exposure paths",
+    "SEC-004 / SEC-007 — one dependency (express-rate-limit) plus a failed-attempt counter closes both; it is T7's original promise",
+    "SEC-006 / SEC-011 — turn two optional() config calls into guarded required()",
+    "SEC-014 — restore a real Layer-1 signal so the next SEC-001 is caught on commit, not at a milestone gate"
+  ],
+
+  "open_questions": [
+    { "id": "OQ-SEC-01", "blocking": true, "owner": "human", "summary": "Live email-hash pepper is the committed .env.example placeholder — deanonymization path for every registered student (SEC-001)" },
+    { "id": "OQ-SEC-02", "blocking": true, "owner": "human", "summary": "Mandated Layer-1 toolchain (gitleaks, osv-scanner, semgrep --config auto) has never produced a signal on this repo; T62 is blocking and would run on the same degraded evidence" },
+    { "id": "OQ-SEC-03", "blocking": true, "owner": "human", "summary": "No disposable test database — T55 and every later NFR gate cannot be executed" },
+    { "id": "OQ-SEC-04", "blocking": false, "owner": "human", "summary": "Whether Supabase PostgREST is enabled determines if SEC-003 is defence-in-depth or directly exploitable" },
+    { "id": "OQ-SEC-05", "blocking": false, "owner": "human", "summary": "SEC-008 account-existence oracle is a product decision (S4 copy) as much as a security one" },
+    { "id": "OQ-SEC-06", "blocking": true, "owner": "human", "summary": "docs/08-security.md could not be written — guardrail freezes docs/08-* because docs/14-resilience.md and docs/16-privacy.md already exist; unlock requires a human to add '08' to .pipeline/unlock. Guardrail not bypassed." }
+  ],
+
+  "artifacts": {
+    "stage_doc": null,
+    "stage_doc_blocked_reason": "guardrail.py: 'BLOCKED: docs/08-* is frozen: stage 14 already exists. Prior-stage docs are read-only. For a deliberate retrofit, a human adds 08 to .pipeline/unlock.'",
+    "validated_handoff": ".pipeline/sec/handoff-08-security.json",
+    "handoff_schema": ".claude/schemas/handoff-security.schema.json",
+    "handoff_validation": "PASS (jsonschema 4.25.1, Draft7Validator, 0 errors)",
+    "tool_reports": [
+      ".pipeline/sec/semgrep-local.json",
+      ".pipeline/sec/local-rules.yaml",
+      ".pipeline/sec/detect-secrets-tracked.json",
+      ".pipeline/sec/detect-secrets-history.json",
+      ".pipeline/sec/npm-audit.json",
+      ".pipeline/sec/npm-audit-prod.json",
+      ".pipeline/sec/history.diff"
+    ]
+  },
+
+  "environment_constraints_honoured": [
+    "npm test / tests/integration / tests/nfr were NOT run — DATABASE_URL points at a live Supabase instance holding real user data and those suites TRUNCATE",
+    "npx vitest run tests/unit was run (no DB): 35/35 pass",
+    "No secret VALUES were read or printed; .env was inspected by key name, set/empty state, and sha256 digest comparison only",
+    ".pipeline/waivers/ was inspected read-only via glob; the shell probe was correctly blocked by the guardrail as a human-only path"
+  ]
+}

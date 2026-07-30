@@ -33,6 +33,33 @@ export async function findByEmailHash(
   return rows[0] ?? null;
 }
 
+/**
+ * Rotation-safe account lookup: matches a row hashed under ANY pepper version the
+ * service still recognises (active + retired), exactly as A11's ban lookup does.
+ *
+ * Why this exists (RR-13, found by the T60 security gate): `findByEmailHash` matches
+ * the active pepper only. The moment `EMAIL_HASH_PEPPER_ACTIVE` rotates from v1 to v2,
+ * every existing row still holds a `v1$…` hash — so an active-only duplicate check
+ * silently stops recognising registered users and lets them register a second time.
+ * That is RR-7's failure mode reached through the rotation RR-13 mandates.
+ *
+ * Writes deliberately still use the ACTIVE hash (`hashNormalizedEmail`); only reads
+ * widen. That is what makes the dual-hash rollout in runbooks/pepper-rotation.md
+ * converge instead of pinning everything to the oldest pepper forever.
+ */
+export async function findByAnyEmailHash(
+  db: DbPool | DbClient,
+  emailHashes: string[],
+): Promise<IdentityAccountRow | null> {
+  const { rows } = await db.query<IdentityAccountRow>(
+    `SELECT ${SELECT_COLS} FROM identity_account
+      WHERE email_hash = ANY($1::text[]) AND deleted_at IS NULL
+      LIMIT 1`,
+    [emailHashes],
+  );
+  return rows[0] ?? null;
+}
+
 export interface CreatePendingInput {
   emailHash: string;
   emailEncrypted: Buffer | null;
