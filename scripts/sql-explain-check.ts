@@ -46,9 +46,11 @@ const cases: Case[] = [
     sql: `UPDATE moderation_case
              SET risk_tier = $2, risk_score = $3, ai_classification_label = $4,
                  external_provider_case_ref = $5, provider_raw_response = $6::jsonb,
-                 decision = $7,
-                 decided_by = CASE WHEN $7 = 'pending' THEN NULL ELSE 'ai'::moderation_decided_by_enum END,
-                 decided_at = CASE WHEN $7 = 'pending' THEN NULL ELSE now() END
+                 decision = $7::moderation_status_enum,
+                 decided_by = CASE WHEN $7::moderation_status_enum = 'pending'
+                                   THEN NULL ELSE 'ai'::moderation_decided_by_enum END,
+                 decided_at = CASE WHEN $7::moderation_status_enum = 'pending'
+                                   THEN NULL ELSE now() END
            WHERE id = $1 AND decision = 'pending'`,
     values: [UUID, "auto_pass", 0.1, "label", "ref", JSONB, "published"],
   },
@@ -105,8 +107,9 @@ const cases: Case[] = [
   {
     name: "publish/block question",
     sql: `UPDATE question
-             SET moderation_status = $2,
-                 published_at = CASE WHEN $2 = 'published' THEN now() ELSE published_at END
+             SET moderation_status = $2::moderation_status_enum,
+                 published_at = CASE WHEN $2::moderation_status_enum = 'published'
+                                     THEN now() ELSE published_at END
            WHERE id = $1 AND moderation_status = 'pending'`,
     values: [UUID, "published"],
   },
@@ -251,12 +254,18 @@ async function main() {
   await client.query("BEGIN");
   let failures = 0;
   for (const c of cases) {
+    // Each statement gets its own savepoint. Without this, the first failure aborts the
+    // transaction and Postgres refuses every statement after it with "current transaction
+    // is aborted" — reporting one real bug as N, and hiding whatever came behind it.
+    await client.query("SAVEPOINT stmt");
     try {
       await client.query({ text: `EXPLAIN ${c.sql}`, values: c.values as never[] });
       console.log(`  ok    ${c.name}`);
+      await client.query("RELEASE SAVEPOINT stmt");
     } catch (err) {
       failures++;
       console.log(`  FAIL  ${c.name}\n        ${(err as Error).message}`);
+      await client.query("ROLLBACK TO SAVEPOINT stmt");
     }
   }
   await client.query("ROLLBACK");
