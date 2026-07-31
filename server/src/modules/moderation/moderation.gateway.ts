@@ -114,9 +114,13 @@ async function applyVerdict(
 
     if (ref.type === "question") {
       await client.query(
+        // $2 is cast at every use. Assigning it to an enum column while also comparing
+        // it to a bare 'published' literal makes Postgres deduce two different types for
+        // one parameter, and it then refuses to parse the statement.
         `UPDATE question
-            SET moderation_status = $2,
-                published_at = CASE WHEN $2 = 'published' THEN now() ELSE published_at END
+            SET moderation_status = $2::moderation_status_enum,
+                published_at = CASE WHEN $2::moderation_status_enum = 'published'
+                                    THEN now() ELSE published_at END
           WHERE id = $1 AND moderation_status = 'pending'`,
         [ref.id, status],
       );

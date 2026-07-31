@@ -21,7 +21,8 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:nfr": "vitest run tests/nfr",
-    "sql:check": "tsx scripts/sql-explain-check.ts"
+    "sql:check": "tsx scripts/sql-explain-check.ts",
+    "db:inventory": "tsx scripts/db-inventory.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

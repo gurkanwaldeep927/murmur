@@ -36,7 +36,16 @@ Claude Design's (rounds T9/T18/T25/T30/T39), per the stage-6 decision (plan `dev
 - **Not run locally:** integration/NFR suite + migrations — no local Postgres. These run in CI (Postgres service) and against the T49 staging DB. **Nothing that requires a DB has been claimed as passing.**
 
 ### Claude Design import (2026-07-21, via DesignSync MCP)
-- **Project:** "Murmur email entry form" (`ecb9e3e6-…`, owner: rishi, edit access granted).
+- **Project:** "Murmur email entry form" — record the **full** UUID, never a truncated one:
+  `ecb9e3e6-a250-49f3-9b7a-f356994a9f54` (owner: rishi, edit access granted).
+  URL: https://claude.ai/design/p/ecb9e3e6-a250-49f3-9b7a-f356994a9f54
+  **Its `type` is `PROJECT_TYPE_PROJECT`, not `PROJECT_TYPE_DESIGN_SYSTEM`** — so DesignSync
+  `list_projects` (which filters to design-system projects) does **not** return it. It is
+  reachable only by passing this UUID directly to `get_project` / `get_file`. A truncated
+  UUID plus that invisibility cost a full session of "the design project is gone"; it is
+  not gone, and re-verified present on 2026-08-01 with all 17 screens.
+  Note: the project also holds an `uploads/nit/` snapshot of this repo (source + pipeline
+  docs, no `.env`). If the share link is "anyone with the link", that snapshot is public.
 - **Artifacts present (ahead of the plan's per-round schedule):** all 17 screen components
   `S1`–`S17` as `.dc.html`, **plus** a `Landing Page.dc.html` and the shared `support.js`
   design runtime (`<x-dc>` template + `DCLogic` class React-preview format).
@@ -199,6 +208,12 @@ direct one. Failing that, `npm run sql:check` against any reachable copy of the 
 cheap partial signal.
 
 ### Next
+- **T18/T25/T30/T39 are copy jobs, not design sessions.** Re-verified 2026-08-01: all 17
+  `S1`–`S17` `.dc.html` files are present in the design project above. S5 was read in full
+  and binds to real schema field names (`pseudonym`, `year_badge`, `published_at`,
+  `answer_count`) with all four states (live/loading/empty/error) already authored. Pull the
+  four files a milestone needs at integration time and port them into `client/src/screens/`
+  the way S1–S4 were ported — do **not** re-run a design round.
 - **T14b** Moderation provider binding — **M6** now (needs **T54**). Until it lands the app
   holds every question and answer and publishes nothing outside the test suite. That is R6's
   fail-closed posture behaving correctly, not a defect (plan RR-21).

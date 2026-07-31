@@ -82,11 +82,18 @@ export async function recordVerdict(
             ai_classification_label = $4,
             external_provider_case_ref = $5,
             provider_raw_response = $6::jsonb,
-            decision = $7,
+            decision = $7::moderation_status_enum,
             -- A human decision is never overwritten by the AI here: this path only
             -- runs while decision = 'pending' (see the WHERE clause).
-            decided_by = CASE WHEN $7 = 'pending' THEN NULL ELSE 'ai'::moderation_decided_by_enum END,
-            decided_at = CASE WHEN $7 = 'pending' THEN NULL ELSE now() END
+            --
+            -- Every use of $7 carries an explicit cast. Without it Postgres deduces the
+            -- enum from the assignment but text from the 'pending' comparison, and then
+            -- refuses to parse at all: inconsistent types deduced for parameter $7.
+            -- That is a parse-time failure, so this UPDATE could never have run.
+            decided_by = CASE WHEN $7::moderation_status_enum = 'pending'
+                              THEN NULL ELSE 'ai'::moderation_decided_by_enum END,
+            decided_at = CASE WHEN $7::moderation_status_enum = 'pending'
+                              THEN NULL ELSE now() END
       WHERE id = $1 AND decision = 'pending'`,
     [
       caseId,

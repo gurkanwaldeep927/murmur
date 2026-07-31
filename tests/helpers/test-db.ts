@@ -18,25 +18,48 @@ export async function migrateTestDb(): Promise<void> {
 /**
  * Refuse to run destructively against a database that looks real.
  *
- * The project's only reachable Postgres is a live instance holding real data, and the
- * only thing standing between it and `TRUNCATE` is whichever DATABASE_URL happens to be
- * exported. That is too thin. A test database must opt in explicitly by having
- * `test` in its database name, or by setting MURMUR_TEST_DB_CONFIRM=i-am-disposable.
+ * Two ways to opt in, in order of preference:
+ *
+ * 1. The database NAME contains `test` (CI's `murmur_test`). Self-evident and needs no
+ *    configuration.
+ * 2. `MURMUR_TEST_DB_ALLOW` names the exact `host/database` this suite may destroy, and
+ *    it must match the live connection.
+ *
+ * Route 2 exists because managed Postgres often denies you route 1: every Supabase
+ * database is named `postgres`, so the name check can never pass there no matter how
+ * disposable the project actually is.
+ *
+ * It deliberately names a specific connection rather than being a blanket on/off switch.
+ * The previous `MURMUR_TEST_DB_CONFIRM=i-am-disposable` unlocked *whatever* DATABASE_URL
+ * happened to be set — so a variable exported for a test run at 1am, still live in the
+ * shell when DATABASE_URL was later pointed at production, would silently authorise
+ * TRUNCATE against real user data. Pinning host+database means a stale variable stops
+ * matching the moment you point somewhere else, and the guard closes again by itself.
+ * (Security gate finding SEC-017: "destructive test guard is a naming heuristic".)
  *
  * This is a guard, not a convenience: it fails the suite loudly rather than skipping.
  */
 async function assertDisposableDatabase(): Promise<void> {
-  if (process.env.MURMUR_TEST_DB_CONFIRM === "i-am-disposable") return;
-
   const { rows } = await pool.query<{ db: string }>(`SELECT current_database() AS db`);
   const db = rows[0]!.db.toLowerCase();
+
   if (db.includes("test")) return;
 
+  const host = new URL(process.env.DATABASE_URL ?? "postgres://unknown/").hostname;
+  const fingerprint = `${host}/${db}`;
+  const allowed = process.env.MURMUR_TEST_DB_ALLOW?.trim().toLowerCase();
+
+  if (allowed === fingerprint) return;
+
   throw new Error(
-    `Refusing to TRUNCATE database "${db}": it does not look disposable. ` +
-      `Point DATABASE_URL at a database whose name contains "test", or set ` +
-      `MURMUR_TEST_DB_CONFIRM=i-am-disposable if you are certain. ` +
-      `(These suites destroy all rows; the project's primary Postgres holds real data.)`,
+    `Refusing to TRUNCATE "${fingerprint}": it is not marked disposable.\n` +
+      `These suites destroy every row in every table.\n\n` +
+      `If this database IS disposable, authorise this exact connection:\n` +
+      `  MURMUR_TEST_DB_ALLOW=${fingerprint}\n\n` +
+      (allowed
+        ? `MURMUR_TEST_DB_ALLOW is currently set to "${allowed}", which does not match. ` +
+          `Check DATABASE_URL — it may be pointing somewhere you did not intend.`
+        : `Preferred alternative: use a database whose name contains "test".`),
   );
 }
 
