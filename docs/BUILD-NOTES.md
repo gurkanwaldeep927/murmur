@@ -171,7 +171,13 @@ toolchain is installed, so its verdict rests on real evidence.
 **T67 at M4 is blocking and has no DB-free form** (kill-mid-batch, latency injection, restore
 drill), making this the longest-lead item on the list.
 
-### Verification status of this session's work — read this before trusting it
+### Verification status of the 2026-07-30 session — **SUPERSEDED 2026-08-01**
+
+> Everything below this heading was true on 2026-07-30 and is **no longer true**. A reachable
+> disposable Postgres now exists and the full suite runs green. Kept verbatim because the
+> reasoning that follows is what a future session will otherwise re-derive from scratch — the
+> "there is no way to run them" conclusion was correct then and wrong now. See the
+> 2026-08-01 section below before acting on any claim in this one.
 
 **Verified:** `npm run typecheck` clean · `npm run lint` clean · `npx vitest run tests/unit`
 **35/35 green**, including the new DB-free suites (`moderation-providers.test.ts` 6,
@@ -206,6 +212,76 @@ name contains `test` — a free Neon database or a second Supabase project — t
 `npm run migrate && npm test`. On an IPv4-only network use Supabase's **pooler** host, not the
 direct one. Failing that, `npm run sql:check` against any reachable copy of the schema is a
 cheap partial signal.
+
+### 2026-08-01 — first green full-suite run, and the five bugs it took to get there
+
+**Result: 86/86 green** across 9 files (content 23, session 12, identity-nondisclosure 5,
+moderation-coverage 7, unit 39) against real Postgres. `sql:check` 25/25. This is the first
+time in the project's history that the DB-backed suites have executed at all.
+
+**Connectivity (the thing that unblocked everything).** `DATABASE_URL` now uses Supabase's
+**session pooler** — `aws-0-ap-southeast-2.pooler.supabase.com:5432`, user
+`postgres.<project-ref>`, `sslmode=no-verify`. The direct `db.<ref>.supabase.co` host has no
+A record and is unreachable on an IPv4-only network; the pooler publishes IPv4. This was
+never a code problem. *Partial* SEC-002: traffic is encrypted but the certificate is not
+verified (Supabase chains to its own CA and node-postgres treats `sslmode=require` as
+`verify-full`). Full fix = pin Supabase's CA via `sslrootcert`.
+
+**The database is disposable, established by evidence not assumption.** `npm run db:inventory`
+showed all 10 `identity_account` rows created inside a 2h20m window on 2026-07-22 — one dev
+session, not organic traffic — with 0 questions and 0 answers. The app has never been
+deployed (T49 outstanding), so no external user could have reached it. Those rows are now
+gone; the suites truncated them.
+
+**Two product defects, both fatal on every call, both on the publish path:**
+- `moderation.repo.ts` `recordVerdict` — `$7` assigned to a `moderation_status_enum` column
+  *and* compared to a bare `'pending'` literal. Postgres deduces two types for one parameter
+  and refuses to parse. Never ran, not once.
+- `moderation.gateway.ts` publish-question — the same defect on `$2`. The publish-answer
+  UPDATE beside it was fine because it uses `$2` once.
+
+Both fixed by casting every use (`$n::moderation_status_enum`). Both now confirmed
+*behaviourally*, not just syntactically: `test_R6_auto_blocked_question_is_not_published`,
+`test_R6_author_can_see_their_own_held_question_but_the_feed_cannot` and
+`test_R4_feed_excludes_pending_and_blocked_content` all pass.
+
+**Three defects in the verification layer — which is why the two above survived:**
+- `sql:check` ran every statement in one transaction, so the first failure aborted it and
+  Postgres rejected the remaining 23 with "current transaction is aborted". It reported 1 bug
+  as 23 *and hid the second real bug behind the first*. Now one SAVEPOINT per statement.
+- `.env` was never loaded into the test process: each DB suite checks `DATABASE_URL` in
+  `beforeAll` *before* the dynamic import that pulls in `config` (the only importer of
+  `dotenv/config`). The suites were unrunnable locally no matter what database existed.
+  Fixed with `setupFiles: ["dotenv/config"]`.
+- Test files ran in parallel against one shared database while each truncated it in
+  `beforeEach` — 26 failures, every one false. Fixed with `fileParallelism: false`. **This
+  would have hit CI identically** and presented as an intermittent race.
+
+**Lesson worth carrying:** all three of the second group are in the machinery meant to catch
+defects. The product bugs survived because nothing above them could see. Prefer fixing the
+observer before trusting its report — a green suite that cannot run is worth less than a red
+one that can.
+
+**SEC-017 closed.** `tests/helpers/test-db.ts` no longer accepts a blanket
+`MURMUR_TEST_DB_CONFIRM`; it requires `MURMUR_TEST_DB_ALLOW=<host>/<database>` matching the
+live connection, so a stale variable stops matching the moment `DATABASE_URL` moves. Supabase
+names every database `postgres`, so the name heuristic can never pass there — this is the
+route that makes managed Postgres usable without disarming the guard entirely.
+
+**OQ-R1 downgraded, not closed.** A disposable Postgres now exists, so the integration/NFR
+half of stage 14 is executable. **T67 still needs more**: kill-mid-batch and latency injection
+are fine against this instance, but the restore drill (RPO/RTO) needs a database whose backups
+can be destroyed and restored — plan for that before M4.
+
+**Still true and still blocking:** no git remote, so CI has never executed; gitleaks and
+osv-scanner are not installed, so T62 (blocking for M2 exit) still cannot produce an honest
+verdict.
+
+**Run the suite with:**
+```
+MURMUR_TEST_DB_ALLOW="aws-0-ap-southeast-2.pooler.supabase.com/postgres" npm test
+```
+Expect ~5 minutes: files are serialised and every query is a round trip to Sydney.
 
 ### Next
 - **T18/T25/T30/T39 are copy jobs, not design sessions.** Re-verified 2026-08-01: all 17
