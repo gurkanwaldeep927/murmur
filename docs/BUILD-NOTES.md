@@ -69,9 +69,14 @@ Claude Design's (rounds T9/T18/T25/T30/T39), per the stage-6 decision (plan `dev
 - **T54 (human/eng):** AI-moderation vendor shortlist + quotes (parallel track; feeds T14/M2).
 
 ### Next Claude Code steps once inputs arrive
-- **T11** tracer demo (needs T49).
-- **T60/T61** M1 security-agent + privacy-agent runs (warn-only) — runnable now, not yet run
-  (`docs/gates/` holds only `taste-gate.json`).
+- **T11** tracer demo (needs T49) — the only M1 task still open.
+- **~~T60/T61~~ — run 2026-07-30.** `docs/gates/` now holds `security-gate-M1.json`,
+  `privacy-gate-m1.json` and `14-resilience-T63.gate.json`; findings are in the M2 section.
+- **T10 was completed but never recorded here.** `client/src/screens/` holds the ported
+  S1–S4 flow (`email-entry.ts`, `verification-pending.ts`, `token-confirm.ts`,
+  `registration-outcome.ts`, `verification-flow.ts`), each carrying the designer's markup and
+  copy verbatim with real handlers substituted for the mock `DCLogic`. That is the pattern
+  T19 follows.
 
 ---
 
@@ -162,14 +167,17 @@ The agent correctly refused to self-grant `.pipeline/unlock`. Findings are intac
 `.pipeline/sec/handoff-08-security.json`. **Lesson: run stage gates in stage order, not in
 parallel.**
 
-**OQ-SEC-02 — the Layer-1 toolchain has never produced a signal.** gitleaks and osv-scanner
-are not installed and semgrep cannot reach its registry. T3 wired them into CI, but CI has
-never run either (no git remote). T62 is *blocking* for M2 exit and is being held until the
-toolchain is installed, so its verdict rests on real evidence.
+**~~OQ-SEC-02~~ — RESOLVED 2026-08-01.** Was: "the Layer-1 toolchain has never produced a
+signal." The diagnosis was half wrong — the tools never needed local installation, because the
+workflow provisions all three itself (gitleaks action, semgrep container, `npx osv-scanner`).
+The only real blocker was the missing git remote. With the repo pushed, all three ran and
+passed, and **T62 now has real evidence to judge**.
 
-**OQ-R1 (blocking, resilience) — no disposable Postgres.** Half of stage 14 is unexecuted.
-**T67 at M4 is blocking and has no DB-free form** (kill-mid-batch, latency injection, restore
-drill), making this the longest-lead item on the list.
+**~~OQ-R1~~ — DOWNGRADED 2026-08-01.** Was: "no disposable Postgres; half of stage 14 is
+unexecuted." A disposable Postgres now exists and the full suite is green, so the
+integration/NFR half is executable. **T67 at M4 is still blocking**: kill-mid-batch and
+latency injection work against this instance, but the restore drill (RPO/RTO) needs a
+database whose backups can be destroyed and restored. Still the longest-lead item.
 
 ### Verification status of the 2026-07-30 session — **SUPERSEDED 2026-08-01**
 
@@ -273,30 +281,93 @@ half of stage 14 is executable. **T67 still needs more**: kill-mid-batch and lat
 are fine against this instance, but the restore drill (RPO/RTO) needs a database whose backups
 can be destroyed and restored — plan for that before M4.
 
-**Still true and still blocking:** no git remote, so CI has never executed; gitleaks and
-osv-scanner are not installed, so T62 (blocking for M2 exit) still cannot produce an honest
-verdict.
-
 **Run the suite with:**
 ```
 MURMUR_TEST_DB_ALLOW="aws-0-ap-southeast-2.pooler.supabase.com/postgres" npm test
 ```
 Expect ~5 minutes: files are serialised and every query is a round trip to Sydney.
 
+### 2026-08-01 (later) — repo pushed, CI green on its first run, T18 landed
+
+**The repo has a remote: https://github.com/gurkanwaldeep927/murmur (private).** T3's CI
+pipeline, written 2026-07-21, **executed for the first time** and all four jobs passed:
+
+| Job | Result |
+|---|---|
+| `build-test` | green — typecheck, lint, migrate up/down/up, **sql:check 25/25**, **86/86 tests** |
+| `secrets-scan` (gitleaks, **blocking**) | green — full history, no findings |
+| `sast` (semgrep) | green |
+| `sca` (osv-scanner) | green |
+
+**86/86 in 6.8 seconds**, against 298 s locally. The entire difference is round-trip latency:
+CI's Postgres is on localhost, the local run talks to Sydney. Use CI as the fast feedback
+loop and the local run as the pre-push check.
+
+**SEC-014 closed** — "designated blocking control has never executed" no longer holds. gitleaks
+independently confirms the `detect-secrets` history result (0 findings). **T62 is unblocked**:
+it now has three tools' output to judge instead of nothing.
+
+**The scanner-installation problem was never real.** `gitleaks`, `semgrep` and `osv-scanner`
+are all provisioned *by the workflow* (an action, a container, and `npx` respectively). They
+never needed to exist on this machine. The single blocker was the missing remote.
+
+**`npm run verify`** = `typecheck && lint && sql:check && test` — the ladder as one command,
+and CI mirrors it step-for-step. When local and CI check different things, the gap is where
+defects live: `fileParallelism` would have been a mystery intermittent red build otherwise.
+`sql:check` is now a CI step for the same reason — it is the only rung that reads inside a SQL
+string, and it earned the slot the first time it ran.
+
+Also added: a `concurrency` group per ref with `cancel-in-progress`, so consecutive pushes stop
+queueing full runs that contend for one Postgres service.
+
+**T18 done — and it was a copy job, not a design session.** `S5 QuestionFeedCard`,
+`S6 AskComposer`, `S7 QuestionThread`, `S8 AnswerComposer` pulled verbatim from the design
+project into `client/src/components/`. Unlike S1–S4 (ported at T10, sources discarded) the
+`.dc.html` files are **kept** — the source is the only reference for a re-port.
+`client/src/components/README.md` carries six integration notes found while porting; the two
+that change T19's scope:
+
+- **S6 and S8 tell the user a held post "usually takes a few minutes."** Under `hold-all`
+  nothing publishes at all, so the truthful answer is indefinite. RR-5 forbids rendering held
+  content as live and this copy does not claim that — but the promise is still false in the
+  posture that actually ships. T19 must not use the sentence as-is before T14b.
+- **S7 renders vote counts, reputation scores and an accepted badge.** A6 and the reputation
+  ledger are **T21/T22 in M3**. Render read-only or hidden at M2 — a vote button that silently
+  does nothing is worse than no button.
+
+Plus: "Report quietly" targets S13 (M5); S6's topic chips are labels (`Placements`) while A3
+expects seeded slugs (`placements`, map via `GET /topics`, never by lowercasing); S5's field
+names already match `QuestionRow`; and S7's blocked-state wording matches
+`test_R6_author_can_see_their_own_held_question_but_the_feed_cannot` — keep it.
+
+**M2 now:** T19 (size L, the last feature task) → T51 → **T62** (blocking gate, runnable).
+
 ### Next
-- **T18/T25/T30/T39 are copy jobs, not design sessions.** Re-verified 2026-08-01: all 17
-  `S1`–`S17` `.dc.html` files are present in the design project above. S5 was read in full
-  and binds to real schema field names (`pseudonym`, `year_badge`, `published_at`,
-  `answer_count`) with all four states (live/loading/empty/error) already authored. Pull the
-  four files a milestone needs at integration time and port them into `client/src/screens/`
-  the way S1–S4 were ported — do **not** re-run a design round.
+- **T19 — integrate S5–S8** (size L, last M2 feature task). Everything it depends on is done:
+  T15/T16/T17 verified against a real database, and T18's four components are in
+  `client/src/components/`. Read that folder's README first — six integration notes, two of
+  which change scope (the "few minutes" copy, and S7's not-yet-existing vote/reputation UI).
+- **~~T18~~ — done 2026-08-01.** **T25/T30/T39 remain copy jobs, not design sessions**: all 17
+  `S1`–`S17` `.dc.html` files exist in the design project above. Pull the files a milestone
+  needs at integration time and port them into `client/src/screens/` the way S1–S4 were —
+  do **not** re-run a design round.
+- **T62** (security-agent authz run) — **blocking for M2 exit**, and now runnable: the repo
+  has a remote and gitleaks/semgrep/osv-scanner have all produced real output.
 - **T14b** Moderation provider binding — **M6** now (needs **T54**). Until it lands the app
   holds every question and answer and publishes nothing outside the test suite. That is R6's
   fail-closed posture behaving correctly, not a defect (plan RR-21).
-- **T18** Claude Design round 2 (human) — QuestionFeedCard, AskComposer, QuestionThread, AnswerComposer.
-- **T19** Integrate S5–S8 — blocked on T18 only; T15/T16/T17 are done.
-- **T60/T61** M1 security-agent + privacy-agent runs (warn-only) — still not run.
+- **T51** finish the M2 event hooks (WAU session-ping, answer-liquidity) — depends on T19.
+- **The gate fix lists** (RES-1/2/3, and the SEC/PRV findings above) are formally **M3-entry**
+  work, not M2 blockers — T63's own gate record says so (`blocks_milestone_exit: false`,
+  "findings become the M3-entry fix list"). **RES-3 is worth pulling forward anyway**: held
+  content that can never escalate to a human breaks R6 AC3, and the fix is small.
 - `client/src/screens/signed-in-stub.ts` is scaffolding: delete it when S5 lands.
+
+**Corrected 2026-08-01:** this list previously said "T60/T61 — still not run". They **were**
+run on 2026-07-30; `docs/gates/` holds `security-gate-M1.json`, `privacy-gate-m1.json` and
+`14-resilience-T63.gate.json`, and their findings are the fix lists above. The stale line
+survived because the section recording the runs was added without pruning this one — worth
+noticing, since a "not yet run" note is exactly the kind of thing a later session acts on.
 
 ### Config a real environment must set (see `.env.example`)
 `DATABASE_URL`, `EMAIL_HASH_PEPPER_ACTIVE` (real secret, `v1:...`), `EMAIL_ENCRYPTION_KEY`
