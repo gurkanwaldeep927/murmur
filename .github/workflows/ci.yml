@@ -1,14 +1,26 @@
 name: ci
 
-# Plan T3 — lint, typecheck, unit + integration/NFR runners, migration apply/rollback
-# check on every push, plus Layer-1 quality-kit gates (cadence.md §1): gitleaks (secrets,
-# BLOCKING from first run), semgrep (SAST), osv-scanner (SCA). Layer 2 (per-milestone
-# agent runs) and Layer 3 (event-triggered checks) are not in this file — see
-# architecture.md §8 and quality-kit-additions/cadence.md.
+# Plan T3 — lint, typecheck, SQL EXPLAIN check, unit + integration/NFR runners, migration
+# apply/rollback check on every push, plus Layer-1 quality-kit gates (cadence.md §1):
+# gitleaks (secrets, BLOCKING from first run), semgrep (SAST), osv-scanner (SCA). Layer 2
+# (per-milestone agent runs) and Layer 3 (event-triggered checks) are not in this file —
+# see architecture.md §8 and quality-kit-additions/cadence.md.
+#
+# The build-test job deliberately mirrors `npm run verify` (typecheck, lint, sql:check,
+# test) with the migration steps added, and keeps the steps separate so a failure names
+# itself. Keep the two in step: when local and CI check different things, the gap is where
+# defects live.
 
 on:
   push:
   pull_request:
+
+# One run per ref. Without this, pushing a few commits in a row queues that many full
+# runs, each claiming the same Postgres service, and the older ones tell you nothing
+# you still care about.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-test:
@@ -46,6 +58,15 @@ jobs:
         run: npm run migrate
       - name: Migrate down + up (rollback check)
         run: npm run migrate:down && npm run migrate
+      # EXPLAIN-only validation of every raw SQL statement (plan only, never ANALYZE,
+      # inside a rolled-back transaction). Catches wrong columns, bad jsonb operators and
+      # parameters Postgres cannot type-infer — none of which tsc can see, because to the
+      # compiler a query is an opaque string. This step is in CI because it found two
+      # parse-time defects on the moderation publish path on 2026-08-01, each of which had
+      # failed 100% of the time since T14a landed while lint, typecheck and 39 unit tests
+      # all stayed green. Runs after migrations so the schema it plans against exists.
+      - name: SQL EXPLAIN check
+        run: npm run sql:check
       - name: Unit + integration + NFR tests
         run: npm test
 

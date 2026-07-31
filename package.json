@@ -22,7 +22,8 @@
     "test:integration": "vitest run tests/integration",
     "test:nfr": "vitest run tests/nfr",
     "sql:check": "tsx scripts/sql-explain-check.ts",
-    "db:inventory": "tsx scripts/db-inventory.ts"
+    "db:inventory": "tsx scripts/db-inventory.ts",
+    "verify": "npm run typecheck && npm run lint && npm run sql:check && npm test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
