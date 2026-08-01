@@ -6,6 +6,7 @@ import {
   initiateVerification,
 } from "../api";
 import { saveSession } from "../session";
+import { mountAppShell } from "./app-shell";
 import { render } from "./dom";
 import { emailErrorCopy, renderEmailEntry } from "./email-entry";
 import { renderVerificationPending } from "./verification-pending";
@@ -144,8 +145,17 @@ export function mountVerificationFlow(mount: HTMLElement): void {
             pseudonym: state.pseudonym,
             yearBadge: state.yearBadge,
             onContinue: () => {
-              // S5 Home Feed lands in M2 (T17/T19). Placeholder until then.
-              alert("Home feed arrives in the next milestone (M2).");
+              // Straight into the authenticated shell (T19). A2 verified them and the
+              // bootstrap token was already traded for a real session above, so there is
+              // nothing left to do but show them the feed.
+              mountAppShell(
+                mount,
+                {
+                  pseudonym: state.pseudonym ?? "",
+                  year_badge: state.yearBadge ?? "",
+                },
+                () => mountVerificationFlow(mount),
+              );
             },
             onRetry: () => {
               state.screen = "s3";
