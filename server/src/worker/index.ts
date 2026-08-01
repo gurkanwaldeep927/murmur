@@ -1,6 +1,7 @@
 import { logger } from "../shared/logger.js";
 import { closePool } from "../db/pool.js";
 import { moderationRetryJob } from "../modules/moderation/moderation-retry.job.js";
+import { initModerationProviders } from "../modules/moderation/providers/index.js";
 
 /**
  * Background worker process (architecture §5). Runs the async/retry jobs the API must
@@ -20,6 +21,10 @@ const jobs: Job[] = [moderationRetryJob];
 const timers: NodeJS.Timeout[] = [];
 
 function start() {
+  // RES-2: same as the API process — the retry job classifies content, so a provider
+  // that cannot resolve must stop this process at boot rather than failing once per
+  // interval, forever, against every held item it picks up.
+  initModerationProviders();
   logger.info({ jobCount: jobs.length }, "murmur worker starting");
   for (const job of jobs) {
     const timer = setInterval(() => {

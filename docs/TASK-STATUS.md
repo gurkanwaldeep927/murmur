@@ -201,7 +201,14 @@ placeholder key. A comment saying "change me" didn't work; refusing to boot does
 doesn't move. So the post is never retried and never sent to a human. It just sits there,
 invisible, forever.
 
-**Fixed:** ❌ **Not yet.** This is the top item on the next batch.
+**Why it was the nastiest one:** nobody would ever have noticed. The student can't see their
+post, nobody else can see it, and nothing raises a flag. It just quietly doesn't exist.
+
+**Fixed:** ✅ **2 August.** Every kind of failure now moves the counter, so the post always
+reaches a human eventually. Two related problems in the same area were fixed at the same
+time: a confused answer from the safety checker used to crash the app (now it just holds the
+post, which is the safe thing), and a wrongly-configured safety checker used to look fine at
+startup and only break when the first student posted (now the app refuses to start).
 
 ---
 
@@ -211,15 +218,27 @@ invisible, forever.
 The encryption key is blank, so it silently does nothing. Everyone assumes it's on. Not fixed
 yet.
 
-### 5. Passwords and login codes are written into the logs (SEC-005, SEC-006)
-Login tokens and the actual email + one-time code get printed in plain text. Not fixed yet.
+### 5. Login codes and session keys were being written into the logs (PRV-5, PRV-6)
+Two separate leaks, both **fixed 2 August**:
+
+- Every time a signed-in student did anything, their **session key** — the thing that proves
+  they're them — got written into the log in full. Worse, each time the app quietly issued a
+  *fresh* key, that one got logged too. Their internet address went with it.
+- The default email setting printed each student's **real email address and their login code**
+  straight to the screen log. On a real server that would have gone into the log system —
+  every student's identity and password, in one place. Exactly what this app promises never
+  to do.
+
+Found by reading the log during our own test, not by a tool. Both now scrubbed, and the app
+**refuses to start** if the unsafe email setting is used outside a developer's laptop.
 
 ### 6. Anyone can sign up unlimited times (SEC-007)
 There's no limit on the sign-up path, so someone could send unlimited emails through it. Not
 fixed yet.
 
 ### 7. Deleting an account also deletes the ban (SEC-016 / PRV-2)
-A banned person could delete their account and rejoin. Not fixed yet.
+A banned person could delete their account and rejoin. Not fixed yet — it's properly part of
+**T24**, since the ban record it has to survive doesn't exist until Milestone 3.
 
 ---
 
