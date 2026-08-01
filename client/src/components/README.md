@@ -66,3 +66,31 @@ backend currently does.
 6. **S7's `blocked` state is exactly right** — "Only you can see this" matches the
    behaviour pinned by `test_R6_author_can_see_their_own_held_question_but_the_feed_cannot`.
    Keep that wording.
+
+## How T19 resolved each — 2026-08-02
+
+T19 integrated all four screens into `../screens/`. What happened to each note above, and
+the two further gaps integration surfaced:
+
+| Note | Resolution |
+|---|---|
+| 1 — "a few minutes" | **Deferred to Claude Design round 3** (`docs/design-prompts/T19-round-3.md` gap 1). The designer's heading and card layout ship verbatim; the paragraph renders the **server's own message** instead. No replacement copy was authored here. |
+| 2 — vote / reputation | Vote control **not rendered**, behind `FEATURES.voting` in `../lib/features.ts` with the designer's markup kept in `../screens/question-thread.ts`. The accepted badge and reputation chip are *not* flagged — they render off real fields that are false/zero until M3, so they stay invisible now and appear on their own when T22 lands. |
+| 3 — "Report quietly" | **Not rendered**, behind `FEATURES.reporting`. Markup kept, same pattern. |
+| 4 — topic slugs | Done. Chips display `label`, submit `slug`, mapped via `GET /topics`. If that call fails the composer shows its error state rather than guessing a slug. |
+| 5 — S5 field names | Half right, and worth correcting: the **route serializer**, not the repo row, is the wire shape. `content.routes.ts` renames most fields to camelCase (`moderationStatus`, `publishedAt`, `answerCount`) but leaves the author projection snake_case (`pseudonym`, `year_badge`, `reputation_score`). The client types in `../lib/content-view.ts` mirror the serializer. |
+| 6 — blocked wording | Kept verbatim, as instructed. |
+
+**Two more found during integration**, both in round 3:
+
+7. **No `blocked` outcome card exists** on S6 or S8, but A3/A4 can return 201 with
+   `moderationStatus: "blocked"`. Interim: the shield card with the server's reason
+   (gap 2).
+8. **Real pseudonyms are `quiet-otter-4821`**, not `QuietFalcon` — lowercase
+   `adjective-noun-NNNN`, roughly double the length, and the noun list is mostly not
+   animals, so the mock's name→emoji dictionary cannot be carried over. Interim: verbatim
+   rendering plus a stable hash into the designers' five-emoji palette (gap 4).
+
+Also fixed in passing: the year badge. The API stores `"2026"`; every design chip reads
+`'26 batch`. `formatYearBadge()` in `../lib/format.ts` is now the single place that gap is
+closed — including for S4, which had been rendering the raw year since T10.
