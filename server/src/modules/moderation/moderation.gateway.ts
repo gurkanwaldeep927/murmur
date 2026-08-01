@@ -40,6 +40,34 @@ const TIER_TO_STATUS: Record<RiskTier, ModerationStatus> = {
   escalate: "pending",
 };
 
+const VALID_TIERS: readonly RiskTier[] = ["auto_pass", "auto_block", "escalate"];
+
+/**
+ * RES-1 (fixed 2026-08-02). `ModerationProvider` is a PORT — from M6 its implementations
+ * are vendor adapters translating third-party JSON, and TypeScript cannot check what
+ * crosses that boundary at runtime. An adapter returning `{ tier: undefined }`, or a
+ * plausible-looking tier the enum does not contain, previously flowed straight into
+ * `TIER_TO_STATUS[verdict.tier]` → `undefined` status → a NOT NULL violation deep in
+ * `recordVerdict`, surfacing as a 500 rather than as a moderation decision.
+ *
+ * The fix keeps the gateway's single invariant intact: an unusable verdict is NO verdict,
+ * which is already a state with a correct handler — hold, retry, escalate. Converting it
+ * to `ProviderUnavailableError` means a malformed response and an outage take the same
+ * fail-closed path, exactly as a timeout already does.
+ */
+function assertUsableVerdict(providerName: string, verdict: ProviderVerdict): ProviderVerdict {
+  if (!verdict || typeof verdict !== "object") {
+    throw new ProviderUnavailableError(providerName, "provider returned no verdict object");
+  }
+  if (!VALID_TIERS.includes(verdict.tier)) {
+    throw new ProviderUnavailableError(
+      providerName,
+      `provider returned an unusable risk tier: ${JSON.stringify(verdict.tier)}`,
+    );
+  }
+  return verdict;
+}
+
 /** Wall-clock ceiling on a provider call: a hung provider must not hang a user's write. */
 async function classifyWithTimeout(
   provider: ModerationProvider,
@@ -80,13 +108,13 @@ async function classifyTiered(
 ): Promise<{ verdict: ProviderVerdict; provider: string }> {
   const { tier1, tier2 } = resolveProviders();
 
-  const first = await classifyWithTimeout(tier1, input);
+  const first = assertUsableVerdict(tier1.name, await classifyWithTimeout(tier1, input));
   if (first.tier !== "escalate" || !tier2) {
     return { verdict: first, provider: tier1.name };
   }
 
   try {
-    const second = await classifyWithTimeout(tier2, input);
+    const second = assertUsableVerdict(tier2.name, await classifyWithTimeout(tier2, input));
     return { verdict: second, provider: tier2.name };
   } catch (err) {
     logger.warn(
@@ -169,23 +197,56 @@ export async function classifyAndApply(
     const status = await applyVerdict(ref, caseId, verdict, provider, attempts);
     return { caseId, status, riskTier: verdict.tier, held: status === "pending" };
   } catch (err) {
-    if (!(err instanceof ProviderUnavailableError)) throw err;
+    // RES-3 (fixed 2026-08-02). This used to rethrow anything that was not a
+    // ProviderUnavailableError — a database blip inside applyVerdict, a bug, anything —
+    // WITHOUT recording the attempt. The attempt counter therefore never advanced for
+    // those failures, so `attempts >= moderationMaxAttempts` was never reached, the retry
+    // worker re-ran the same failure forever, and the item could never be escalated to a
+    // human. Content held invisible with no path to a decision breaks R6 AC3, and it is
+    // invisible by construction: no user sees it, and nothing alerts on it.
+    //
+    // Every failure now advances the counter, so the ceiling is reachable by every route
+    // into this catch. That is the property R6 AC3 actually depends on.
+    const isProviderFailure = err instanceof ProviderUnavailableError;
+    const providerName = isProviderFailure ? err.provider : "gateway";
+    const message = err instanceof Error ? err.message : String(err);
 
-    await repo.recordFailedAttempt(pool, caseId, err.provider, err.message, attempts);
-
-    // Ceiling reached on this very attempt: hand it to the human queue now rather than
-    // waiting a retry cycle to notice.
-    if (attempts >= config.moderationMaxAttempts) {
-      await repo.escalateToHuman(pool, caseId);
-      logger.warn(
-        { caseId, attempts, provider: err.provider },
-        "moderation attempts exhausted — auto-escalated to the human queue (fail-closed)",
+    if (!isProviderFailure) {
+      // Unexpected, so it must be loud — but the item is safely held either way, and
+      // reporting "pending" to the caller is the truth about the row that exists.
+      logger.error(
+        { err, caseId, attempts, ref },
+        "unexpected moderation failure — content held pending, attempt recorded (fail-closed)",
       );
-      return { caseId, status: "pending", riskTier: "escalate", held: true };
+    }
+
+    try {
+      await repo.recordFailedAttempt(pool, caseId, providerName, message, attempts);
+
+      // Ceiling reached on this very attempt: hand it to the human queue now rather than
+      // waiting a retry cycle to notice.
+      if (attempts >= config.moderationMaxAttempts) {
+        await repo.escalateToHuman(pool, caseId);
+        logger.warn(
+          { caseId, attempts, provider: providerName },
+          "moderation attempts exhausted — auto-escalated to the human queue (fail-closed)",
+        );
+        return { caseId, status: "pending", riskTier: "escalate", held: true };
+      }
+    } catch (bookkeepingErr) {
+      // The database is unreachable, so the attempt could not be recorded. Rethrowing the
+      // ORIGINAL error would hide that; swallowing it would claim progress that did not
+      // happen. Log both and still report held — the content row is `pending` and no
+      // failure path here can publish it.
+      logger.error(
+        { err: bookkeepingErr, cause: message, caseId, attempts },
+        "could not record moderation attempt — case may not advance toward escalation",
+      );
+      return { caseId, status: "pending", riskTier: null, held: true };
     }
 
     logger.info(
-      { caseId, attempts, provider: err.provider, err: err.message },
+      { caseId, attempts, provider: providerName, err: message },
       "moderation provider unavailable — content held pending, retry scheduled (fail-closed)",
     );
     return { caseId, status: "pending", riskTier: null, held: true };

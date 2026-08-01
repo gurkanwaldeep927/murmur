@@ -19,10 +19,40 @@ export interface EmailProvider {
   sendVerification(to: string, token: string): Promise<void>;
 }
 
+/**
+ * Environments in which an adapter that does not really deliver mail is acceptable.
+ * Anything else — production, staging, or an unrecognised value — must fail loudly at
+ * boot rather than quietly, because both non-delivering adapters break registration in
+ * their own way: `console` prints the OTP to stdout, `memory` drops it entirely.
+ */
+const NON_DELIVERING_OK = new Set(["development", "test"]);
+
+function refuseOutsideDev(name: string): void {
+  if (NON_DELIVERING_OK.has(config.env)) return;
+  throw new Error(
+    `EMAIL_PROVIDER='${name}' does not deliver real email and must not run with ` +
+      `NODE_ENV='${config.env}'. Set EMAIL_PROVIDER=smtp (with SMTP_HOST/SMTP_USER/SMTP_PASS) ` +
+      `or implement a real adapter.`,
+  );
+}
+
+/**
+ * PRV-6 (fixed 2026-08-02). This adapter writes the student's RAW email address and their
+ * LIVE one-time code to stdout, bypassing pino's redaction entirely — and it was the
+ * default (`EMAIL_PROVIDER` defaults to `console`), so a production deploy that simply
+ * forgot to set the variable would have printed every student's identity and login code
+ * into its log aggregator. Against a product whose whole promise is anonymity, that is
+ * the single worst thing a default could do.
+ *
+ * A comment saying "never do this in prod" did not prevent the equivalent mistake with
+ * the email pepper (OQ-SEC-01); refusing to boot did. Same remedy here.
+ */
 class ConsoleEmailProvider implements EmailProvider {
+  constructor() {
+    refuseOutsideDev("console");
+  }
   async sendVerification(to: string, token: string): Promise<void> {
-    // Dev only. The raw address is intentionally NOT structured-logged (it is passed
-    // straight to the console line below and never persisted). Never do this in prod.
+    // Dev only, and now enforced by the constructor above rather than by convention.
     // eslint-disable-next-line no-console
     console.log(`[email:console] verification token for ${to}: ${token}`);
   }
@@ -35,6 +65,11 @@ class ConsoleEmailProvider implements EmailProvider {
  */
 class MemoryEmailProvider implements EmailProvider {
   private readonly lastByAddress = new Map<string, string>();
+  constructor() {
+    // Not a leak, but a silent failure: in production this accepts every send and
+    // delivers nothing, so registration appears to work and no code ever arrives.
+    refuseOutsideDev("memory");
+  }
   async sendVerification(to: string, token: string): Promise<void> {
     this.lastByAddress.set(to.toLowerCase(), token);
   }

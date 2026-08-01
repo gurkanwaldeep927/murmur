@@ -76,6 +76,21 @@ export function resolveProviders(): { tier1: ModerationProvider; tier2: Moderati
 }
 
 /**
+ * RES-2 (fixed 2026-08-02). `resolve()` above says it "fails at startup, loudly" — but
+ * nothing called it at startup. Resolution happened lazily inside `classifyTiered`, i.e.
+ * on the first user write, so a deployment naming a provider that does not exist, or a
+ * test-only one, booted green and passed health checks and only broke when a student
+ * posted. The whole point of that error is to stop a bad config from reaching users.
+ *
+ * Each process entrypoint calls this before accepting work, which is what makes the
+ * comment true. It also surfaces the "no provider configured — everything holds" warning
+ * at boot, where an operator will actually see it, rather than buried in a request log.
+ */
+export function initModerationProviders(): void {
+  resolveProviders();
+}
+
+/**
  * Test seam. `config` is read once at import, so a test that wants a different provider
  * cannot get one by mutating process.env after the fact — it overrides here instead.
  * Refuses outside the test runner, for the same reason `TEST_ONLY` does.

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { holdAllProvider } from "../../server/src/modules/moderation/providers/hold-all.provider.js";
 import { fixtureProvider } from "../../server/src/modules/moderation/providers/fixture.provider.js";
@@ -60,5 +62,34 @@ describe("fixture provider (test-only)", () => {
     const b = await fixtureProvider.classify(input);
     expect(a.tier).toBe(b.tier);
     expect(a.score).toBe(b.score);
+  });
+});
+
+/**
+ * SECREG-RES-2 — provider resolution must happen at process startup.
+ *
+ * `resolve()` throws a deliberate, loud error for an unknown or test-only provider, and
+ * its comment says it "fails at startup". Nothing called it at startup: resolution was
+ * lazy, inside `classifyTiered`, so a deployment naming a provider that does not exist
+ * booted green, passed its health check, and broke only when a student first posted.
+ *
+ * The assertion is structural because the defect was structural — the logic was already
+ * correct, it just was not reachable from the entrypoints. Nothing else in the suite can
+ * observe "was this called before the port opened".
+ */
+describe("SECREG-RES-2: providers are bound at startup", () => {
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  const entrypoints = ["server/src/index.ts", "server/src/worker/index.ts"];
+
+  for (const file of entrypoints) {
+    it(`test_RES2_${file.replace(/[^a-z]+/gi, "_")}_binds_providers_before_serving`, () => {
+      const src = readFileSync(`${root}${file}`, "utf8");
+      expect(src).toContain("initModerationProviders");
+    });
+  }
+
+  it("test_RES2_the_init_seam_is_exported", async () => {
+    const mod = await import("../../server/src/modules/moderation/providers/index.js");
+    expect(typeof mod.initModerationProviders).toBe("function");
   });
 });

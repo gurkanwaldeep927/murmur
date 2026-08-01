@@ -397,9 +397,66 @@ document: the "My Posts" CTA (S12 is M4/M5), real pseudonym shape, and the year 
 > **T19 is therefore complete on integration and open on visual QA.** Close it when T49
 > lands, or run it locally per §7 of the plan.
 
+### 2026-08-02 (later) — the M3-entry fix list: PRV-5, PRV-6, RES-1, RES-2, RES-3
+
+Five gate findings closed, each with a `SECREG-` regression test, and each test verified by
+reverting the fix and watching it fail. 108 → **136 tests**.
+
+**PRV-5 — live session tokens in the logs.** `pino-http` serializes `req.headers` and
+`res.headers` wholesale, and the redact list covered only application fields. So every
+authenticated request wrote a working `Bearer` token to stdout, and every sliding refresh
+wrote a **newly minted** one back in `x-session-refresh` — that second one leaks even on
+requests that arrived with no credential. Client IP went out with both. **Confirmed by
+reading a real dev log during the T19 smoke test**, not by re-reading the gate report.
+`REDACT_PATHS` is now exported so the test pins the real list rather than a copy of it;
+two of its cases assert that ordinary fields (method, URL, status) still survive, because
+redaction that swallows everything is how redaction gets removed.
+
+**PRV-6 — raw email + live OTP to stdout, by default.** `EMAIL_PROVIDER` defaults to
+`console`, whose adapter prints the student's address and their one-time code, bypassing
+pino entirely. A production deploy that merely *forgot the variable* would have published
+every student's identity and login code to its log aggregator. Both non-delivering
+adapters (`console`, `memory`) now refuse to construct outside `development`/`test`, and
+because the module builds its provider at import, that refusal stops the boot. Allowlist,
+not `!== "production"` — staging is not development. Same remedy as OQ-SEC-01: a comment
+saying "never do this in prod" did not work; refusing to start did.
+
+**RES-3 — held content with no route to a human.** The gateway rethrew any error that was
+not a `ProviderUnavailableError` *without recording the attempt*, so for those failures the
+counter never advanced, `attempts >= moderationMaxAttempts` was never reached, and the
+retry worker re-ran the same failure forever. The item stayed held, invisible, undecidable
+— breaking **R6 AC3**, and invisible by construction: no user sees it and nothing alerts on
+it. Every failure now advances the counter, so the ceiling is reachable by every route into
+the catch. Bookkeeping failure (database down) is handled separately and still reports held,
+because no path here may publish.
+
+**RES-1 — a malformed verdict became a 500.** `ModerationProvider` is a port; from M6 its
+implementations translate vendor JSON, which TypeScript cannot check at runtime. A verdict
+with an absent or unrecognised `tier` flowed into `TIER_TO_STATUS[...]` → `undefined` →
+NOT NULL violation inside `recordVerdict`. Now validated at the boundary and converted to
+`ProviderUnavailableError`: **an unusable verdict is no verdict**, which is a state that
+already has a correct handler. Worth fixing before T14b, not during it.
+
+**RES-2 — "fails at startup" was not true.** `resolve()` throws a deliberate error for an
+unknown or test-only provider and its comment claimed startup, but resolution was lazy
+inside `classifyTiered` — so a deployment naming a provider that does not exist booted
+green, passed health checks, and broke on the first student's post. `initModerationProviders()`
+is now called by both process entrypoints before either accepts work. The regression test is
+structural (does the entrypoint call it), because the defect was structural: the logic was
+already right, it just was not reachable from where it mattered.
+
+**Still open from the gate lists:** PRV-7 (`POST /events` unauthenticated, arbitrary
+metadata into a never-deleted table) and PRV-2 (`admin-delete-identity.ts` hard-deletes and
+defeats the ban) — PRV-2 is properly **T24**'s job, since the ban record it must survive
+does not exist until M3.
+
 ### Next
 - **~~T19~~ — integration done 2026-08-02.** Two follow-ons: **T19b** (swap in round 3's
   pending/blocked cards when they come back) and the **rubric pass** above.
+- **T62 needs `.pipeline/unlock` containing `08` before it runs.** The guardrail freezes
+  `docs/0N-*.md` once a higher-numbered stage doc exists, and `docs/14-*` + `docs/16-*`
+  already do. T60 hit this exact wall (OQ-SEC-06) and correctly refused to self-grant the
+  unlock; T62 will hit it identically. A human must create the file.
 - **~~T18~~ — done 2026-08-01.** **T25/T30/T39 remain copy jobs, not design sessions**: all 17
   `S1`–`S17` `.dc.html` files exist in the design project above. Pull the files a milestone
   needs at integration time and port them into `client/src/screens/` the way S1–S4 were —
