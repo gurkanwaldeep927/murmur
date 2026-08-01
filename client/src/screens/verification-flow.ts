@@ -51,6 +51,11 @@ export function mountVerificationFlow(mount: HTMLElement): void {
     s4Outcome: "loading",
   };
 
+  // Set when the bootstrap-token exchange fails. The user is verified either way, so S4
+  // still celebrates — but there is no session, so "Continue" must not mount the
+  // authenticated shell only for its first request to 401 and bounce them to S1.
+  let exchangeFailed = false;
+
   let cooldownTimer: ReturnType<typeof setInterval> | null = null;
   const stopCooldown = () => {
     if (cooldownTimer) clearInterval(cooldownTimer);
@@ -145,9 +150,17 @@ export function mountVerificationFlow(mount: HTMLElement): void {
             pseudonym: state.pseudonym,
             yearBadge: state.yearBadge,
             onContinue: () => {
-              // Straight into the authenticated shell (T19). A2 verified them and the
-              // bootstrap token was already traded for a real session above, so there is
-              // nothing left to do but show them the feed.
+              // Straight into the authenticated shell (T19) — but only if the bootstrap
+              // token actually became a session. Mounting the shell without one puts the
+              // user through a badge, a celebration and an instant bounce back to S1 with
+              // no explanation, which is precisely the bug the missing /session proxy
+              // entry caused.
+              if (exchangeFailed) {
+                state.screen = "s3";
+                state.s3Phase = "error";
+                draw();
+                return;
+              }
               mountAppShell(
                 mount,
                 {
@@ -249,8 +262,13 @@ export function mountVerificationFlow(mount: HTMLElement): void {
         try {
           const { sessionToken, profile } = await exchangeBootstrapToken(res.sessionToken);
           saveSession({ token: sessionToken, profile });
-        } catch {
-          /* verified but not signed in; S4 still shows the success outcome */
+        } catch (err) {
+          // Verified but not signed in. S4 still shows the success outcome — they ARE
+          // verified — but this must never be silent again: when the dev proxy was
+          // missing /session, the exchange failed, this catch ate it, and the only
+          // symptom was the user landing back on S1 after seeing their badge.
+          console.warn("[murmur] session exchange failed; continuing signed-out", err);
+          exchangeFailed = true;
         }
         emitEvent("client.registration.verification_confirmed");
         state.s3Phase = "success";
