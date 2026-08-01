@@ -232,9 +232,24 @@ Two separate leaks, both **fixed 2 August**:
 Found by reading the log during our own test, not by a tool. Both now scrubbed, and the app
 **refuses to start** if the unsafe email setting is used outside a developer's laptop.
 
-### 6. Anyone can sign up unlimited times (SEC-007)
-There's no limit on the sign-up path, so someone could send unlimited emails through it. Not
-fixed yet.
+### 6. Anyone could guess login codes forever, and sign up unlimited times (SEC-004, SEC-007)
+Both **fixed 2 August.**
+
+- **The login code could be guessed until it worked.** Nothing counted wrong guesses, so
+  someone could try all million 6-digit codes in minutes and walk in as another student.
+  This was the worst thing on the list: proving you're a real student with your college
+  email is the foundation everything else stands on, and it wasn't holding. Now you get 5
+  guesses per code; after that the code is destroyed and you must request a new one. A wrong
+  guess and a used-up code look identical, so an attacker can't tell when to start over.
+- **Nothing stopped one person signing up with thousands of addresses.** There was a limit
+  per email address, but none per *person* — so someone could pump unlimited mail through
+  our email account. Now capped per device, per hour.
+
+### ⚠️ One thing to remember when the app goes on a real server (T49)
+The new limits count requests per device. If the app sits behind a load balancer and one
+setting (`TRUST_PROXY`) isn't set correctly, the app will think **every student is the same
+person** and lock out the entire campus at once. It's one line of configuration — but it
+has to be right.
 
 ### 7. Deleting an account also deletes the ban (SEC-016 / PRV-2)
 A banned person could delete their account and rejoin. Not fixed yet — it's properly part of

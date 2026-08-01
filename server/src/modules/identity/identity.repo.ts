@@ -13,14 +13,17 @@ export interface IdentityAccountRow {
   derived_enrollment_year: number | null;
   verification_token_hash: string | null;
   verification_token_expires_at: Date | null;
+  /** SENDS in the current rate window (A1 resend cooldown) — not guesses. */
   verification_attempt_count: number;
+  /** Failed A2 GUESSES against the current token (SEC-004, migration 007). */
+  verification_confirm_attempt_count: number;
   last_verification_sent_at: Date | null;
   ban_status: boolean;
 }
 
 const SELECT_COLS = `id, email_hash, verification_status, derived_enrollment_year,
   verification_token_hash, verification_token_expires_at, verification_attempt_count,
-  last_verification_sent_at, ban_status`;
+  verification_confirm_attempt_count, last_verification_sent_at, ban_status`;
 
 export async function findByEmailHash(
   db: DbPool | DbClient,
@@ -100,9 +103,49 @@ export async function reissueToken(
         SET verification_token_hash = $2,
             verification_token_expires_at = $3,
             verification_attempt_count = $4,
+            -- A new token gets a fresh guess budget (SEC-004). Guesses are scoped to the
+            -- token they were made against, so carrying them over would lock a legitimate
+            -- user out of a code they have only just received.
+            verification_confirm_attempt_count = 0,
             last_verification_sent_at = now()
       WHERE id = $1`,
     [id, tokenHash, tokenExpiresAt, attemptCount],
+  );
+}
+
+/**
+ * SEC-004 — count one failed confirm and report the new total.
+ *
+ * MUST run outside A2's transaction. That transaction rolls back on the invalid-token
+ * throw, so an increment inside it would be discarded and the counter would never move —
+ * the same class of defect as RES-3's frozen attempt counter, and it would make this whole
+ * control decorative. The caller passes the pool, not the transaction client.
+ */
+export async function recordConfirmFailure(db: DbPool | DbClient, id: string): Promise<number> {
+  const { rows } = await db.query<{ verification_confirm_attempt_count: number }>(
+    `UPDATE identity_account
+        SET verification_confirm_attempt_count = verification_confirm_attempt_count + 1
+      WHERE id = $1
+      RETURNING verification_confirm_attempt_count`,
+    [id],
+  );
+  return rows[0]?.verification_confirm_attempt_count ?? 0;
+}
+
+/**
+ * SEC-004 — burn the token once the guess budget is spent. The account stays `pending`,
+ * so the user can request a fresh code; what is destroyed is the guessing target.
+ */
+export async function invalidateVerificationToken(
+  db: DbPool | DbClient,
+  id: string,
+): Promise<void> {
+  await db.query(
+    `UPDATE identity_account
+        SET verification_token_hash = NULL,
+            verification_token_expires_at = NULL
+      WHERE id = $1`,
+    [id],
   );
 }
 

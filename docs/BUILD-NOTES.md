@@ -450,6 +450,82 @@ metadata into a never-deleted table) and PRV-2 (`admin-delete-identity.ts` hard-
 defeats the ban) — PRV-2 is properly **T24**'s job, since the ban record it must survive
 does not exist until M3.
 
+### 2026-08-02 (later still) — the identity surface: SEC-004, SEC-007, PRV-7/SEC-009
+
+**A correction worth recording first.** The previous entry called RES-1/2/3 + PRV-5/6 "the
+M3-entry fix list", which read as if it were the outstanding work. It was one triaged slice.
+The three gates produced **40 findings** (18 SEC, 8 PRV, 14 RES); this batch takes the total
+fixed to **11**. The rest were never triaged, which is exactly how a backlog becomes
+invisible. Full status is in the gate JSONs plus `.pipeline/sec/handoff-08-security.json` —
+`docs/08-security.md` still cannot be written (OQ-SEC-06).
+
+**SEC-004 — unlimited OTP guessing (HIGH, and the worst of the three).** A2 counted
+nothing. `verification_attempt_count` exists but counts *sends* — A1's resend path
+increments it — so a 6-digit code accepted unlimited guesses and was exhaustible in
+minutes. That defeats email verification, which is the gate every other control in the
+product assumes held. Migration **007** adds a separate `verification_confirm_attempt_count`
+(deliberately not reusing the send counter: they bound different attacks, have different
+ceilings, and reset at different moments — conflating them would let a resend silently
+restore guesses).
+
+The subtle half is *where* the increment happens. A2's invalid-token throw rolls its
+transaction back, so a counter incremented inside it would be discarded and the cap would
+never engage — the same shape as RES-3's frozen counter, one day apart. Credential checking
+now happens before the transaction opens and records failures on the pool. At the ceiling
+the **token** is burned, not the account: the student can still request a fresh code, but
+the value being ground against stops existing. Every rejection returns the same
+`token_invalid_or_expired`, so lockout is not observable — a distinct "too many attempts"
+reply would confirm the address is registered (the SEC-008 oracle) and tell an attacker
+exactly when to rotate.
+
+**SEC-007 — nothing bounded a caller cycling addresses.** The per-email cooldown bounds one
+*address*; it is blind to one caller working through thousands of fresh ones, each looking
+like a first-time signup. That path sends unbounded mail on the project's own SMTP
+credentials. `shared/rate-limit.ts` adds per-caller hourly ceilings on initiate, confirm and
+`/events`. Buckets are keyed by a truncated HMAC of the address under a per-process salt —
+client IP is personal data and a deanonymisation vector, the same reasoning that put
+`req.remoteAddress` in the redact list. Expired windows are swept, because a limiter keyed
+by attacker-controlled input that never evicts is itself a denial-of-service tool.
+
+> **`TRUST_PROXY` must be set correctly at deploy time (T49).** The limiters bucket by
+> `req.ip`. Behind a load balancer with Express's `trust proxy` unset, every request reports
+> the *proxy's* address, all callers share one bucket, and the limiter locks out the entire
+> campus at once. Left unset by default because trusting a forwarded header no proxy
+> rewrites is the opposite failure — a caller spoofs `X-Forwarded-For` and gets a fresh
+> bucket per request.
+
+**Known limitation, written down rather than left implicit:** the limiter is in-process. At
+N instances the effective ceiling is N × the configured value. A shared store is the
+textbook answer and the TRD admits no second datastore at v1 scale; per-instance is
+strictly better than the current zero. Revisit when the deployment stops being
+single-instance.
+
+**PRV-7 / SEC-009 — the event ingest was worse than "unauthenticated".** It accepted a
+client-supplied **`actorProfileId`**, so any anonymous caller could attribute events to any
+profile: every per-user metric was forgeable by anyone who could reach the endpoint. It also
+took any `eventType` string and an open `Record<string, unknown>` of metadata — into a table
+nothing deletes from (PRV-1), making it an indefinite store for whatever a caller sent,
+including the raw email addresses this product exists to keep out of the database.
+Attribution is now *derived* from a session token (the body field is refused outright, so an
+old client finds out rather than silently losing attribution), event names are an allowlist,
+and metadata is flat primitives, bounded in count and length, with email-shaped strings
+refused. It stays public by necessity: the registration funnel it measures happens before
+anyone has a session (R8).
+
+**The rate limiter broke 14 of 23 content tests, and that was correct.** Every supertest
+request arrives from one caller, so a suite signing in a few students exhausts an hour's
+signup budget. Fixed by resetting the limiters in `truncateAll()` rather than relaxing the
+ceilings under `NODE_ENV=test` — the suite now runs against the **production** numbers, so a
+real flow that outgrows one fails a test instead of surprising a student. Verified by
+disabling the reset: 14 failures return.
+
+**One diagnostic note.** A full run mid-batch showed 9 failures that moved between runs and
+did not reproduce when the same files ran alone; a connection probe showed the Supabase
+pooler dropping connections under repeated full-suite load ("Connection terminated
+unexpectedly"), not a defect. Worth knowing before chasing a phantom: **failures that move
+between runs against remote Postgres are the pooler, not the code** — but confirm by
+re-running the files in isolation before believing it.
+
 ### Next
 - **~~T19~~ — integration done 2026-08-02.** Two follow-ons: **T19b** (swap in round 3's
   pending/blocked cards when they come back) and the **rubric pass** above.

@@ -1,5 +1,6 @@
 import { pool } from "../../server/src/db/pool.js";
 import { up } from "../../server/src/db/migrate.js";
+import { resetRateLimiters } from "../../server/src/shared/rate-limit.js";
 
 /**
  * Integration/NFR test harness. Requires a reachable Postgres via DATABASE_URL
@@ -76,6 +77,16 @@ export async function truncateAll(): Promise<void> {
   `);
   // topic_tag is deliberately NOT truncated: migration 002 seeds it, and the seed is
   // reference data every content test depends on.
+
+  // Per-test state that is NOT in the database (SEC-007). The rate limiters bucket by
+  // caller address, and every supertest request arrives from the same one — so a suite
+  // that signs several students in exhausts one hour's signup budget and the rest of the
+  // file fails on 429s that have nothing to do with what it is testing.
+  //
+  // Resetting here rather than raising the ceilings under NODE_ENV=test is deliberate:
+  // the limits the suite runs against stay the PRODUCTION numbers, so a future change
+  // that makes a real flow exceed them fails a test instead of surprising a student.
+  resetRateLimiters();
 }
 
 export async function closeDb(): Promise<void> {
