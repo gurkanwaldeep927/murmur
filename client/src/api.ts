@@ -251,10 +251,20 @@ export function newIdempotencyKey(): string {
 }
 
 // --- A12: fire-and-forget analytics ---
+
+/**
+ * The session token is attached when there is one so the server can DERIVE attribution
+ * (PRV-7). It is never sent as a body field: A12 refuses a caller-supplied
+ * `actorProfileId` outright, because accepting one let any anonymous caller attribute
+ * events to any profile. Pre-auth funnel events simply arrive without a token and are
+ * recorded anonymously, which is the normal case for this endpoint.
+ *
+ * Never awaited and never throws — analytics must not be able to fail a user action.
+ */
 export function emitEvent(eventType: string, metadata?: Record<string, unknown>): void {
   void fetch(`${API_BASE}/events`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...authHeaders() },
     body: JSON.stringify({ eventType, metadata }),
     keepalive: true,
   }).catch(() => {

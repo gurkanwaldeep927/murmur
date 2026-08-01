@@ -97,6 +97,27 @@ export const config = {
   verificationResendCooldownSeconds: intOpt("VERIFICATION_RESEND_COOLDOWN_SECONDS", 60),
   verificationMaxAttemptsPerWindow: intOpt("VERIFICATION_MAX_ATTEMPTS_PER_WINDOW", 5),
   verificationRateWindowMinutes: intOpt("VERIFICATION_RATE_WINDOW_MINUTES", 60),
+  /**
+   * SEC-004 — failed A2 guesses allowed against ONE token before it is burned. Distinct
+   * from the send budget above: this bounds credential guessing, that bounds outbound
+   * mail. At 5, a 6-digit code gives an attacker a 5-in-a-million shot per issued token
+   * instead of unlimited tries.
+   */
+  verificationMaxConfirmAttempts: intOpt("VERIFICATION_MAX_CONFIRM_ATTEMPTS", 5),
+
+  /**
+   * SEC-007 — per-caller hourly ceilings (shared/rate-limit.ts). The per-email cooldown
+   * above cannot see a caller cycling thousands of fresh addresses; these can.
+   *
+   * `trustProxy` matters as much as the numbers: behind a load balancer with it unset,
+   * every request appears to come from the proxy, all callers share one bucket, and the
+   * limiter locks out the whole campus. Set it to the number of proxies in front of the
+   * app (or "true" if that is unknown and the hop is trusted).
+   */
+  rateLimitInitiatePerHour: intOpt("RATE_LIMIT_INITIATE_PER_HOUR", 10),
+  rateLimitConfirmPerHour: intOpt("RATE_LIMIT_CONFIRM_PER_HOUR", 30),
+  rateLimitEventsPerHour: intOpt("RATE_LIMIT_EVENTS_PER_HOUR", 300),
+  trustProxy: optional("TRUST_PROXY", ""),
 
   // T14a — Moderation Gateway. Deliberately DEFAULTS TO EMPTY.
   //

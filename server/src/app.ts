@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { pinoHttp } from "pino-http";
+import { config } from "./config/index.js";
 import { logger } from "./shared/logger.js";
 import { AppError, sendError, errors } from "./shared/error-envelope.js";
 import { identityRouter } from "./modules/identity/identity.routes.js";
@@ -15,6 +16,18 @@ import { pool } from "./db/pool.js";
  */
 export function createApp() {
   const app = express();
+
+  // SEC-007 depends on this being right. The rate limiters bucket by `req.ip`, and behind
+  // a load balancer with `trust proxy` unset every request reports the PROXY's address —
+  // so all callers share one bucket and the limiter locks out the entire campus at once.
+  // Left unset by default because trusting a forwarded header that no proxy actually
+  // rewrites lets a caller spoof `X-Forwarded-For` and get a fresh bucket per request,
+  // which is the opposite failure. Set TRUST_PROXY to match the real deployment.
+  if (config.trustProxy) {
+    const hops = Number(config.trustProxy);
+    app.set("trust proxy", Number.isFinite(hops) ? hops : config.trustProxy);
+  }
+
   app.use(express.json({ limit: "256kb" }));
   app.use(pinoHttp({ logger }));
 

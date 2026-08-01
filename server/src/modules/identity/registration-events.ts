@@ -9,4 +9,10 @@ export const RegistrationEvents = {
   VERIFICATION_BLOCKED_YEAR: "registration.blocked_unparseable_year", // S4 blocked
   REGISTRATION_REFUSED_BANNED: "registration.refused_banned", // S4 refused
   ACTIVATED: "activation.profile_created", // first profile created
+  /**
+   * SEC-004: a token's guess budget was spent and the token was burned. Carries no actor
+   * — the whole point is that an exhausted budget may well be an attacker, not the
+   * account's owner. A rise here is the signal that someone is grinding OTPs.
+   */
+  VERIFICATION_ATTEMPTS_EXHAUSTED: "registration.verification_attempts_exhausted",
 } as const;

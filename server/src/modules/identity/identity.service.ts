@@ -131,31 +131,72 @@ export type ConfirmResult =
   | { outcome: "blocked_unparseable_year" }
   | { outcome: "refused_banned" };
 
+/**
+ * The single response A2 gives for every unusable-credential case: no account, wrong
+ * code, expired code, already-consumed code, or guess budget exhausted. Keeping them
+ * indistinguishable is the point — a distinct "too many attempts" reply would confirm
+ * that an address is registered (the SEC-008 oracle) and tell an attacker exactly when
+ * to rotate to a fresh code.
+ */
+function invalidToken(): AppError {
+  return new AppError(400, "token_invalid_or_expired", "This code is invalid or has expired.");
+}
+
 export async function confirmVerification(rawEmail: string, otp: string): Promise<ConfirmResult> {
   const normalized = normalizeEmail(rawEmail);
   if (!normalized) {
     throw new AppError(400, "email_malformed", "That doesn't look like a valid email address.");
   }
-  return withTransaction(async (client) => {
-    // Rotation-safe (RR-13) — see the note in initiateVerification. A2 only reads the
-    // account here, so it needs no active-pepper hash of its own.
-    //
-    // Deliberately NOT done here: lazily re-hashing a matched `v1$…` row up to the
-    // active pepper. That is how a dual-hash rollout converges so the retired pepper can
-    // eventually be dropped, but the rollout thresholds are human-owned and unfilled
-    // (T72, runbooks/pepper-rotation.md). Until they are, every row stays readable via
-    // candidateHashes and nothing is lost by waiting.
-    const account = await repo.findByAnyEmailHash(client, candidateHashes(normalized.normalized));
+  const hashes = candidateHashes(normalized.normalized);
 
-    // No account, already-consumed token, or bad/expired token → uniform invalid response.
-    if (!account || account.verification_status !== "pending") {
-      throw new AppError(400, "token_invalid_or_expired", "This code is invalid or has expired.");
+  // SEC-004. Credential checking happens BEFORE the transaction opens, because a failed
+  // guess must be *recorded* and the invalid-token throw rolls the transaction back —
+  // an increment inside it would be discarded and the cap would never engage.
+  //
+  // Rotation-safe (RR-13) — see the note in initiateVerification. A2 only reads the
+  // account here, so it needs no active-pepper hash of its own.
+  //
+  // Deliberately NOT done here: lazily re-hashing a matched `v1$…` row up to the active
+  // pepper. That is how a dual-hash rollout converges so the retired pepper can
+  // eventually be dropped, but the rollout thresholds are human-owned and unfilled
+  // (T72, runbooks/pepper-rotation.md). Until they are, every row stays readable via
+  // candidateHashes and nothing is lost by waiting.
+  const account = await repo.findByAnyEmailHash(pool, hashes);
+  if (!account || account.verification_status !== "pending") throw invalidToken();
+
+  // Budget already spent on an earlier request: the token should be gone, but clear it
+  // again rather than trusting that it was — this is the branch that must not be
+  // bypassable.
+  if (account.verification_confirm_attempt_count >= config.verificationMaxConfirmAttempts) {
+    await repo.invalidateVerificationToken(pool, account.id);
+    throw invalidToken();
+  }
+
+  const expired =
+    !account.verification_token_expires_at ||
+    account.verification_token_expires_at.getTime() < Date.now();
+
+  if (expired || !tokenMatches(otp, account.verification_token_hash)) {
+    const failures = await repo.recordConfirmFailure(pool, account.id);
+    if (failures >= config.verificationMaxConfirmAttempts) {
+      // Burn the token, not the account: the user can still request a fresh code, but
+      // the value the attacker was grinding against no longer exists.
+      await repo.invalidateVerificationToken(pool, account.id);
+      emit({ eventType: RegistrationEvents.VERIFICATION_ATTEMPTS_EXHAUSTED });
+      logger.warn(
+        { accountId: account.id, failures },
+        "verification guess budget exhausted — token invalidated (SEC-004)",
+      );
     }
-    const expired =
-      !account.verification_token_expires_at || account.verification_token_expires_at.getTime() < Date.now();
-    if (expired || !tokenMatches(otp, account.verification_token_hash)) {
-      throw new AppError(400, "token_invalid_or_expired", "This code is invalid or has expired.");
-    }
+    throw invalidToken();
+  }
+
+  return withTransaction(async (client) => {
+    // Re-read inside the transaction: the checks above ran on a separate connection, so
+    // this is what makes two concurrent confirms of the same valid code produce one
+    // verified account rather than two profiles.
+    const fresh = await repo.findByAnyEmailHash(client, hashes);
+    if (!fresh || fresh.verification_status !== "pending") throw invalidToken();
 
     // A11 ban enforcement check (mechanism live from M1; real matches once ban_record lands, M3).
     const ban = await checkBanByNormalizedEmail(client, normalized.normalized);
@@ -167,7 +208,7 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
     // Derive the year badge — block, never guess (R1 AC2).
     const parsed = parseEnrollmentYear(normalized);
     if (parsed.year === null) {
-      await repo.markBlockedUnparseable(client, account.id);
+      await repo.markBlockedUnparseable(client, fresh.id);
       emit({
         eventType: RegistrationEvents.VERIFICATION_BLOCKED_YEAR,
         metadata: { noRuleForDomain: parsed.noRuleForDomain },
@@ -175,8 +216,8 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
       return { outcome: "blocked_unparseable_year" };
     }
 
-    await repo.markVerified(client, account.id, parsed.year);
-    const profile = await createProfile(client, account.id, String(parsed.year));
+    await repo.markVerified(client, fresh.id, parsed.year);
+    const profile = await createProfile(client, fresh.id, String(parsed.year));
     emit({ eventType: RegistrationEvents.VERIFICATION_CONFIRMED, actorProfileId: profile.id });
     emit({ eventType: RegistrationEvents.ACTIVATED, actorProfileId: profile.id });
     // 15-minute bootstrap credential, not the session itself: the client trades it at

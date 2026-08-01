@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { AppError, errors } from "../../shared/error-envelope.js";
+import { confirmLimiter, initiateLimiter, rateLimit } from "../../shared/rate-limit.js";
 import { confirmVerification, initiateVerification } from "./identity.service.js";
 
 /**
@@ -15,7 +16,10 @@ const initiateSchema = z.object({
   email: z.string().min(3).max(254),
 });
 
-identityRouter.post("/verification/initiate", async (req, res, next) => {
+// SEC-007. The service's per-email cooldown bounds one address; this bounds one CALLER
+// cycling many addresses, which is the path that sends unbounded mail. It runs before
+// the handler so a flood costs a map lookup, not a database round trip and an SMTP call.
+identityRouter.post("/verification/initiate", rateLimit(initiateLimiter), async (req, res, next) => {
   const parsed = initiateSchema.safeParse(req.body);
   if (!parsed.success) {
     return next(errors.validation("Email is required."));
@@ -33,7 +37,9 @@ const confirmSchema = z.object({
   token: z.string().min(4).max(12),
 });
 
-identityRouter.post("/verification/confirm", async (req, res, next) => {
+// SEC-004's per-token budget stops guessing against ONE account; this stops a caller
+// spreading guesses across MANY accounts to stay under it.
+identityRouter.post("/verification/confirm", rateLimit(confirmLimiter), async (req, res, next) => {
   const parsed = confirmSchema.safeParse(req.body);
   if (!parsed.success) {
     return next(errors.validation("Email and verification code are required."));
