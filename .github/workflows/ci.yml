@@ -50,10 +50,20 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # The PWA client has its own lockfile and its own DOM-aware tsconfig, so its
+      # dependencies are not installed by the root `npm ci`.
+      - name: Install client dependencies
+        run: npm ci --prefix client
       - name: Lint
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
+      # The client was outside every gate until T19: root tsconfig excludes it, eslint
+      # ignored it, and this workflow never ran its typecheck. S1–S4 therefore shipped
+      # unverified. Separate step from the server typecheck because the two use different
+      # libs (DOM vs Node) and a failure should name which side broke.
+      - name: Typecheck (client)
+        run: npm run typecheck:client
       - name: Migrate up (apply check)
         run: npm run migrate
       - name: Migrate down + up (rollback check)
