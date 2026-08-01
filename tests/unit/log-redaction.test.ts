@@ -18,9 +18,16 @@ import { beforeAll, describe, expect, it } from "vitest";
  * serialization-time transform, so only the emitted bytes prove anything.
  */
 
-const SESSION_TOKEN = "v1.eyJzdWIiOiJwcm9maWxlLTEyMyJ9.THIS-MUST-NOT-APPEAR-IN-LOGS";
-const REFRESHED_TOKEN = "v1.eyJzdWIiOiJwcm9maWxlLTEyMyJ9.NEITHER-MUST-THIS";
-const CLIENT_IP = "203.0.113.77";
+/**
+ * Canaries, not realistic tokens. An earlier version used JWT-shaped base64 values and
+ * gitleaks — correctly, on the evidence available to it — failed the build for a
+ * high-entropy secret in a committed file. Redaction keys off the PATH, never the value,
+ * so the shape buys nothing; matching the repo's existing "not-a-real-secret" convention
+ * keeps a blocking control honest instead of teaching it to ignore this file.
+ */
+const SESSION_TOKEN = "session-token-canary-must-not-appear-in-logs";
+const REFRESHED_TOKEN = "refreshed-token-canary-must-not-appear-either";
+const CLIENT_IP = "203.0.113.77"; // TEST-NET-3, reserved for documentation (RFC 5737)
 
 let REDACT_PATHS: readonly string[];
 let REDACT_CENSOR: string;

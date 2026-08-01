@@ -31,10 +31,12 @@ beforeEach(() => {
   saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
   vi.resetModules();
   process.env.DATABASE_URL ??= "postgresql://unused:unused@127.0.0.1:1/unused";
-  // Real-looking secrets: under NODE_ENV=production the config guard also rejects
-  // .env.example placeholders, and we want THIS test to fail on the email provider.
-  process.env.EMAIL_HASH_PEPPER_ACTIVE = "v2:ZmFrZS1idXQtbm90LWEtcGxhY2Vob2xkZXI";
-  process.env.SESSION_SIGNING_KEY = "v1:ZmFrZS1zZXNzaW9uLWtleS1ub3QtYS1wbGFjZWhvbGRlcg";
+  // These must clear the config boot guard (which rejects .env.example placeholder
+  // markers under a non-test NODE_ENV) so this test fails on the EMAIL PROVIDER rather
+  // than on secret validation — while staying obviously fake and low-entropy, so the
+  // blocking gitleaks scan has nothing to flag. Same convention as ci.yml's env block.
+  process.env.EMAIL_HASH_PEPPER_ACTIVE = "v2:test-only-pepper-not-a-real-secret";
+  process.env.SESSION_SIGNING_KEY = "v1:test-only-session-key-not-a-real-secret";
 });
 
 afterEach(() => {
