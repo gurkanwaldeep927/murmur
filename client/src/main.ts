@@ -1,8 +1,8 @@
-import { fetchCurrentSession, logout, ApiCallError } from "./api";
+import { fetchCurrentSession, ApiCallError } from "./api";
 import { clearSession, loadSession } from "./session";
 import { injectStyles } from "./screens/styles";
 import { mountVerificationFlow } from "./screens/verification-flow";
-import { mountSignedInStub } from "./screens/signed-in-stub";
+import { mountAppShell } from "./screens/app-shell";
 
 /**
  * PWA client entry. Restores an existing session if there is one (T12), otherwise
@@ -11,9 +11,8 @@ import { mountSignedInStub } from "./screens/signed-in-stub";
  *
  * Session restore is what makes re-opening the app NOT require re-verification —
  * the gap UX OQ-14 left open, resolved in `decisions/oq-14-session-mechanism.md`.
- * The authenticated shell (S5+) lands with the M2 screens; until then a restored
- * session has nowhere to go, so this boots the flow either way and only reports what
- * it found.
+ * Since T19 a restored session lands on the real authenticated shell (S5–S8) rather
+ * than the placeholder that stood in for it through M1.
  */
 injectStyles();
 
@@ -27,9 +26,10 @@ async function boot(): Promise<void> {
   const stored = loadSession();
 
   const signedIn = (profile: { pseudonym: string; year_badge: string }) =>
-    // TODO(M2): swap for the S5 Home Feed mount once those screens land.
-    mountSignedInStub(app, profile, async () => {
-      await logout();
+    mountAppShell(app, profile, () => {
+      // The shell hit a 401: api.ts's handle() has already dropped the stored session,
+      // so all that is left is to send the user back through S1.
+      clearSession();
       mountVerificationFlow(app);
     });
 

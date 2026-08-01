@@ -1,5 +1,6 @@
 import { elFromHTML, esc } from "./dom";
 import { pageShell } from "./styles";
+import { formatYearBadge } from "../lib/format";
 
 /**
  * S4 — RegistrationOutcomePanel (ported from "S4 RegistrationOutcomePanel.dc.html").
@@ -48,7 +49,7 @@ function successHTML(pseudonym: string, yearBadge: string): string {
     <span style="font-size:14px; font-weight:600; color:#8A7168; animation:revealUp .5s ease both">You're in — meet your campus identity</span>
     <div style="width:88px; height:88px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #FDEDE4, #F8D8C8); display:flex; align-items:center; justify-content:center; font-size:40px; margin-top:8px; box-shadow:0 8px 24px rgba(242,107,78,.2); animation:popIn .6s cubic-bezier(.34,1.56,.64,1) .15s both">🦅</div>
     <h1 style="margin:6px 0 0; font-family:'Baloo 2',sans-serif; font-weight:700; font-size:34px; letter-spacing:-0.4px; color:#3D2C26; animation:revealUp .5s ease .3s both">${esc(pseudonym)}</h1>
-    <span style="background:#E7F1EA; color:#5D8E74; font-size:13.5px; font-weight:700; padding:6px 16px; border-radius:999px; animation:popIn .5s cubic-bezier(.34,1.56,.64,1) .45s both">${esc(yearBadge)}</span>
+    <span style="background:#E7F1EA; color:#5D8E74; font-size:13.5px; font-weight:700; padding:6px 16px; border-radius:999px; animation:popIn .5s cubic-bezier(.34,1.56,.64,1) .45s both">${esc(formatYearBadge(yearBadge))}</span>
     <p style="margin:14px 0 0; font-size:14px; line-height:1.6; color:#8A7168; text-wrap:pretty; animation:revealUp .5s ease .55s both">This is who your campus will know. Your name, email, and face stay yours alone.</p>
     <button id="mur-continue" class="mur-btn-primary" style="width:100%; margin-top:18px; border:none; cursor:pointer; border-radius:16px; padding:15px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:16.5px; color:#FFF8F1; background:#F26B4E; box-shadow:0 6px 18px rgba(242,107,78,.32); transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease; animation:revealUp .5s ease .7s both">Continue to Home</button>
   </div>`;

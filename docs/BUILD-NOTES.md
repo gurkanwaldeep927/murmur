@@ -342,11 +342,64 @@ names already match `QuestionRow`; and S7's blocked-state wording matches
 
 **M2 now:** T19 (size L, the last feature task) → T51 → **T62** (blocking gate, runnable).
 
+### 2026-08-02 — T19 landed, and the client was outside every gate until it did
+
+**The client had never been checked by anything.** Root `tsconfig.json` excludes `client/`,
+`.eslintrc.cjs` ignored it, `vitest.config.ts` covers only `tests/**` and `server/src/**`,
+and the CI workflow never ran `client/`'s own typecheck. S1–S4 shipped at T10 with *nothing*
+verifying them, and T19 was about to add four more screens on the same terms.
+
+This is the same shape as 1 August: not a bug in the product, a hole in what watches it.
+Fixed first, as its own commit, so the new screens were checked from their first line —
+`npm run typecheck:client` in the ladder and in CI, eslint extended over `client/src` with a
+browser env, and `npm ci --prefix client` in the workflow (its deps are not in the root
+lockfile).
+
+**It paid for itself on the first run.** `tsc` caught that a separate `isOutcome` boolean
+does not narrow a union, so both composers were passing the phase `"form"` into a function
+typed for `ModerationStatus`. Under the old arrangement that would have shipped.
+
+**What landed.** S5–S8 ported into `client/src/screens/` on the T10 pattern, wired to
+A3/A4/A5-browse through a new `app-shell.ts` controller. `main.ts` mounts the real shell and
+`signed-in-stub.ts` is deleted. `client/src/lib/` holds the pure logic — deliberately
+import-free and DOM-free, which is the only reason the root suite can execute it; 22 unit
+tests cover the R6-critical mappings (a held item never maps to a published view state; only
+a published question is answerable) plus time/badge/avatar formatting.
+
+**Affordances the backend cannot honour are absent, not inert** — a control that looks live
+and does nothing is worse than no control. Vote/reputation (A6 is T21/T22), "Report quietly"
+(S13 is M5) and the Search/Profile nav (M3) sit behind `FEATURES` flags with the designer's
+markup kept in the tree, so each unblocking task flips one boolean. The accepted badge and
+reputation chip are *not* flagged: they render off real fields that are false/zero until M3,
+so they self-activate and there is nothing to remember to remove.
+
+**Two design gaps went to Claude Design round 3** rather than being papered over here
+(`docs/design-prompts/T19-round-3.md`): the pending card's "usually takes a few minutes",
+which is untrue under `hold-all` where the real wait is indefinite; and the fact that no
+`blocked` outcome card was ever drawn, though A3/A4 can return one. Both interims render the
+**server's own message** in the paragraph slot — the headings, layout and colour stay the
+designer's, and no copy was invented by Claude Code. Three smaller items are in the same
+document: the "My Posts" CTA (S12 is M4/M5), real pseudonym shape, and the year badge.
+
+**Two findings worth keeping:**
+- Real pseudonyms are `quiet-otter-4821` — lowercase `adjective-noun-NNNN`, about double the
+  mock's length, and the noun list is mostly *not* animals. The mocks' pseudonym→emoji
+  dictionary could never have worked against real data.
+- `year_badge` is stored bare (`"2026"`) while every design chip reads `'26 batch`.
+  `formatYearBadge()` is now the one place that closes the gap — **including for S4, which
+  had been rendering the raw year since T10.**
+
+> **⚠️ The ui-critique-rubric pass (plan §5's visual-QA loop) was NOT EXECUTED.**
+> Its signal is a rubric score against the `docs/06-ui.md` §3.5–3.8 briefs from
+> *screenshots of the rendered app*, and there is no deployed app to render — T49 is still
+> open and the local stack needs the API, a database and a browser driver running together.
+> Recorded as not run rather than substituted with a code-read review and called a pass.
+> **T19 is therefore complete on integration and open on visual QA.** Close it when T49
+> lands, or run it locally per §7 of the plan.
+
 ### Next
-- **T19 — integrate S5–S8** (size L, last M2 feature task). Everything it depends on is done:
-  T15/T16/T17 verified against a real database, and T18's four components are in
-  `client/src/components/`. Read that folder's README first — six integration notes, two of
-  which change scope (the "few minutes" copy, and S7's not-yet-existing vote/reputation UI).
+- **~~T19~~ — integration done 2026-08-02.** Two follow-ons: **T19b** (swap in round 3's
+  pending/blocked cards when they come back) and the **rubric pass** above.
 - **~~T18~~ — done 2026-08-01.** **T25/T30/T39 remain copy jobs, not design sessions**: all 17
   `S1`–`S17` `.dc.html` files exist in the design project above. Pull the files a milestone
   needs at integration time and port them into `client/src/screens/` the way S1–S4 were —
@@ -356,12 +409,18 @@ names already match `QuestionRow`; and S7's blocked-state wording matches
 - **T14b** Moderation provider binding — **M6** now (needs **T54**). Until it lands the app
   holds every question and answer and publishes nothing outside the test suite. That is R6's
   fail-closed posture behaving correctly, not a defect (plan RR-21).
-- **T51** finish the M2 event hooks (WAU session-ping, answer-liquidity) — depends on T19.
+- **T51** finish the M2 event hooks (WAU session-ping, answer-liquidity) — **now unblocked**:
+  T19 landed, and `app-shell.ts` already emits `client.content.question_submitted` /
+  `answer_submitted` with the moderation outcome, which is part of what T51 needs.
 - **The gate fix lists** (RES-1/2/3, and the SEC/PRV findings above) are formally **M3-entry**
   work, not M2 blockers — T63's own gate record says so (`blocks_milestone_exit: false`,
   "findings become the M3-entry fix list"). **RES-3 is worth pulling forward anyway**: held
   content that can never escalate to a human breaks R6 AC3, and the fix is small.
-- `client/src/screens/signed-in-stub.ts` is scaffolding: delete it when S5 lands.
+
+**Corrected 2026-08-02:** removed "`signed-in-stub.ts` is scaffolding: delete it when S5
+lands" — T19 deleted it. Also corrected the T18 note above that said "S5's field names
+already match `QuestionRow`": the wire shape is the **route serializer**, not the repo row,
+and it renames most fields to camelCase while leaving the author projection snake_case.
 
 **Corrected 2026-08-01:** this list previously said "T60/T61 — still not run". They **were**
 run on 2026-07-30; `docs/gates/` holds `security-gate-M1.json`, `privacy-gate-m1.json` and

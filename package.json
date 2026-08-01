@@ -17,13 +17,14 @@
     "migrate:status": "tsx server/src/db/migrate.ts status",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:client": "tsc -p client/tsconfig.json",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:nfr": "vitest run tests/nfr",
     "sql:check": "tsx scripts/sql-explain-check.ts",
     "db:inventory": "tsx scripts/db-inventory.ts",
-    "verify": "npm run typecheck && npm run lint && npm run sql:check && npm test"
+    "verify": "npm run typecheck && npm run typecheck:client && npm run lint && npm run sql:check && npm test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

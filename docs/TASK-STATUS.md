@@ -1,12 +1,12 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-01**
+**Last updated: 2026-08-02**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
 this file is the human-readable one.
 
-**Score so far: 27 done · 46 not started · 4 waiting on something**
+**Score so far: 28 done · 45 not started · 4 waiting on something**
 
 ---
 
@@ -72,9 +72,14 @@ before it goes public, so the space stays safe.
 | T18 | *(Designer)* Make the 4 main screens: feed, ask, thread, answer | ✅ |
 | T56 | Tests proving nothing ever sneaks past the safety check | ✅ |
 | T63 | Reliability expert tries to break the safety checker | ✅ |
-| **T19** | **Connect those 4 screens to the real system** ← **next job** | ⬜ |
+| T19 | Connect those 4 screens to the real system | ✅ *(one bit left — see below)* |
 | T51 | Finish recording usage stats for this section | 🟡 half |
-| T62 | Security expert checks who's allowed to read/write what. **Must pass before this milestone can close** | ⬜ |
+| **T62** | **Security expert checks who's allowed to read/write what. Must pass before this milestone can close** ← **next job** | ⬜ |
+
+**About T19's "one bit left":** the app is wired up and works. What hasn't happened is the
+*look-at-it-on-a-screen* check — comparing the finished screens against what the designer
+asked for. That needs the app actually running somewhere, which needs **T49**. It's written
+down as not done rather than quietly skipped.
 
 ---
 
@@ -242,6 +247,18 @@ It was written on 21 July but the code was never uploaded anywhere, so it had li
 executed. Every claim of "the robot checks this" was false. Fixed 1 August — first run, all
 four checks passed.
 
+### 12. Nothing was checking the phone app at all (found 2 August, T19)
+The robot checked the server. It never checked the **app the student actually touches** — not
+the spell-checker, not the style rules, nothing. So the four sign-up screens built back in
+July had been sitting there completely unexamined the whole time.
+
+Fixed before writing a single new screen. It found a real mistake within minutes: two screens
+were handing the wrong kind of value to the bit that decides which "your post is being
+reviewed" card to show. That would have shipped.
+
+**Same lesson as the five above, third time now:** the thing that watches has to be working
+before its silence means anything.
+
 ---
 
 ## 🟡 Confusions that cost time but weren't real bugs
@@ -284,10 +301,17 @@ A test suite that can't run is worth less than one that runs and fails.
 
 # What to do next
 
-1. **T19** — connect the 4 new screens. Biggest remaining job in Milestone 2.
-2. **T51** — finish the usage stats.
-3. **T62** — the security gate. Milestone 2 can't close without it.
+1. **T62** — the security gate. Milestone 2 can't close without it, and it's runnable now.
+2. **T51** — finish the usage stats. T19 unblocked it.
+3. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 4. Then Milestone 3, plus fixing problems 3–7 above.
+
+**One thing waiting on you, and it's quick:** two bits of wording on the screens promise
+something the app can't do — a post "usually takes a few minutes" to be checked, when in
+reality nothing gets published at all until T14b. And there's no screen for "your post was
+refused", which the system can genuinely return. Both have been sent to Claude Design as
+`docs/design-prompts/T19-round-3.md`. Until they come back, those spots show the wording the
+server itself sends, which is at least true.
 
 **Meanwhile, whenever you can** — these are yours and they unblock things:
 - **T49** put the app on a server → unblocks T11 and closes Milestone 1
