@@ -526,6 +526,94 @@ unexpectedly"), not a defect. Worth knowing before chasing a phantom: **failures
 between runs against remote Postgres are the pooler, not the code** — but confirm by
 re-running the files in isolation before believing it.
 
+### 2026-08-04 — the storage surface was open, and the gate JSONs are stale
+
+**Read this first: the gate JSONs are no longer ground truth.** Spot-checking before starting
+found `SEC-017` recorded open while `tests/helpers/test-db.ts:20-56` already carries its fix.
+So the "40 findings, 11 fixed, the rest never triaged" figure in the entry above is not a
+count anyone should act on — some unknown number of the remaining 29 are already closed, and
+nobody knows which. Every finding below was re-verified against the code or the live database
+before being worked on, and that is now the required standard: **do not act on a gate JSON
+without re-checking it.** T62's run re-establishes ground truth for the SEC set.
+
+**Session shape.** M2 cannot exit without T62, and T62 is an authz-focused run. Three open
+findings sat in exactly the class it audits, so they were fixed first — otherwise the gate
+spends its run re-reporting what we already knew.
+
+**SEC-003 — this was the real one, and it was worse than the gate said.** The gate reported
+"0 matches for RLS/GRANT/REVOKE across migrations", which is a statement about our SQL. What
+it did not say is what the database actually looked like. Measured on 2026-08-04: **every
+table in `public` carried `DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE` for
+both `anon` and `authenticated`.** Those are the roles behind Supabase's PostgREST API, and
+the `anon` key that assumes the first is *published in client-side code by design*. So the
+reachable-without-authenticating surface included reading `identity_account` (`email_hash`,
+`email_encrypted`, `verification_token_hash`), inserting rows straight into `question` /
+`answer` past the T14a gateway, rewriting `moderation_case` verdicts, and `TRUNCATE` on
+everything. The anonymity promise (RR-7 / RR-13) and the fail-closed moderation posture (R6)
+were both bypassable by anyone who read the client bundle.
+
+Nobody wrote those grants. `pg_default_acl` shows Supabase ships default privileges granting
+ALL on tables, sequences and functions in `public` to `anon`, `authenticated` and
+`service_role` — so **every table any migration creates is auto-granted on creation**. That is
+why migration `008` revokes the *default* privileges too: without it, 009+ silently re-opens
+the hole and the next party to notice is an attacker.
+
+**We deliberately did not follow the gate's own fix_hint.** It says "ENABLE **+ FORCE** ROW
+LEVEL SECURITY". `FORCE` applies RLS to the table owner as well; the app connects as the
+owner and this schema defines **zero policies**, so under FORCE every query returns zero rows
+— every feed empty, every signup unable to find its own account — while `/health` still
+answers `ok`. A total silent outage that reads as a data problem. Taking the fix_hint
+literally would have shipped it. Checked before writing the migration, not assumed: the
+connecting role is `postgres`, it owns all eight tables, and it has `rolbypassrls = true`.
+Two independent reasons `ENABLE` alone cannot lock the app out.
+
+The **down migration is deliberately asymmetric**: it disables RLS but does not restore the
+grants. A faithful reversal would mean the `migrate:down && migrate` step CI runs on every
+push briefly re-opens the database to a published key — the rollback would *be* the
+vulnerability. Proven locally: after `migrate:down`, RLS-enabled tables went 8 → 0 and grants
+to anon/authenticated stayed at 0.
+
+**SEC-002 — and the probe that lied.** The DSN had moved to the pooler host since the gate ran
+and picked up `sslmode=no-verify`, so the connection was encrypted but the certificate was
+never checked — a machine-in-the-middle still worked. Now controlled by `DATABASE_SSL`
+(`disable` | `require` | `verify-full`), defaulted from the DSN host so a remote database gets
+verified TLS with nobody remembering to set anything and CI's local postgres stays green.
+
+Two things worth carrying forward:
+
+- **A `sslmode=` in the DSN silently overrides the `ssl` option `pool.ts` passes** — pg merges
+  the parsed connection string on top of the explicit config. The first TLS probe in this
+  session reported `verify-full -> OK` while actually exercising `no-verify`, because the DSN
+  won. Config now refuses to boot rather than let two settings disagree with the invisible one
+  winning. Verified against pg 8.22.0, not assumed.
+- **Supabase runs a private CA** (`*.pooler.supabase.com` ← `Supabase Intermediate 2021 CA` ←
+  `Supabase Root 2021 CA`), so `verify-full` fails with `SELF_SIGNED_CERT_IN_CHAIN` until
+  `prod-ca-2021.crt` is downloaded from the dashboard into `server/certs/`. It is deliberately
+  **not** auto-fetched: a root taken from the endpoint you are authenticating proves nothing,
+  because a machine-in-the-middle simply presents its own. **Still open** — the local env sits
+  on `require` until that file lands, which is no worse than the `sslmode=no-verify` it
+  replaced. See `runbooks/staging-deploy-T49.md` §2.
+
+**SEC-010 — headers.** helmet plus an explicit `x-powered-by` disable. Scoped honestly: it
+does **not** close **SEC-013**, which wants a CSP on the client *document*. A CSP riding on
+JSON API responses protects nothing, and claiming otherwise would be exactly the false green
+this project keeps paying for.
+
+**The DB-backed suites had been silently dead on this machine.** All 53 of them failed on
+`MURMUR_TEST_DB_ALLOW` being unset — and it was absent *before* this session's changes too.
+When SEC-017's fix replaced `MURMUR_TEST_DB_CONFIRM=i-am-disposable` with the host+database
+pin, `.env` was never updated, so every DB-backed suite has been refusing to run locally ever
+since. CI was unaffected (its database is named `murmur_test`, which passes the guard by
+name), which is precisely why nobody noticed. **Fourth instance of the same lesson:** the
+thing that watches has to be working before its silence means anything. Authorised with the
+human's consent after showing what would be destroyed (7 rows).
+
+**Verified, not asserted:** 159/159 tests across 18/18 files green *with RLS enabled*;
+`migrate down` + `up` clean with grants staying revoked; all 8 tables `relrowsecurity = true`
+and `relforcerowsecurity = false`; 0 grants remaining to anon/authenticated; the `postgres`
+default ACL for future tables reduced to `{postgres, service_role}`; `/health` 200 carrying
+HSTS, nosniff and CSP with `x-powered-by` absent.
+
 ### Next
 - **~~T19~~ — integration done 2026-08-02.** Two follow-ons: **T19b** (swap in round 3's
   pending/blocked cards when they come back) and the **rubric pass** above.
@@ -538,7 +626,20 @@ re-running the files in isolation before believing it.
   needs at integration time and port them into `client/src/screens/` the way S1–S4 were —
   do **not** re-run a design round.
 - **T62** (security-agent authz run) — **blocking for M2 exit**, and now runnable: the repo
-  has a remote and gitleaks/semgrep/osv-scanner have all produced real output.
+  has a remote and gitleaks/semgrep/osv-scanner have all produced real output. **Corrected
+  2026-08-04:** `.pipeline/unlock` now exists but is **empty (0 bytes)**, which
+  `unlocked_prefixes()` (`.claude/hooks/guardrail.py:45-49`) reads as an empty set — so T62 is
+  blocked exactly as if the file were absent. It needs the literal text `08`. Creating the
+  file was not the same as unlocking it, and the difference is invisible from a directory
+  listing. A human must write that line; Claude Code declining to do so is the same call T60
+  made (OQ-SEC-06), for the same reason.
+- **SEC-003 / SEC-010 fixed 2026-08-04, SEC-002 partly** — see the 2026-08-04 entry. The
+  remaining half of SEC-002 is one dashboard download (`prod-ca-2021.crt`), documented in
+  `runbooks/staging-deploy-T49.md` §2.
+- **The SEC/PRV/RES backlog needs re-triage against the code, not against the JSONs.** The
+  JSONs are demonstrably stale (SEC-017 recorded open, fixed days earlier; SEC-002's evidence
+  describes a DSN that has since changed host). Sequence this *after* T62 so its fresh run
+  does the SEC half for us.
 - **T14b** Moderation provider binding — **M6** now (needs **T54**). Until it lands the app
   holds every question and answer and publishes nothing outside the test suite. That is R6's
   fail-closed posture behaving correctly, not a defect (plan RR-21).

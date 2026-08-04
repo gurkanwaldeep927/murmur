@@ -1,6 +1,6 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-02**
+**Last updated: 2026-08-04**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
@@ -251,6 +251,46 @@ setting (`TRUST_PROXY`) isn't set correctly, the app will think **every student 
 person** and lock out the entire campus at once. It's one line of configuration — but it
 has to be right.
 
+### 6b. Anyone with the app's public key could read — or wipe — the whole database (SEC-003)
+**Fixed 4 August.** This was the largest hole found so far.
+
+Supabase gives every project a public API and a public key that is *meant* to sit in the app
+people download. On our database, that key's account had been given full permission on every
+table — read, write, delete, and "empty this table completely". Nobody granted it; it is the
+default, and it was quietly re-applied to each new table we created.
+
+In plain terms: anyone who opened the app's code could have read every stored email
+fingerprint, published posts without them ever passing the safety check, changed the safety
+checker's verdicts, or deleted everything.
+
+Now the permissions are stripped, a second lock is switched on behind them, and the default
+that kept re-granting them is switched off — so tables we build in later milestones don't
+re-open it.
+
+**One thing worth knowing:** the security report told us to switch that second lock to its
+strictest setting. We deliberately didn't. On the strictest setting the lock also applies to
+*our own app*, and since we haven't written any "who may see what" rules yet, the app would
+have read **zero rows from every table** — every screen blank — while still reporting itself
+healthy. We checked first that the app's own account is exempt at the setting we chose.
+
+### 6c. The database connection wasn't checking who it was talking to (SEC-002)
+**Partly fixed 4 August.** The connection was scrambled, but it never verified the database
+was really our database — so someone sitting in between could have impersonated it and read
+everything going past. Now it's a proper setting instead of a stray flag in a link, and a real
+environment gets the strict version by default.
+
+**Not finished:** Supabase signs its own certificates, so the strict version needs a file
+downloaded from your Supabase dashboard. Until then we're on the same level of protection as
+before — not worse, not yet better. One-minute job, in
+`runbooks/staging-deploy-T49.md` §2.
+
+### 6d. Every response announced what the server was built with (SEC-010)
+**Fixed 4 August.** Standard protective headers were missing entirely, and every reply
+advertised `x-powered-by: Express` — free reconnaissance for anyone probing. Added.
+
+This does **not** cover the phone app itself (SEC-013) — that's a separate, still-open item,
+and saying otherwise would be the kind of false "done" this project has already been bitten by.
+
 ### 7. Deleting an account also deletes the ban (SEC-016 / PRV-2)
 A banned person could delete their account and rejoin. Not fixed yet — it's properly part of
 **T24**, since the ban record it has to survive doesn't exist until Milestone 3.
@@ -280,6 +320,26 @@ would have broken the automatic checker too, and looked like a random ghost.
 It was written on 21 July but the code was never uploaded anywhere, so it had literally never
 executed. Every claim of "the robot checks this" was false. Fixed 1 August — first run, all
 four checks passed.
+
+### 11b. The database tests had stopped running, and nothing said so (found 4 August)
+When we fixed the "don't wipe a real database by accident" guard back on 2 August, the setting
+it looks for changed name. The settings file was never updated to match. From that moment, all
+**53 database-backed tests refused to run on your laptop** — every time, silently.
+
+The automatic checker abroad was unaffected, because its database is *named* in a way the
+guard accepts without any setting. Which is exactly why nobody noticed: the loud half kept
+saying green while the quiet half wasn't running at all.
+
+**Same lesson, fourth time:** the thing that watches has to be working before its silence
+means anything.
+
+### 11c. The security reports we were working from are out of date (found 4 August)
+Before starting, we spot-checked one finding the reports listed as unfixed — and it had
+already been fixed days ago. So the count of "29 problems still open" is **not a number to
+trust**; some unknown share of them are already done.
+
+Nothing was lost, but it changes how the list must be used: **check each finding against the
+actual code before acting on it.** T62's run will rebuild an honest list.
 
 ### 12. Nothing was checking the phone app at all (found 2 August, T19)
 The robot checked the server. It never checked the **app the student actually touches** — not
@@ -335,7 +395,13 @@ A test suite that can't run is worth less than one that runs and fails.
 
 # What to do next
 
-1. **T62** — the security gate. Milestone 2 can't close without it, and it's runnable now.
+1. **T62** — the security gate. Milestone 2 can't close without it. The three access-control
+   holes it would have tripped over (6b, 6c, 6d above) were cleared on 4 August, so it now has
+   a real chance of passing rather than just re-reporting what we knew. **It needs one line
+   from you first:** the file `.pipeline/unlock` exists but is empty, and it must contain the
+   text `08`. Until then the guardrail blocks the gate from writing its report. Claude Code
+   deliberately won't write that line itself — a guard an agent can lift for itself isn't a
+   guard.
 2. **T51** — finish the usage stats. T19 unblocked it.
 3. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 4. Then Milestone 3, plus fixing problems 3–7 above.
