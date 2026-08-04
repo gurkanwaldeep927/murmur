@@ -1,4 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
+import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import { config } from "./config/index.js";
 import { logger } from "./shared/logger.js";
@@ -27,6 +28,25 @@ export function createApp() {
     const hops = Number(config.trustProxy);
     app.set("trust proxy", Number.isFinite(hops) ? hops : config.trustProxy);
   }
+
+  // SEC-010 — response security headers. Before every route, so a header is never missed
+  // because a handler returned early or threw: the M1 gate observed `x-powered-by: Express`
+  // on every response and no HSTS, nosniff or frame-ancestors anywhere.
+  //
+  // `x-powered-by` is disabled explicitly as well as by helmet. It is one line, it survives
+  // helmet being reconfigured later, and it names the intent at the place someone reads.
+  //
+  // Scope, stated so it is not over-claimed: this hardens the JSON API's own responses. It
+  // does NOT close SEC-013, which asks for a CSP protecting the *client* — a CSP delivered
+  // on a JSON response protects nothing, because the document that executes script is
+  // `client/index.html`, served by vite in dev and by the gateway in prod. SEC-013 stays open.
+  //
+  // Defaults are kept rather than tuned. The client calls the API with same-origin relative
+  // paths (`client/vite.config.ts` proxies in dev; one origin in prod), so helmet's
+  // same-origin CORP and `default-src 'self'` CSP have nothing to break here. If the API is
+  // ever put on its own origin, that is the moment this needs CORS and a revisit — not now.
+  app.disable("x-powered-by");
+  app.use(helmet());
 
   app.use(express.json({ limit: "256kb" }));
   app.use(pinoHttp({ logger }));

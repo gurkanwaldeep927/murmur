@@ -58,12 +58,80 @@ function intOpt(name: string, fallback: number): number {
   return n;
 }
 
+export type DatabaseSslMode = "disable" | "require" | "verify-full";
+
+const SSL_MODES: readonly DatabaseSslMode[] = ["disable", "require", "verify-full"];
+
+/**
+ * SEC-002 — transport security for the Postgres connection.
+ *
+ * The M1 gate found `pool.ts` passing no `ssl` option and no `sslmode` in the DSN, so
+ * node-postgres connected in cleartext. Every credential, every `email_hash` and every row
+ * of question text crossed the public internet unencrypted to the managed host.
+ *
+ * `require` vs `verify-full` is the distinction worth holding on to: **`require` encrypts
+ * but does not check who is on the other end**, so a machine-in-the-middle still works. It
+ * exists here only as a documented escape hatch for a host whose certificate chain we
+ * cannot verify yet — never as the default.
+ *
+ * The default is DERIVED and derived to fail safe: local hosts get `disable` (CI runs a
+ * plain `postgres:16` service with no TLS at all, and a hard default would break it), every
+ * other host gets `verify-full`. A remote database is therefore verified without anyone
+ * remembering to set anything — the failure mode of a forgotten variable is "too strict",
+ * not "silently cleartext".
+ */
+function databaseSslMode(url: string): DatabaseSslMode {
+  // A `sslmode=` in the DSN would SILENTLY WIN over the `ssl` option pool.ts passes:
+  // pg's ConnectionParameters merges `parse(connectionString)` on top of the explicit
+  // config, and `?sslmode=require` parses to a truthy `{}`. Rather than let two settings
+  // disagree with the invisible one winning, refuse to start and name the fix. (Verified
+  // against pg 8.22.0 / pg-connection-string, not assumed.)
+  if (/[?&]sslmode=/i.test(url)) {
+    throw new Error(
+      `DATABASE_URL carries an "sslmode=" parameter, which silently overrides the ssl ` +
+        `setting this app configures. Remove it from the DSN and use DATABASE_SSL ` +
+        `(${SSL_MODES.join(" | ")}) instead, so there is one source of truth.`,
+    );
+  }
+
+  const explicit = process.env.DATABASE_SSL?.trim().toLowerCase();
+  if (explicit) {
+    if (!SSL_MODES.includes(explicit as DatabaseSslMode)) {
+      throw new Error(`DATABASE_SSL must be one of: ${SSL_MODES.join(", ")} (got "${explicit}")`);
+    }
+    return explicit as DatabaseSslMode;
+  }
+
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return "verify-full"; // unparseable DSN: assume remote, fail safe
+  }
+  const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "";
+  return isLocal ? "disable" : "verify-full";
+}
+
+const databaseUrl = required("DATABASE_URL");
+
 export const config = {
   env: optional("NODE_ENV", "development"),
   port: intOpt("PORT", 4000),
   logLevel: optional("LOG_LEVEL", "info"),
 
-  databaseUrl: required("DATABASE_URL"),
+  databaseUrl,
+  databaseSsl: databaseSslMode(databaseUrl),
+  // Path to a PEM CA bundle used to verify the database server under `verify-full`.
+  // Needed whenever the host runs a private CA that is not in Node's default trust store —
+  // Supabase does: the pooler chain is `*.pooler.supabase.com` <- `Supabase Intermediate
+  // 2021 CA` <- `Supabase Root 2021 CA`, all self-signed by Supabase Inc, so Node rejects it
+  // with SELF_SIGNED_CERT_IN_CHAIN. Download `prod-ca-2021.crt` from the Supabase dashboard
+  // (Database Settings -> SSL Configuration) into server/certs/ and point this at it.
+  //
+  // It must come from the dashboard, NOT from the live connection: trusting a root handed
+  // to you by the endpoint you are trying to authenticate is circular — a machine-in-the-
+  // middle would simply present its own root and you would pin that.
+  databaseSslCa: optional("DATABASE_SSL_CA", ""),
 
   // T50 — shared email-hash pepper (versioned for rotation, RR-13).
   emailHashPepperActive: requiredSecret("EMAIL_HASH_PEPPER_ACTIVE"),
