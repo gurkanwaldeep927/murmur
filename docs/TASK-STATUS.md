@@ -242,7 +242,7 @@ startup and only break when the first student posted (now the app refuses to sta
 
 ---
 
-### 4. A dropped database connection can take the whole server down (found 6 August, NOT fixed)
+### 4. A dropped database connection can take the whole server down (found 6 August, fixed 7 August)
 
 **What's broken:** the app keeps a pool of open database connections. Connections that are
 sitting idle sometimes die on their own — the network hiccups, the provider recycles them.
@@ -263,10 +263,27 @@ went into the repository or its history. It has only ever appeared in output on 
 machine.
 
 **Two separate things to do:**
-- **You:** rotate the database password in the Supabase dashboard, since it has been on
-  screen.
-- **Us:** add the missing listener (about five lines). Not done yet — it sits outside the
-  task this session was approved for, and is written down here rather than quietly slipped in.
+- **You: still outstanding.** Rotate the database password in the Supabase dashboard, since
+  it has been on screen. The code fix below stops *new* leaks; it cannot un-see the one that
+  already happened.
+- **Us: done 7 August.** The listener is in (`server/src/db/pool.ts`). A dying idle
+  connection is now one line in the log instead of a crash, and the line carries only two
+  things — the error's message and its code (`ECONNRESET` and the like). The error object is
+  deliberately **not** handed to the logger whole, because that object is what holds the
+  connection, and the connection is what holds the password. Copying two harmless fields out
+  is the only shape that can't quietly regress into printing it again.
+
+  Five tests came with it, and they check both halves separately, because they are two
+  different bugs wearing one coat: that a failure no longer escapes the process, and that
+  the password never appears in what gets written. The password one asserts against the
+  actual text of the log line, not the object — the leak happens at the moment of writing,
+  so only the written bytes prove anything.
+
+  **One place still has the same hole and was left alone on purpose:** `scripts/db-inventory.ts`,
+  a hand-run maintenance script, builds its own connection pool with no listener. It is not
+  the running product and nothing schedules it, so it can't take the server down — but if it
+  ever fails while you are watching, it can still print the password. Written down rather
+  than fixed in passing, because it belongs to a different file than the one this fix was for.
 
 **Why this hid so long:** a healthy connection never triggers it, and the home network to a
 Sydney-hosted database is exactly the situation that does. It has probably been failing
@@ -503,10 +520,8 @@ A test suite that can't run is worth less than one that runs and fails.
    text `08`. Until then the guardrail blocks the gate from writing its report. Claude Code
    deliberately won't write that line itself — a guard an agent can lift for itself isn't a
    guard.
-2. **The missing database-connection listener** (problem #4 above). About five lines, and it
-   turns a network hiccup from "the server might fall over, and the password gets printed"
-   into "a line in the log". Worth doing before anything else touches the database. Separate
-   from that, and yours: **rotate the database password**, since it has been on screen.
+2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
+   Still yours and still open: **rotate the database password**, since it has been on screen.
 3. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 4. Then Milestone 3, plus fixing the remaining problems above.
 
