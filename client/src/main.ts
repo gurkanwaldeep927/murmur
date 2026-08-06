@@ -1,4 +1,4 @@
-import { fetchCurrentSession, ApiCallError } from "./api";
+import { fetchCurrentSession, ApiCallError, emitEvent } from "./api";
 import { startActivityPing } from "./activity-ping";
 import { clearSession, loadSession } from "./session";
 import { injectStyles } from "./screens/styles";
@@ -30,7 +30,7 @@ async function boot(): Promise<void> {
     // T51 — keeps a long-lived installed PWA visible to WAU, which `session.resumed`
     // alone cannot do since it only fires on boot. Started only for a signed-in user:
     // an unattributed ping tells the metric nothing.
-    startActivityPing();
+    startActivityPing(document, emitEvent);
     return mountAppShell(app, profile, () => {
       // The shell hit a 401: api.ts's handle() has already dropped the stored session,
       // so all that is left is to send the user back through S1.
