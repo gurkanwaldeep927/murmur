@@ -50,6 +50,56 @@ function optional(name: string, fallback: string): string {
   return v === undefined || v === "" ? fallback : v;
 }
 
+/**
+ * SEC-011 — the key behind `shared/email-encryption.ts`.
+ *
+ * The finding: this was a bare `optional("EMAIL_ENCRYPTION_KEY", "")`, and
+ * `encryptEmail()` returns `null` when the key is absent. So a real deployment that never
+ * set the variable stored nothing where an encrypted address was supposed to go, while
+ * every document, comment and schema note went on saying the address was encrypted at
+ * rest. Nothing anywhere said otherwise — no warning, no failure, no empty-column check.
+ *
+ * The honest scope: `decryptEmail()` has no callers today, so what this closes is a false
+ * claim rather than a live leak. It becomes a live defect the moment S2 resend or
+ * manual-fallback review reads the column and finds it empty for every account created
+ * while the variable was unset — silently, and unrecoverably, since the plaintext is gone.
+ *
+ * Third instance of the same remedy in this file (the email pepper, the console mailer,
+ * now this): outside a developer's laptop, a missing security control refuses to boot.
+ * Development and test keep the no-op path so the spine runs with no key at all.
+ *
+ * The length is validated HERE rather than on first use, so a mistyped key fails at
+ * startup instead of during a student's first sign-up.
+ */
+function emailEncryptionKey(): string {
+  const raw = process.env.EMAIL_ENCRYPTION_KEY?.trim() ?? "";
+  const env = process.env.NODE_ENV ?? "development";
+
+  if (raw === "") {
+    if (env === "development" || env === "test") return "";
+    throw new Error(
+      `EMAIL_ENCRYPTION_KEY is not set and NODE_ENV='${env}'. Without it, email ` +
+        `encryption silently does nothing while everything claims it is on. Generate one:\n` +
+        `  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"\n` +
+        `Refusing to start.`,
+    );
+  }
+
+  // Buffer.from(..., "base64") DISCARDS characters outside the alphabet rather than
+  // failing, so a typo would otherwise decode to a short key and be caught only by the
+  // length check — or, at the wrong length, not at all. Check the shape too.
+  const looksBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(raw);
+  if (!looksBase64 || Buffer.from(raw, "base64").length !== 32) {
+    throw new Error(
+      `EMAIL_ENCRYPTION_KEY must be a base64-encoded 32-byte key (AES-256-GCM). ` +
+        `Generate one:\n` +
+        `  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"\n` +
+        `Refusing to start.`,
+    );
+  }
+  return raw;
+}
+
 function intOpt(name: string, fallback: number): number {
   const v = process.env[name];
   if (v === undefined || v === "") return fallback;
@@ -136,7 +186,8 @@ export const config = {
   // T50 — shared email-hash pepper (versioned for rotation, RR-13).
   emailHashPepperActive: requiredSecret("EMAIL_HASH_PEPPER_ACTIVE"),
   emailHashPepperRetired: optional("EMAIL_HASH_PEPPER_RETIRED", ""),
-  emailEncryptionKey: optional("EMAIL_ENCRYPTION_KEY", ""),
+  // SEC-011 — see emailEncryptionKey() above: empty is a development-only state.
+  emailEncryptionKey: emailEncryptionKey(),
 
   // T12 — session signing (decisions/oq-14-session-mechanism.md §5). Versioned
   // `v<n>:<secret>` like the email pepper so keys rotate without logging users out.

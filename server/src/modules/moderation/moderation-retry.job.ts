@@ -1,6 +1,12 @@
 import { config } from "../../config/index.js";
 import { withTransaction } from "../../db/pool.js";
 import { logger } from "../../shared/logger.js";
+import { emit } from "../analytics/analytics.service.js";
+import {
+  ModerationEventNames,
+  outcomeBucket,
+  type ModerationOutcomeMeta,
+} from "./moderation-events.js";
 import { classifyAndApply } from "./moderation.gateway.js";
 import * as repo from "./moderation.repo.js";
 import type { ContentRef } from "./moderation.repo.js";
@@ -27,7 +33,7 @@ export async function runModerationRetryPass(): Promise<{
   escalated: number;
   retried: number;
 }> {
-  const escalated = await withTransaction(async (client) => {
+  const escalatedCases = await withTransaction(async (client) => {
     const exhausted = await repo.claimExhaustedCases(
       client,
       config.moderationMaxAttempts,
@@ -36,11 +42,27 @@ export async function runModerationRetryPass(): Promise<{
     for (const row of exhausted) {
       await repo.escalateToHuman(client, row.id);
     }
-    return exhausted.length;
+    return exhausted;
   });
+  const escalated = escalatedCases.length;
 
   if (escalated > 0) {
     logger.warn({ escalated }, "moderation cases auto-escalated to the human queue");
+  }
+
+  // T51 — this pass is the ONLY route to the human queue that the gateway never sees, so
+  // without this the auto-vs-escalated ratio would miss exactly the escalations the
+  // fail-closed posture produces. Emitted after the transaction commits: an event for a
+  // rolled-back escalation would be a lie, and emitting inside `repo.escalateToHuman`
+  // would put analytics inside a data-access function.
+  for (const row of escalatedCases) {
+    const metadata: ModerationOutcomeMeta = {
+      contentType: row.content_type,
+      contentId: (row.content_type === "question" ? row.question_id : row.answer_id)!,
+      outcome: outcomeBucket("pending", "escalate"),
+      attempt: row.attempts,
+    };
+    emit({ eventType: ModerationEventNames.OUTCOME, metadata: { ...metadata } });
   }
 
   // Claim inside a transaction, classify outside it — a provider call must never be made

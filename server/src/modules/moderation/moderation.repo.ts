@@ -173,6 +173,9 @@ export interface RetryableCase {
   content_type: ContentType;
 }
 
+/** A case past the attempt ceiling. `RetryableCase` minus the text nothing re-classifies. */
+export type ExhaustedCase = Omit<RetryableCase, "text">;
+
 /**
  * Cases held after a failed classification and due for another attempt: still pending,
  * not yet escalated, under the attempt ceiling, and past the backoff window.
@@ -225,9 +228,15 @@ export async function claimExhaustedCases(
   client: DbClient,
   maxAttempts: number,
   limit: number,
-): Promise<{ id: string }[]> {
-  const { rows } = await client.query<{ id: string }>(
-    `SELECT id
+): Promise<ExhaustedCase[]> {
+  const { rows } = await client.query<ExhaustedCase>(
+    // The content columns exist for T51's outcome event: an auto-escalation is a decision
+    // about a specific item, and the caller cannot name it from a bare case id.
+    `SELECT id,
+            question_id,
+            answer_id,
+            COALESCE((provider_raw_response -> '_gateway' ->> 'attempts')::int, 0) AS attempts,
+            CASE WHEN question_id IS NOT NULL THEN 'question' ELSE 'answer' END AS content_type
        FROM moderation_case
       WHERE decision = 'pending'
         AND risk_tier IS NULL

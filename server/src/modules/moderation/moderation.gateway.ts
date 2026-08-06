@@ -1,6 +1,12 @@
 import { config } from "../../config/index.js";
 import { pool, withTransaction, type DbClient } from "../../db/pool.js";
 import { logger } from "../../shared/logger.js";
+import { emit } from "../analytics/analytics.service.js";
+import {
+  ModerationEventNames,
+  outcomeBucket,
+  type ModerationOutcomeMeta,
+} from "./moderation-events.js";
 import * as repo from "./moderation.repo.js";
 import type { ContentRef } from "./moderation.repo.js";
 import { resolveProviders } from "./providers/index.js";
@@ -125,6 +131,20 @@ async function classifyTiered(
   }
 }
 
+/**
+ * What one verdict application actually did — richer than the status alone because T51's
+ * outcome event has to be emitted exactly once per applied decision.
+ *
+ * `contentChanged` is false when the UPDATE matched no row: another path decided this
+ * item first. Emitting then would double-count one item in the auto-vs-escalated ratio.
+ */
+interface AppliedVerdict {
+  status: ModerationStatus;
+  /** Parent question of an answer — carried so answer liquidity is derivable from events. */
+  parentQuestionId: string | null;
+  contentChanged: boolean;
+}
+
 /** Apply a verdict to the content row and its case, atomically. */
 async function applyVerdict(
   ref: ContentRef,
@@ -132,8 +152,11 @@ async function applyVerdict(
   verdict: ProviderVerdict,
   providerName: string,
   attempts: number,
-): Promise<ModerationStatus> {
+): Promise<AppliedVerdict> {
   const status = TIER_TO_STATUS[verdict.tier];
+  let parentQuestionId: string | null = null;
+  // Escalation changes no content row, but it IS a decision and must be reported as one.
+  let contentChanged = status === "pending";
 
   await withTransaction(async (client: DbClient) => {
     await repo.recordVerdict(client, caseId, verdict, status, providerName, attempts);
@@ -141,7 +164,7 @@ async function applyVerdict(
     if (status === "pending") return; // escalate — content stays held.
 
     if (ref.type === "question") {
-      await client.query(
+      const { rowCount } = await client.query(
         // $2 is cast at every use. Assigning it to an enum column while also comparing
         // it to a bare 'published' literal makes Postgres deduce two different types for
         // one parameter, and it then refuses to parse the statement.
@@ -152,13 +175,19 @@ async function applyVerdict(
           WHERE id = $1 AND moderation_status = 'pending'`,
         [ref.id, status],
       );
+      contentChanged = rowCount === 1;
     } else {
-      const { rowCount } = await client.query(
+      // RETURNING question_id reuses the statement already here rather than adding a
+      // lookup: the parent id is what makes answer liquidity computable from events.
+      const { rowCount, rows } = await client.query<{ question_id: string }>(
         `UPDATE answer
             SET moderation_status = $2
-          WHERE id = $1 AND moderation_status = 'pending'`,
+          WHERE id = $1 AND moderation_status = 'pending'
+      RETURNING question_id`,
         [ref.id, status],
       );
+      contentChanged = rowCount === 1;
+      parentQuestionId = rows[0]?.question_id ?? null;
       // Keep the parent's cached answer_count truthful the moment an answer becomes
       // visible. Full aggregate maintenance (triggers + reconciliation) is T21/M3's
       // job; this is the minimum that keeps the T17 feed from lying in the meantime.
@@ -174,7 +203,27 @@ async function applyVerdict(
     }
   });
 
-  return status;
+  return { status, parentQuestionId, contentChanged };
+}
+
+/**
+ * T51 — one event per verdict APPLICATION, on every path into this module. Fire-and-
+ * forget: a failed analytics write must never turn a moderation decision into an error.
+ */
+function emitOutcome(
+  ref: ContentRef,
+  outcome: string,
+  attempt: number,
+  parentQuestionId: string | null,
+): void {
+  const metadata: ModerationOutcomeMeta = {
+    contentType: ref.type,
+    contentId: ref.id,
+    outcome,
+    attempt,
+  };
+  if (ref.type === "answer" && parentQuestionId) metadata.questionId = parentQuestionId;
+  emit({ eventType: ModerationEventNames.OUTCOME, metadata: { ...metadata } });
 }
 
 /**
@@ -194,8 +243,25 @@ export async function classifyAndApply(
 
   try {
     const { verdict, provider } = await classifyTiered(input);
-    const status = await applyVerdict(ref, caseId, verdict, provider, attempts);
-    return { caseId, status, riskTier: verdict.tier, held: status === "pending" };
+    const applied = await applyVerdict(ref, caseId, verdict, provider, attempts);
+
+    // Skipped when the UPDATE matched nothing: another path already decided this item,
+    // and a second event would double-count it in the auto-vs-escalated ratio.
+    if (applied.contentChanged) {
+      emitOutcome(
+        ref,
+        outcomeBucket(applied.status, verdict.tier),
+        attempts,
+        applied.parentQuestionId,
+      );
+    }
+
+    return {
+      caseId,
+      status: applied.status,
+      riskTier: verdict.tier,
+      held: applied.status === "pending",
+    };
   } catch (err) {
     // RES-3 (fixed 2026-08-02). This used to rethrow anything that was not a
     // ProviderUnavailableError — a database blip inside applyVerdict, a bug, anything —
@@ -231,6 +297,7 @@ export async function classifyAndApply(
           { caseId, attempts, provider: providerName },
           "moderation attempts exhausted — auto-escalated to the human queue (fail-closed)",
         );
+        emitOutcome(ref, outcomeBucket("pending", "escalate"), attempts, null);
         return { caseId, status: "pending", riskTier: "escalate", held: true };
       }
     } catch (bookkeepingErr) {
@@ -242,6 +309,10 @@ export async function classifyAndApply(
         { err: bookkeepingErr, cause: message, caseId, attempts },
         "could not record moderation attempt — case may not advance toward escalation",
       );
+      // Deliberately no outcome event here. Reaching this branch means the database
+      // refused the attempt write, so an analytics INSERT would fail for the same reason
+      // — a doomed write whose only product is a second error in the log. The log line
+      // above is the signal for this state.
       return { caseId, status: "pending", riskTier: null, held: true };
     }
 
@@ -249,6 +320,7 @@ export async function classifyAndApply(
       { caseId, attempts, provider: providerName, err: message },
       "moderation provider unavailable — content held pending, retry scheduled (fail-closed)",
     );
+    emitOutcome(ref, outcomeBucket("pending", null), attempts, null);
     return { caseId, status: "pending", riskTier: null, held: true };
   }
 }

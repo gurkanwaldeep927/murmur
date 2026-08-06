@@ -84,18 +84,19 @@ export async function createQuestion(input: {
     throw err;
   }
 
+  // Emitted before classification, not after: the row exists, so the submission is
+  // already a fact, and this timestamp starts the answer-liquidity clock. The moderation
+  // outcome is a separate event emitted by the gateway, once per verdict application.
+  ContentEvents.questionSubmitted(input.authorProfileId, {
+    questionId: created.id,
+    topic: topic.slug,
+  });
+
   const outcome = await classifyAndApply(
     { type: "question", id: created.id },
     created.caseId,
     { text: `${title}\n\n${body}`, contentType: "question" },
   );
-
-  ContentEvents.questionSubmitted(input.authorProfileId, {
-    questionId: created.id,
-    topic: topic.slug,
-    moderationStatus: outcome.status,
-    riskTier: outcome.riskTier,
-  });
 
   return { id: created.id, moderationStatus: outcome.status, held: outcome.held };
 }
@@ -179,18 +180,17 @@ export async function createAnswer(input: {
     throw err;
   }
 
+  // Before classification, for the same reason as the question path above.
+  ContentEvents.answerSubmitted(input.authorProfileId, {
+    answerId: created.id,
+    questionId: parentId,
+  });
+
   const outcome = await classifyAndApply(
     { type: "answer", id: created.id },
     created.caseId,
     { text: body, contentType: "answer" },
   );
-
-  ContentEvents.answerSubmitted(input.authorProfileId, {
-    answerId: created.id,
-    questionId: parentId,
-    moderationStatus: outcome.status,
-    riskTier: outcome.riskTier,
-  });
 
   return { id: created.id, moderationStatus: outcome.status, held: outcome.held };
 }
