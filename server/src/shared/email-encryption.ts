@@ -8,12 +8,17 @@ import { config } from "../config/index.js";
  * non-disclosure); schema §6, assumptions[email_encrypted].
  *
  * AES-256-GCM. Ciphertext layout (bytea): [12-byte IV][16-byte auth tag][ciphertext].
- * If no key is configured (local dev), encryption is a no-op returning null so the
- * spine still runs without a key — real environments MUST set EMAIL_ENCRYPTION_KEY.
+ *
+ * If no key is configured, encryption is a no-op returning null so the spine still runs
+ * without one. Since SEC-011 that state is reachable ONLY under NODE_ENV development or
+ * test: `config/index.ts` refuses to boot anywhere else with the key unset, and validates
+ * its length there rather than here, so a bad key fails at startup and not mid-sign-up.
  */
 
 function key(): Buffer | null {
   if (!config.emailEncryptionKey) return null;
+  // Length already checked at boot; re-checked here so this function stays correct on its
+  // own terms if it is ever called with a key from somewhere else.
   const k = Buffer.from(config.emailEncryptionKey, "base64");
   if (k.length !== 32) {
     throw new Error("EMAIL_ENCRYPTION_KEY must be a base64-encoded 32-byte key");

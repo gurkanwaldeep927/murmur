@@ -23,6 +23,7 @@ const ENV_KEYS = [
   "DATABASE_URL",
   "EMAIL_HASH_PEPPER_ACTIVE",
   "SESSION_SIGNING_KEY",
+  "EMAIL_ENCRYPTION_KEY",
 ] as const;
 
 let saved: Partial<Record<(typeof ENV_KEYS)[number], string | undefined>>;
@@ -37,6 +38,10 @@ beforeEach(() => {
   // blocking gitleaks scan has nothing to flag. Same convention as ci.yml's env block.
   process.env.EMAIL_HASH_PEPPER_ACTIVE = "v2:test-only-pepper-not-a-real-secret";
   process.env.SESSION_SIGNING_KEY = "v1:test-only-session-key-not-a-real-secret";
+  // SEC-011's guard also runs at config import and also refuses a non-dev boot, so it
+  // would otherwise be the error these tests caught. An all-sevens key is a valid 32
+  // bytes and obviously not a secret. See tests/unit/email-encryption-guard.test.ts.
+  process.env.EMAIL_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
 });
 
 afterEach(() => {

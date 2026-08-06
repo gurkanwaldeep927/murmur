@@ -20,6 +20,14 @@ export const CLIENT_EVENT_TYPES = new Set<string>([
   // M2 Q&A (T19/T51) — emitted from client/src/screens/app-shell.ts
   "client.content.question_submitted",
   "client.content.answer_submitted",
+  /**
+   * WAU liveness (T51) — emitted from client/src/activity-ping.ts when a backgrounded tab
+   * returns to the foreground. The server's `session.resumed` only fires on app BOOT, so
+   * without this a PWA left open for a week reads as inactive for that whole week.
+   * Throttled client-side to at most one per hour; attribution comes from the session
+   * token, so an anonymous ping is recorded with no actor and is simply ignored by WAU.
+   */
+  "client.session.ping",
 ]);
 
 /**

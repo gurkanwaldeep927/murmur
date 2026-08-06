@@ -3,7 +3,9 @@ import { pool } from "../../db/pool.js";
 import { errors } from "../../shared/error-envelope.js";
 import { callerOf, requireSession } from "../../shared/require-session.js";
 import { bearerFrom, issueSessionToken, verifyToken } from "../../shared/session.js";
+import { emit } from "../analytics/analytics.service.js";
 import { findProfileById } from "../profile/profile.repo.js";
+import { SessionEvents } from "./session-events.js";
 
 /**
  * Session endpoints (plan T12). Design: `decisions/oq-14-session-mechanism.md`.
@@ -39,6 +41,11 @@ sessionRouter.post("/session/exchange", async (req, res, next) => {
     if (profile.status === "suspended") return next(errors.accountSuspended());
 
     res.status(200).json({ sessionToken: issueSessionToken(profile.id), profile });
+
+    // T51 — WAU/D30 source. After the response, and carrying the profile id and nothing
+    // else: `analytics_event` is append-only (PRV-1), so every field added here is
+    // retained forever, and this is the highest-volume event the server emits.
+    emit({ eventType: SessionEvents.STARTED, actorProfileId: profile.id });
   } catch (err) {
     next(err);
   }
@@ -50,7 +57,14 @@ sessionRouter.post("/session/exchange", async (req, res, next) => {
  * A 401 here is the client's signal to clear storage and show S1.
  */
 sessionRouter.get("/session", requireSession, (req, res) => {
-  res.status(200).json({ profile: callerOf(req) });
+  const profile = callerOf(req);
+  res.status(200).json({ profile });
+
+  // T51 — the WAU/D30 heartbeat. This route is the PWA's boot-time check, so it fires
+  // roughly once per app open rather than once per request, which is the volume that
+  // makes an append-only table affordable. See session-events.ts for the long-lived-tab
+  // limit this does NOT cover.
+  emit({ eventType: SessionEvents.RESUMED, actorProfileId: profile.id });
 });
 
 /**

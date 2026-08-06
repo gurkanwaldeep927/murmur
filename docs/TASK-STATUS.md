@@ -1,12 +1,16 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-04**
+**Last updated: 2026-08-06**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
 this file is the human-readable one.
 
-**Score so far: 28 done · 45 not started · 4 waiting on something**
+**Score so far: 26 done · 1 half done · 45 not started · 5 waiting on something** *(= 77)*
+
+*The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
+was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
+ones were undercounted. Counted directly off the tables on 6 August.*
 
 ---
 
@@ -73,8 +77,34 @@ before it goes public, so the space stays safe.
 | T56 | Tests proving nothing ever sneaks past the safety check | ✅ |
 | T63 | Reliability expert tries to break the safety checker | ✅ |
 | T19 | Connect those 4 screens to the real system | ✅ *(one bit left — see below)* |
-| T51 | Finish recording usage stats for this section | 🟡 half |
+| T51 | Finish recording usage stats for this section | ✅ *(see below)* |
 | **T62** | **Security expert checks who's allowed to read/write what. Must pass before this milestone can close** ← **next job** | ⬜ |
+
+**About T51 (done 6 August):** "recording usage stats" means dropping little markers in the
+code that say *this just happened*, so that later you can count how many people used the app
+and how fast questions got answered. Three of the six numbers the product promises to measure
+had **no source at all**:
+
+- **How many people use it each week.** Nothing was recorded when anyone signed in or opened
+  the app. Not "recorded wrongly" — not recorded. The file even had a comment saying a hook
+  belonged there, and it had never been written.
+- **How fast questions get answered.** The moment an answer became visible was never written
+  down anywhere you could count it from.
+- **How many posts the checker decided by itself versus handed to a human.** This one was
+  recorded, but only at the instant someone pressed post. Every decision made *afterwards* —
+  which, until the real checker is plugged in, is **every single decision** — was invisible.
+  The number would have read "nothing ever gets decided" forever, while posts were in fact
+  being decided.
+
+All three now have a real source, and — for the first time in this project — the recording
+itself has tests. There were none before: the only mention of that table anywhere in the test
+suite was the line that empties it.
+
+Two things were deliberately left alone, and both are written down in the code so the
+reasoning gets re-examined rather than forgotten: no marker on every single request (that
+table is never cleaned out, so one row per tap would make it the biggest thing in the
+product), and none on logout (there is no reliable way to tell *who* logged out without
+changing how logout behaves).
 
 **About T19's "one bit left":** the app is wired up and works. What hasn't happened is the
 *look-at-it-on-a-screen* check — comparing the finished screens against what the designer
@@ -212,11 +242,56 @@ startup and only break when the first student posted (now the app refuses to sta
 
 ---
 
+### 4. A dropped database connection can take the whole server down (found 6 August, NOT fixed)
+
+**What's broken:** the app keeps a pool of open database connections. Connections that are
+sitting idle sometimes die on their own — the network hiccups, the provider recycles them.
+That is normal and expected. What is not normal is that **nobody is listening for it.** The
+pool is created with no error handler, so when an idle connection dies the failure has
+nowhere to go and becomes an unhandled crash.
+
+**Why it matters twice over:**
+
+1. **In production it can kill the process.** Not because of a bug in our logic — because of
+   a network blip we already know happens.
+2. **It prints the database password.** When that unhandled error is reported, whatever
+   catches it dumps the entire connection object, and the password sits in the middle of it
+   in plain text. Seen doing exactly that in a test run on 5 August.
+
+**What is NOT affected:** `.env` is not in git and never has been, so the password never
+went into the repository or its history. It has only ever appeared in output on your own
+machine.
+
+**Two separate things to do:**
+- **You:** rotate the database password in the Supabase dashboard, since it has been on
+  screen.
+- **Us:** add the missing listener (about five lines). Not done yet — it sits outside the
+  task this session was approved for, and is written down here rather than quietly slipped in.
+
+**Why this hid so long:** a healthy connection never triggers it, and the home network to a
+Sydney-hosted database is exactly the situation that does. It has probably been failing
+quietly on every laptop run for weeks.
+
+---
+
 ## 🟠 Real, but less dangerous
 
-### 4. Email encryption is switched off (SEC-011)
-The encryption key is blank, so it silently does nothing. Everyone assumes it's on. Not fixed
-yet.
+### 4. Email encryption was switched off (SEC-011)
+**Fixed 6 August.** The key was blank, so the scrambler silently did nothing — and every
+document, comment and note went on saying addresses were encrypted. Nothing warned. Nothing
+failed. The app looked healthy.
+
+Now the app **refuses to start** on a real server without a key, and checks the key is the
+right size at startup rather than during a student's first sign-up. On a developer's laptop
+it still runs with no key, because a guard that breaks local work is a guard that gets
+deleted. Third time this exact remedy has been needed (the pepper, the console mailer, now
+this).
+
+**One thing worth knowing, because it changes how bad this was:** nothing in the app reads
+the encrypted address today — the code that would unscramble it has no callers. So what was
+broken was the *claim*, not a live leak. It would have become a real loss the moment the
+"resend my code" screen went looking for the address and found nothing, for every account
+created while the key was blank — and by then the original is gone for good.
 
 ### 5. Login codes and session keys were being written into the logs (PRV-5, PRV-6)
 Two separate leaks, both **fixed 2 August**:
@@ -341,6 +416,32 @@ trust**; some unknown share of them are already done.
 Nothing was lost, but it changes how the list must be used: **check each finding against the
 actual code before acting on it.** T62's run will rebuild an honest list.
 
+### 11d. The full test suite can no longer be trusted on your laptop (found 5 August)
+
+The database-backed tests talk to a database in Sydney. Every single query makes that round
+trip, so the suite takes **fifteen minutes on a good run** — and on a bad one a single test
+sat for **twenty-eight minutes** before the connection died and took the rest of the file
+down with it. Three tests fail this way on a completely clean tree, with none of our changes
+in it, so a red result here means nothing on its own.
+
+**What this changes:** the automatic checker abroad is now the only honest gate for anything
+that touches the database. It runs its own Postgres on the same machine as the tests, so
+there is no network to drop. Locally, run the tests that do not need a database — those are
+fast and truthful.
+
+This also makes finding #4 above much worse than it looks: the crash it describes is exactly
+what turns one dropped connection into a whole failed file.
+
+### 11e. A green tick that meant nothing (found 5 August)
+
+A verification run was reported as passing when it had in fact failed four test files. The
+command's output had been piped through another program to shorten it, and the *shortening*
+program's success was read as the *test* run's success. The tests had failed; the tick was
+the pipe's.
+
+Caught within the same session by reading the actual output. **Fifth instance of the same
+lesson, and the cheapest one to repeat: check what the green tick is actually reporting on.**
+
 ### 12. Nothing was checking the phone app at all (found 2 August, T19)
 The robot checked the server. It never checked the **app the student actually touches** — not
 the spell-checker, not the style rules, nothing. So the four sign-up screens built back in
@@ -402,9 +503,19 @@ A test suite that can't run is worth less than one that runs and fails.
    text `08`. Until then the guardrail blocks the gate from writing its report. Claude Code
    deliberately won't write that line itself — a guard an agent can lift for itself isn't a
    guard.
-2. **T51** — finish the usage stats. T19 unblocked it.
+2. **The missing database-connection listener** (problem #4 above). About five lines, and it
+   turns a network hiccup from "the server might fall over, and the password gets printed"
+   into "a line in the log". Worth doing before anything else touches the database. Separate
+   from that, and yours: **rotate the database password**, since it has been on screen.
 3. **T19b** — swap in the two cards Claude Design is redrawing (see below).
-4. Then Milestone 3, plus fixing problems 3–7 above.
+4. Then Milestone 3, plus fixing the remaining problems above.
+
+~~T51 — finish the usage stats~~ — **done 6 August.**
+
+**One change in how we work, from problem 11d:** anything that touches the database is now
+checked by the automatic checker abroad, not on your laptop. Your laptop still runs the
+faster half. This is not a preference — the laptop's run takes fifteen minutes when it works
+and fails on a clean tree when it doesn't, so a red result there tells you nothing.
 
 **One thing waiting on you, and it's quick:** two bits of wording on the screens promise
 something the app can't do — a post "usually takes a few minutes" to be checked, when in
