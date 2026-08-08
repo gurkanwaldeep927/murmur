@@ -1,0 +1,1978 @@
+<title>Murmur — Build Board</title>
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --font-display: Constantia, Cambria, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --font-body: system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
+    --font-mono: "Cascadia Mono", ui-monospace, Consolas, "SF Mono", Menlo, monospace;
+
+    --bg: #F2F2F7;
+    --surface: #FFFFFF;
+    --surface-2: #F8F8FB;
+    --text: #191A26;
+    --muted: #5A5C72;
+    --faint: #8688A0;
+    --border: #DEDEE8;
+    --border-strong: #C4C4D4;
+
+    --accent: #3A34A0;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #ECEBFA;
+
+    --done: #216B4C;
+    --done-bg: #E2F0E9;
+    --half: #8A6B05;
+    --half-bg: #F8F0D8;
+    --todo: #5A5C72;
+    --todo-bg: #ECECF2;
+    --waiting: #A44A06;
+    --waiting-bg: #FAEADC;
+
+    --shadow: 0 1px 2px rgba(20, 20, 45, .06), 0 6px 18px rgba(20, 20, 45, .05);
+    --radius: 6px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101120;
+      --surface: #191A28;
+      --surface-2: #1E1F2F;
+      --text: #E8E8F2;
+      --muted: #9C9EB6;
+      --faint: #767891;
+      --border: #2B2C40;
+      --border-strong: #3C3E56;
+
+      --accent: #A099F7;
+      --accent-ink: #14142A;
+      --accent-soft: #23224A;
+
+      --done: #63C295;
+      --done-bg: #16301F;
+      --half: #DABE58;
+      --half-bg: #322A10;
+      --todo: #9C9EB6;
+      --todo-bg: #232436;
+      --waiting: #EC9A50;
+      --waiting-bg: #35220F;
+
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .28);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --bg: #F2F2F7; --surface: #FFFFFF; --surface-2: #F8F8FB;
+    --text: #191A26; --muted: #5A5C72; --faint: #8688A0;
+    --border: #DEDEE8; --border-strong: #C4C4D4;
+    --accent: #3A34A0; --accent-ink: #FFFFFF; --accent-soft: #ECEBFA;
+    --done: #216B4C; --done-bg: #E2F0E9;
+    --half: #8A6B05; --half-bg: #F8F0D8;
+    --todo: #5A5C72; --todo-bg: #ECECF2;
+    --waiting: #A44A06; --waiting-bg: #FAEADC;
+    --shadow: 0 1px 2px rgba(20, 20, 45, .06), 0 6px 18px rgba(20, 20, 45, .05);
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #101120; --surface: #191A28; --surface-2: #1E1F2F;
+    --text: #E8E8F2; --muted: #9C9EB6; --faint: #767891;
+    --border: #2B2C40; --border-strong: #3C3E56;
+    --accent: #A099F7; --accent-ink: #14142A; --accent-soft: #23224A;
+    --done: #63C295; --done-bg: #16301F;
+    --half: #DABE58; --half-bg: #322A10;
+    --todo: #9C9EB6; --todo-bg: #232436;
+    --waiting: #EC9A50; --waiting-bg: #35220F;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  code, .mono { font-family: var(--font-mono); font-size: .88em; }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 0 26px;
+  }
+
+  .masthead-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+
+  .eyebrow {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(30px, 4.4vw, 42px);
+    font-weight: 400;
+    letter-spacing: -.015em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  .lede {
+    margin: 12px 0 0;
+    max-width: 58ch;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ---------- meter ---------- */
+
+  .meter-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .meter-title h2 {
+    margin: 0;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--faint);
+  }
+
+  .meter-pct {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar {
+    display: flex;
+    height: 12px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--todo-bg);
+    border: 1px solid var(--border);
+  }
+
+  .bar span { display: block; height: 100%; }
+  .bar .seg-done { background: var(--done); }
+  .bar .seg-half { background: var(--half); }
+  .bar .seg-waiting { background: var(--waiting); }
+
+  .legend {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin: 12px 0 0;
+    padding: 0;
+    font-size: 13px;
+  }
+
+  .legend li { display: flex; align-items: center; gap: 7px; }
+
+  .swatch {
+    width: 9px; height: 9px; border-radius: 2px;
+    flex: none;
+    border: 1px solid rgba(128, 128, 150, .35);
+  }
+  .swatch.done { background: var(--done); }
+  .swatch.half { background: var(--half); }
+  .swatch.todo { background: var(--todo-bg); }
+  .swatch.waiting { background: var(--waiting); }
+
+  .legend b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .legend span { color: var(--muted); }
+
+  .drift {
+    margin: 14px 0 0;
+    padding: 9px 12px;
+    border-left: 3px solid var(--half);
+    background: var(--half-bg);
+    color: var(--text);
+    font-size: 13px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .drift[hidden] { display: none; }
+
+  /* ---------- controls ---------- */
+
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+  }
+
+  .control-rows { display: flex; flex-direction: column; gap: 9px; }
+
+  .control-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .control-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    width: 62px;
+    flex: none;
+  }
+
+  .chip {
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    padding: 6px 11px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .chip[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .chip .count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    opacity: .72;
+    margin-left: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chip-alt {
+    border-style: dashed;
+  }
+
+  .search {
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 11px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    min-width: 210px;
+    flex: 1 1 210px;
+    max-width: 340px;
+  }
+  .search::placeholder { color: var(--faint); }
+
+  .result-count {
+    font-size: 12px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  /* ---------- milestones ---------- */
+
+  main { padding: 26px 0 60px; }
+
+  .milestone { margin-bottom: 34px; }
+  .milestone[hidden] { display: none; }
+
+  .ms-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--text);
+    margin-bottom: 4px;
+  }
+
+  .ms-id {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 3px 7px;
+    background: var(--text);
+    color: var(--bg);
+    border-radius: 3px;
+  }
+
+  .ms-head h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 22px;
+    letter-spacing: -.01em;
+  }
+
+  .ms-progress {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ms-exit {
+    margin: 10px 0 14px;
+    max-width: 78ch;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .ms-exit b { color: var(--text); font-weight: 600; }
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* ---------- task row ---------- */
+
+  .task {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--todo);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .task[hidden] { display: none; }
+
+  .task.s-done { border-left-color: var(--done); }
+  .task.s-half { border-left-color: var(--half); }
+  .task.s-waiting { border-left-color: var(--waiting); }
+  .task.s-todo { border-left-color: var(--border-strong); }
+  .task.is-actionable { border-left-color: var(--accent); }
+
+  .task-head {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+  }
+
+  .tick {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex: none;
+    margin: 0;
+  }
+
+  .task-id {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--muted);
+    width: 44px;
+    letter-spacing: -.02em;
+  }
+
+  .task-open {
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    padding: 2px 0;
+    margin: 0;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .task-title { font-size: 14px; }
+
+  .task.checked .task-title {
+    color: var(--faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--border-strong);
+  }
+
+  .caret {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--faint);
+    flex: none;
+    transition: transform .15s;
+  }
+  .task.open .caret { transform: rotate(90deg); }
+
+  .tags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 3px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .p-done { background: var(--done-bg); color: var(--done); }
+  .p-half { background: var(--half-bg); color: var(--half); }
+  .p-todo { background: var(--todo-bg); color: var(--todo); }
+  .p-waiting { background: var(--waiting-bg); color: var(--waiting); }
+  .p-lane { background: transparent; color: var(--muted); border: 1px solid var(--border-strong); }
+  .p-go { background: var(--accent); color: var(--accent-ink); }
+  .p-size { color: var(--faint); font-family: var(--font-mono); font-size: 11px; }
+
+  .drift-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--half);
+    flex: none;
+  }
+
+  /* ---------- detail ---------- */
+
+  .detail {
+    display: none;
+    padding: 4px 14px 18px 14px;
+    border-top: 1px dashed var(--border);
+    background: var(--surface-2);
+  }
+  .task.open .detail { display: block; }
+
+  .detail h4 {
+    margin: 16px 0 4px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 700;
+  }
+
+  .detail p {
+    margin: 0;
+    max-width: 74ch;
+    font-size: 14px;
+  }
+
+  .detail .note {
+    border-left: 3px solid var(--border-strong);
+    padding-left: 11px;
+    color: var(--muted);
+  }
+
+  .deps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 4px;
+  }
+
+  .dep {
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .dep:hover { border-color: var(--accent); color: var(--accent); }
+  .dep.met { border-color: var(--done); color: var(--done); }
+  .dep.unmet { border-color: var(--waiting); color: var(--waiting); }
+  .dep.none { border-style: dashed; cursor: default; }
+  .dep.none:hover { border-color: var(--border-strong); color: var(--muted); }
+
+  .trace {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 14px;
+    word-break: break-word;
+  }
+
+  .flash { animation: flash 1.1s ease-out; }
+  @keyframes flash {
+    from { background: var(--accent-soft); }
+    to { background: var(--surface); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flash { animation: none; }
+    .caret { transition: none; }
+  }
+
+  /* ---------- problems ---------- */
+
+  .problems { padding: 8px 0 70px; }
+
+  .problems > h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 24px;
+    margin: 0 0 4px;
+  }
+
+  .problems .lede { margin-bottom: 16px; }
+
+  .prob {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+
+  .prob summary {
+    cursor: pointer;
+    padding: 10px 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    list-style: none;
+  }
+  .prob summary::-webkit-details-marker { display: none; }
+  .prob summary::before {
+    content: "▸";
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--faint);
+  }
+  .prob[open] summary::before { content: "▾"; }
+  .prob summary strong { font-weight: 600; }
+
+  .prob-body {
+    padding: 0 13px 14px 30px;
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 78ch;
+  }
+  .prob-body p { margin: 0 0 8px; }
+  .prob-body p:last-child { margin-bottom: 0; }
+  .prob-body b { color: var(--text); }
+
+  /* ---------- footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 22px 0 50px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  footer p { margin: 0 0 8px; max-width: 74ch; }
+
+  .empty {
+    padding: 40px 0;
+    text-align: center;
+    color: var(--faint);
+    font-size: 14px;
+  }
+  .empty[hidden] { display: none; }
+
+  @media (max-width: 760px) {
+    .masthead-grid { grid-template-columns: 1fr; gap: 22px; }
+    .control-label { width: auto; }
+    .task-head { grid-template-columns: auto auto minmax(0, 1fr); }
+    .tags { grid-column: 1 / -1; justify-content: flex-start; padding-left: 27px; }
+    .result-count { margin-left: 0; }
+  }
+</style>
+
+<header class="masthead">
+  <div class="wrap masthead-grid">
+    <div>
+      <p class="eyebrow">Murmur · verified anonymous campus Q&amp;A</p>
+      <h1>Build board</h1>
+      <p class="lede">
+        All 77 tasks from <code>docs/07-plan.md</code>, each one explained: what it actually is,
+        why it exists, what breaks if it is wrong, and what it unblocks. Statuses are copied from
+        <code>docs/TASK-STATUS.md</code> as of 6 August 2026, plus the 7 August database-pool fix.
+        <b>That markdown file stays the source of truth</b> — ticking a box here is your own note,
+        not a status change.
+      </p>
+    </div>
+    <div>
+      <div class="meter-title">
+        <h2>Progress</h2>
+        <span class="meter-pct" id="pct">—</span>
+      </div>
+      <div class="bar" id="bar" role="img" aria-label="Task progress by status">
+        <span class="seg-done" id="seg-done"></span>
+        <span class="seg-half" id="seg-half"></span>
+        <span class="seg-waiting" id="seg-waiting"></span>
+      </div>
+      <ul class="legend" id="legend"></ul>
+      <p class="drift" id="drift" hidden></p>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="wrap control-rows">
+    <div class="control-row">
+      <span class="control-label">Find</span>
+      <input class="search" id="search" type="search" placeholder="Search id, title, explanation…" aria-label="Search tasks">
+      <button type="button" class="chip chip-alt" id="v-actionable" aria-pressed="false">Actionable now</button>
+      <button type="button" class="chip chip-alt" id="v-yours" aria-pressed="false">Yours</button>
+      <button type="button" class="chip chip-alt" id="v-gates" aria-pressed="false">Quality gates</button>
+      <span class="result-count" id="result-count"></span>
+    </div>
+    <div class="control-row" id="row-status">
+      <span class="control-label">Status</span>
+    </div>
+    <div class="control-row" id="row-milestone">
+      <span class="control-label">Milestone</span>
+    </div>
+    <div class="control-row" id="row-lane">
+      <span class="control-label">Lane</span>
+    </div>
+    <div class="control-row">
+      <span class="control-label">Board</span>
+      <button type="button" class="chip" id="expand-all">Expand all</button>
+      <button type="button" class="chip" id="collapse-all">Collapse all</button>
+      <button type="button" class="chip" id="export">Export ticks</button>
+      <button type="button" class="chip" id="import">Import ticks</button>
+      <button type="button" class="chip" id="reset">Reset ticks</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <div id="board"></div>
+    <p class="empty" id="empty" hidden>No task matches these filters.</p>
+  </div>
+</main>
+
+<section class="problems">
+  <div class="wrap">
+    <h2>Problems found along the way</h2>
+    <p class="lede">
+      Every defect and false signal this build has hit, from <code>docs/TASK-STATUS.md</code>.
+      Several are still open work in disguise — those say so.
+    </p>
+    <div id="problem-list"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <b>How to use this.</b> "Actionable now" shows tasks whose every dependency is finished — a
+      half-done dependency does not count, which is the same rule <code>/execute-plan</code> uses.
+      "Yours" shows the tasks Claude Code cannot do for you.
+    </p>
+    <p>
+      Ticks live in this browser only. Use <b>Export ticks</b> to carry them to another device, or
+      to hand them back so they can be folded into <code>docs/TASK-STATUS.md</code>.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var TASKS = [
+    // ---------------- Milestone 1 ----------------
+    {
+      id: "T1", ms: "M1", size: "S", lane: "code", kind: "build", status: "done",
+      title: "Delete the leftover files from the old setup",
+      deps: [], trace: "UI:deviations[0]",
+      what: "Remove the superseded stylesheet left behind by the pre-pipeline experiments, and keep the mock-data file as fixture data for tests. Housekeeping before any real code lands.",
+      why: "A repo that still carries dead files teaches everyone who opens it the wrong thing about where code lives. Cheapest possible moment to do it is before there is any code to confuse it with.",
+      done: "The superseded file is gone; the mock data survives somewhere tests can reach it.",
+      note: "In practice the stylesheet was already absent, so the delete was a no-op; the mock data moved to client/src/mock-data.js and the old src/ tree was removed."
+    },
+    {
+      id: "T2", ms: "M1", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Build the skeleton: server, worker, and the empty phone app",
+      deps: ["T1"], trace: "TRD:stack.server, TRD:stack.client, TRD:architecture_pattern",
+      what: "Create the shape of the whole system before filling any of it in: a Node/TypeScript server organised into modules (identity, profile, analytics, notification), a separate background worker process, and an installable PWA — a web app a phone can add to its home screen and open like a native app — as the client shell.",
+      why: "Every later task assumes a place to put its code. Deciding that layout once, in advance, is what stops the project turning into one enormous file. The two-process split (server + worker) exists because moderation retries and SLA timers must not run inside a request.",
+      done: "Server boots, worker boots, client installs, and the module folders exist even when empty."
+    },
+    {
+      id: "T3", ms: "M1", size: "S", lane: "code", kind: "build", status: "done",
+      title: "Set up CI — the robot that re-checks everything on every push",
+      deps: ["T2"], trace: "TRD:nfrs[*] measurement harness; cadence.md §1",
+      what: "A GitHub Actions pipeline that, on every push, runs lint, typecheck, the test suites against a real throwaway Postgres, applies and rolls back every migration, and runs three scanners: gitleaks (secrets), semgrep (code patterns), osv-scanner (vulnerable dependencies).",
+      why: "This is the only honest gate in the project. The laptop's database lives in Sydney and takes fifteen minutes on a good run; CI runs its own Postgres beside the tests and finishes in about a minute. Every 'is it green?' answer comes from here.",
+      done: "A push triggers all four checks and the secrets scan is blocking, not advisory.",
+      note: "Written 21 July but had literally never executed until 1 August, because the code had never been pushed anywhere. Every earlier claim that 'CI checks this' was false. Problem #11 in the log."
+    },
+    {
+      id: "T4", ms: "M1", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Provision the database and the safe way to change its shape",
+      deps: ["T2"], trace: "schema:tables[identity_account], schema:tables[pseudonymous_profile]",
+      what: "A managed Postgres instance plus a migration framework — migrations are numbered, version-controlled scripts that change the database's shape, each with a matching undo. Migration 001 creates identity_account and pseudonymous_profile: the row that knows an email fingerprint exists, and the separate row that holds the nickname and year badge.",
+      why: "Those two tables are deliberately separate. The whole product promise is that the thing users see (a pseudonym) can never be walked back to the thing that identifies them (an email). Splitting them in the schema is what makes that structural rather than a rule someone remembers.",
+      done: "Migrations apply forward and roll back cleanly in CI, and both tables exist with their enums and constraints."
+    },
+    {
+      id: "T5", ms: "M1", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Make the app able to email a login code",
+      deps: ["T2"], trace: "TRD:integrations[Email/OTP Delivery Provider], PRD:p0[R1]",
+      what: "The email delivery layer: send the one-time verification code, retry with backoff if the provider is slow, support 'resend' with a cooldown so it cannot be spammed. If delivery is not confirmed, registration is blocked rather than allowed through.",
+      why: "The college email is the only proof that a user is a real student. If a code can appear to have been sent when it was not, the app either locks out real students or, worse, lets someone through without proof.",
+      done: "A code reaches a real inbox; a failed send blocks the flow instead of defaulting it open.",
+      note: "The default 'console' adapter used to print each student's real email address and their login code into the log. Fixed 2 August — the app now refuses to start with that adapter outside a developer laptop (problem #5)."
+    },
+    {
+      id: "T6", ms: "M1", size: "S", lane: "human", kind: "build", status: "done",
+      title: "(You) Write down how to read the admission year out of a college email",
+      deps: [], trace: "TRD:risks[year parsing], PRD:assumptions[email scheme encodes year]",
+      what: "A written ruleset — with real example addresses, including the odd ones — describing how a campus email or roll number encodes the year a student joined.",
+      why: "The year badge ('batch of 26') is what makes an anonymous answer trustworthy. Only someone who has seen the real address formats can write this rule; a guess here mislabels students permanently.",
+      done: "A documented rule plus a fixture set of real-format examples that T8's code and tests can both read.",
+      note: "Carries risk RR-8: edge-case formats. The mitigation is that T8 blocks rather than guesses — a student with an unparseable address gets a truthful 'we cannot read your year' state, never a made-up badge."
+    },
+    {
+      id: "T7", ms: "M1", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Build 'enter your email' — the first half of signing up",
+      deps: ["T4", "T5", "T50"], trace: "TRD:apis[A1], PRD:p0[R1]",
+      what: "The A1 endpoint. Checks the address is on the campus allowlist, refuses one already registered (by comparing fingerprints, never stored addresses), rejects malformed input, and rate-limits both per address and per device.",
+      why: "This is the front door. Everything the product claims about being students-only is enforced right here or nowhere.",
+      done: "Valid campus address gets a code; non-campus, duplicate and malformed each get their own distinct, truthful refusal.",
+      note: "Originally had no per-device limit, so one person could sign up with thousands of addresses and drain the email account. Capped per device per hour on 2 August (SEC-007)."
+    },
+    {
+      id: "T8", ms: "M1", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Build 'enter the code' — verify it, work out the year, make the nickname",
+      deps: ["T6", "T7", "T50"], trace: "TRD:apis[A2], PRD:p0[R1], UX:open_questions[OQ-14]",
+      what: "The A2 endpoint. Validates the code in constant time, checks it against the ban list, derives the year badge using T6's ruleset, generates the pseudonym, creates the profile, and hands back a short-lived bootstrap token that T12 later turns into a real session.",
+      why: "This is where an anonymous person becomes a verified-but-anonymous member. Getting the year wrong, or leaking the address into the response, breaks the two things the product sells at once.",
+      done: "Correct code creates a profile with a real badge; unparseable year returns a distinct blocked state and never a guessed badge.",
+      note: "The code could be guessed indefinitely — nothing counted wrong attempts, so all million six-digit codes could be tried in minutes. Now five guesses, then the code is destroyed; a wrong guess and a dead code look identical from outside (SEC-004, fixed 2 August)."
+    },
+    {
+      id: "T9", ms: "M1", size: "M", lane: "design", kind: "build", status: "done",
+      title: "(Claude Design) The four sign-up screens",
+      deps: ["T2"], trace: "UI:components[EmailEntryForm..RegistrationOutcomePanel]",
+      what: "Design round 1: paste the §2 design contract from docs/06-ui.md into Claude Design once, then the four component prompts. Output lands in the repo as .dc.html files.",
+      why: "Visual code is Claude Design's lane, not Claude Code's — a standing decision from stage 6. Round 1 also fixes the visual contract every later round inherits, which is why the contract is pasted before any component.",
+      done: "EmailEntryForm, VerificationPendingCard, TokenConfirmForm and RegistrationOutcomePanel exist in the repo.",
+      note: "All 17 screens (S1–S17) already exist in the design project ecb9e3e6-a250-49f3-9b7a-f356994a9f54. Rounds 2–5 are therefore copy jobs, not design sessions. The project is type PROJECT, not DESIGN_SYSTEM, so it does not appear in list_projects — pass the UUID directly."
+    },
+    {
+      id: "T10", ms: "M1", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Wire the four sign-up screens to the real sign-up system",
+      deps: ["T8", "T9"], trace: "UX:flows[F1], UI:components[*S1–S4]",
+      what: "Connect the landed components to A1 and A2 and drive every state they can be in: empty, loading, error, success, blocked (year unreadable) and refused (not a campus address, or already used), plus the resend cooldown.",
+      why: "A screen that only handles the happy path is the screen that lies to a student on the day something goes wrong. The blocked and refused branches are acceptance criteria, not edge cases.",
+      done: "All six states render truthfully against the real endpoints."
+    },
+    {
+      id: "T11", ms: "M1", size: "S", lane: "code", kind: "build", status: "waiting",
+      title: "Try the whole thing on a real phone with a real email",
+      deps: ["T10", "T49"], trace: "TRD:nfrs[identity non-disclosure], PRD:p0[R1]",
+      what: "The tracer demo. A real student, on a real phone browser, against the staging deployment — not localhost — signs up end to end. While that happens, every API response in the session is inspected to confirm the raw email address appears nowhere.",
+      why: "Milestone 1 does not close on 'the tests pass'. It closes on a person doing the thing, on real hardware, over the real internet, with a real inbox. Every earlier check is a proxy for this one.",
+      done: "A stranger signs up on their own phone and sees their pseudonym and badge; response inspection finds no email.",
+      note: "Blocked only by T49 (the staging deployment). Nothing in the code is missing."
+    },
+    {
+      id: "T49", ms: "M1", size: "S", lane: "human", kind: "build", status: "waiting",
+      title: "(You) Put the app on a real server on the internet",
+      deps: ["T4"], trace: "TRD:stack.infra, PRD:p0[R1] demo criterion",
+      what: "A minimal staging deployment: managed hosting (Render, Railway or Fly) pointed at the existing Supabase Postgres, with freshly generated secrets — not your local ones.",
+      why: "It unblocks T11 and closes Milestone 1. It also unblocks two things that cannot exist without a running app: the visual QA pass on T19's screens, and the T67 restore drill at Milestone 4.",
+      done: "https://your-app/health returns ok (it honestly reports 'degraded' if it cannot reach the database, so this one call proves the DB wiring too).",
+      note: "One configuration trap: the new rate limits count requests per device. Behind a load balancer, if TRUST_PROXY is not set correctly, the app decides every student is the same person and locks out the whole campus. Full steps are in runbooks/staging-deploy-T49.md and docs/HUMAN-TASKS.md."
+    },
+    {
+      id: "T50", ms: "M1", size: "S", lane: "code", kind: "build", status: "done",
+      title: "The scrambler that hides emails so nobody can read them from the database",
+      deps: ["T4"], trace: "TRD:risks[email-hash ban matching], schema:escalations[HMAC pepper]",
+      what: "One shared utility that lowercases an address, strips aliases, and turns it into a keyed fingerprint using a secret held only by the server (a 'pepper'). The key is versioned, so it can be rotated without instantly breaking every stored fingerprint.",
+      why: "Three completely different features — the duplicate check at sign-up, the account record itself, and the ban lookup — must agree on what 'the same email' means. If they each did their own normalisation, a banned person could return by capitalising a letter. One procedure, called identically, is the only way that stays true.",
+      done: "A1, A2 and A11 all call this same function, and rotation is documented rather than hypothetical.",
+      note: "Twice nearly fatal. The key shipped as the placeholder 'change-me-in-every-real-environment' from a public file — anyone could have unscrambled every address (fixed 30 July; the app now refuses to boot on a placeholder). Separately the encryption key was blank, so the scrambler silently did nothing while every document claimed otherwise (SEC-011, fixed 6 August)."
+    },
+    {
+      id: "T44", ms: "M1", size: "S", lane: "code", kind: "build", status: "done",
+      title: "Start recording anonymous usage statistics",
+      deps: ["T4"], trace: "schema:tables[analytics_event], TRD:apis[A12], PRD:p0[R8]",
+      what: "Migration 006 creates the analytics_event table, and A12 is the endpoint that accepts events. It is fire-and-forget: a malformed event is logged and dropped, and a failure here never blocks or fails whatever the student was actually doing.",
+      why: "Moved forward from Milestone 6 deliberately. A thirty-day retention metric started at launch takes thirty days to say anything; started at the tracer, it has real history by the time anyone asks.",
+      done: "Events land in the table, and breaking the ingest endpoint on purpose does not break sign-up."
+    },
+    {
+      id: "T45", ms: "M1", size: "S", lane: "code", kind: "build", status: "half",
+      title: "Record the sign-up funnel specifically",
+      deps: ["T10", "T44"], trace: "PRD:p0[R8], UX:flows[F8]",
+      what: "Drop event markers across the sign-up screens so you can later count how many people started, how many finished, and where the rest fell out.",
+      why: "'Registration penetration' and 'activation' are two of the six numbers the product promises to report. Without markers at these three points they are uncountable, not merely unmeasured.",
+      done: "Every step of the funnel emits an event, and T46 can compute the funnel from them alone.",
+      note: "Marked half done: the registration and activation events exist in registration-events.ts, but the full metric derivation is T46 at Milestone 6. Because a half-done dependency does not count as met, this is what keeps T46 out of 'actionable now'."
+    },
+    {
+      id: "T55", ms: "M1", size: "S", lane: "code", kind: "test", status: "done",
+      title: "A test that checks no email ever leaks out in any response",
+      deps: ["T10"], trace: "TRD:nfrs[identity non-disclosure]; QK-6",
+      what: "An automated audit across every A1/A2 response — success, blocked, refused, invalid — asserting that no raw address, no email fingerprint, no internal account id and no token ever appears in what the server sends back.",
+      why: "Anonymity is the product. This is the one test whose failure blocks everything, and it is written as a scan of real responses rather than a promise in a document, because documents in this project have been wrong before.",
+      done: "The audit runs in CI on every push from Milestone 1 onward and passes on all four branches."
+    },
+    {
+      id: "T60", ms: "M1", size: "M", lane: "code", kind: "gate", status: "done",
+      title: "Security review of the sign-up code (first run, advisory)",
+      deps: ["T7", "T8", "T10", "T50", "T55"], trace: "cadence.md §2 (M1 row)",
+      what: "The security agent's full stage-08 pass over the verification surface: rate limits and attempt counters, the one-time-code flow, how the pepper is handled, the bootstrap token, and an independent re-check of T55's claim rather than a reading of it.",
+      why: "First run of each gate is advisory on purpose — it finds the backlog without stalling the tracer. The second run of the same gate is blocking. That promotion mechanic is what stops a gate becoming a formality.",
+      done: "Findings recorded in docs/08-security.md; criticals fixed and pinned with regression tests.",
+      note: "This run refused to write its own unlock file when the guardrail blocked it (OQ-SEC-06). That precedent is exactly why T62 is still waiting on a human-written .pipeline/unlock."
+    },
+    {
+      id: "T61", ms: "M1", size: "M", lane: "code", kind: "gate", status: "done",
+      title: "Privacy review of what personal data gets stored (first run, advisory)",
+      deps: ["T4", "T10"], trace: "cadence.md §2 (M1 row); RR-10",
+      what: "The privacy agent builds an inventory of every piece of personal data in migration 001 and establishes a leakage baseline across responses, logs and analytics events.",
+      why: "India's DPDP Act carries penalties up to ₹50 crore. Knowing exactly what is stored, where, and for how long is the input to every later retention and consent decision — and it is much cheaper to establish now than to reconstruct at Milestone 5.",
+      done: "docs/16-privacy.md holds a PII inventory and a baseline the Milestone 5 run can be measured against."
+    },
+
+    // ---------------- Milestone 2 ----------------
+    {
+      id: "T12", ms: "M2", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Stay logged in — don't make people verify every single time",
+      deps: ["T8"], trace: "UX:open_questions[OQ-14], UI:open_questions[repeat-session]",
+      what: "Trade T8's short-lived bootstrap token for a real session: how long it lasts, where it is stored, how it is renewed, and how it survives the app being closed and reopened.",
+      why: "No upstream document specified this — it was an open question (OQ-14) that would otherwise have been invented three times in three places. Every authenticated screen from the feed onward depends on the answer.",
+      done: "Close the app, reopen it, still signed in — and the session survives a server restart.",
+      note: "This is where the pattern for gaps in frozen documents was set: the decision was written to decisions/oq-14-session-mechanism.md. Frozen docs 01–07 are never edited; decisions get their own file."
+    },
+    {
+      id: "T13", ms: "M2", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Database tables for questions, answers, topics and safety checks",
+      deps: ["T4"], trace: "schema:tables[topic_tag, question, answer, moderation_case]",
+      what: "Migration 002: the topic list (seeded with placements, internships, professors, courses, advice), the question and answer tables with their generated search columns and indexes, and moderation_case — the record of what the safety checker decided about each post.",
+      why: "moderation_case being a first-class table, rather than a column on the post, is what makes 'nothing publishes unchecked' auditable. You can count cleared cases and compare that number to published posts; if they ever disagree, something published without a decision.",
+      done: "Migration applies and rolls back; the reconciliation query in T56 can be written against these tables.",
+      note: "The rollback initially picked the wrong migration to undo and would have dropped the analytics table. Caught before it did damage (problem #16)."
+    },
+    {
+      id: "T14a", ms: "M2", size: "L", lane: "code", kind: "build", status: "done",
+      title: "The safety checker — holds every post until something approves it",
+      deps: ["T2", "T13"], trace: "TRD:apis[A7], PRD:p0[R6]",
+      what: "The moderation gateway, built with no vendor attached. It owns the routing (cheap check first, expensive check only if needed), the case lifecycle, the retry-with-backoff worker, and the escalation threshold past which a post goes to a human. With no provider configured, the default behaviour is to hold everything: every post is written 'pending' with an escalate case, and nothing publishes.",
+      why: "Splitting the gateway from the vendor is what let the whole moderation vendor decision move to Milestone 6 without stalling Milestone 2. And the hold-all default is not a stub — it is the fail-closed posture the requirement demands, running its normal path. If the checker cannot check, the safe answer is 'no'.",
+      done: "With no provider set, zero items publish and every one holds pending with an escalate case; the test-only fixture adapter lets the auto-pass path be exercised.",
+      note: "Held the project's worst bug. Two pieces of SQL reused one parameter as both an enum and text, so Postgres refused them every single time — meaning no post could ever have gone live. TypeScript cannot see inside SQL, and all 39 unit tests deliberately avoided the database, so it survived eleven days until the first real connection on 1 August. Separately, RES-3: an unexpected failure left the retry counter unmoved, so a post could sit invisible forever with nobody alerted. Fixed 2 August."
+    },
+    {
+      id: "T15", ms: "M2", size: "M", lane: "code", kind: "build", status: "done",
+      title: "Build 'post a question'",
+      deps: ["T12", "T13", "T14a"], trace: "TRD:apis[A3], PRD:p0[R3], PRD:p0[R6]",
+      what: "The A3 endpoint: validate the topic, refuse banned or suspended accounts, handle a retried request without creating two questions (idempotency), and route the post through the moderation gate before it can ever be published.",
+      why: "This is the first place a student's own words enter the system. The order matters absolutely: the gate comes before publish, never after.",
+      done: "A posted question reaches a truthful terminal state, and posting the same request twice creates one question."
+    },
+    {
+      id: "T16", ms: "M2", size: "S", lane: "code", kind: "build", status: "done",
+      title: "Build 'post an answer under a question'",
+      deps: ["T15"], trace: "TRD:apis[A4], PRD:p0[R3]",
+      what: "The A4 endpoint: the same shape as A3 — same idempotency, same moderation gate — plus threading under a parent question, and a clean error when that parent does not exist.",
+      why: "Deliberately built after A3 and modelled on it. Two publish paths that behave differently is how one of them ends up skipping the safety check.",
+      done: "An answer threads under a question with the same pseudonym-and-badge attribution, and goes through the same gate."
+    },
+    {
+      id: "T17", ms: "M2", size: "S", lane: "code", kind: "build", status: "done",
+      title: "Build the home feed — show recent approved questions",
+      deps: ["T13"], trace: "TRD:apis[A5], UX:screens[S5]",
+      what: "The browse half of A5: a recent-first feed of questions, filtered to published only.",
+      why: "'Published only' is doing all the work in that sentence. A feed query that forgets that filter shows the entire campus posts that were held for review — which is the exact failure the moderation gate exists to prevent.",
+      done: "The feed returns published questions and provably nothing else."
+    },
+    {
+      id: "T18", ms: "M2", size: "M", lane: "design", kind: "build", status: "done",
+      title: "(Claude Design) The four main screens: feed, ask, thread, answer",
+      deps: ["T9"], trace: "UI:components[QuestionFeedCard..AnswerComposer]",
+      what: "Design round 2 — prompts §3.5 to §3.8. Since all 17 screens already exist in the design project, this is pulling S5–S8 out as .dc.html and dropping them into client/src/components/.",
+      why: "Round 2 depends only on round 1, not on Milestone 2's backend. All four remaining rounds could have been pulled the same day, which takes the human round-trip delay off every later milestone's critical path (RR-18).",
+      done: "QuestionFeedCard, AskComposer, QuestionThread and AnswerComposer are in the repo."
+    },
+    {
+      id: "T19", ms: "M2", size: "L", lane: "code", kind: "build", status: "done",
+      title: "Wire those four screens to the real system",
+      deps: ["T15", "T16", "T17", "T18"], trace: "UX:flows[F3], UX:flows[F6], PRD:p0[R2]",
+      what: "Connect the components to A3, A4 and the browse feed, render the moderation states honestly (pending, published, blocked), and show pseudonym-plus-year-badge attribution everywhere a person appears.",
+      why: "Attribution everywhere is a requirement in its own right (R2): an answer without its badge is just an anonymous internet stranger, which is the thing the product exists not to be.",
+      done: "The four screens work end to end against the real endpoints — plus a visual QA pass against the design briefs.",
+      note: "The visual QA pass has NOT been run, and is recorded as not done rather than quietly skipped: it needs screenshots of a rendered app, which needs T49. This task also exposed that the phone app was outside every gate — root tsconfig excluded client/, eslint ignored it, CI never typechecked it, so the sign-up screens had shipped unverified since July. Wiring it in caught a real bug within minutes."
+    },
+    {
+      id: "T51", ms: "M2", size: "S", lane: "code", kind: "build", status: "done",
+      title: "Record usage statistics for the Q&A section",
+      deps: ["T19", "T12", "T44"], trace: "PRD:p0[R8], UX:flows[F8]",
+      what: "Event markers for three of the six promised numbers: weekly active users (a ping on session start), how fast questions get answered (a timestamp at the moment an answer becomes visible), and how many posts the checker decided by itself versus handed to a human.",
+      why: "All three had no source at all — not recorded wrongly, not recorded. The third was the subtlest: it was captured only at the instant someone pressed post, so every decision made afterwards was invisible. Since nothing is auto-decided until the vendor is bound, the number would have read 'nothing is ever decided' forever while posts were in fact being decided.",
+      done: "All three numbers have a real source, and — a first for this project — the recording itself has tests.",
+      note: "Two omissions are deliberate and written into the code so they get re-examined rather than forgotten: no marker on every request (that table is never pruned, so one row per tap would make it the largest thing in the product), and none on logout (no reliable way to tell who logged out without changing how logout behaves)."
+    },
+    {
+      id: "T56", ms: "M2", size: "M", lane: "code", kind: "test", status: "done",
+      title: "Tests proving nothing ever sneaks past the safety check",
+      deps: ["T19"], trace: "TRD:nfrs[moderation coverage], TRD:nfrs[moderation failure posture]",
+      what: "Two tests. A reconciliation query asserting that the count of published content equals the count of cleared moderation cases. And an outage drill: make the provider time out, then assert that zero items auto-publish and every one is held.",
+      why: "The reconciliation test is the legal shield. It is the difference between believing nothing unchecked was published and being able to demonstrate it from the data.",
+      done: "Both run in CI from Milestone 2 onward, and the reconciliation query also runs nightly in production."
+    },
+    {
+      id: "T62", ms: "M2", size: "M", lane: "code", kind: "gate", status: "todo",
+      title: "Security review of who is allowed to read and write what — BLOCKING",
+      deps: ["T15", "T16", "T17", "T12"], trace: "cadence.md §2 (M2 row)",
+      what: "The security agent's second run, focused on authorisation: the write and read guards on posting a question, posting an answer and reading the feed, plus the session mechanism from T12.",
+      why: "Second run of this gate, so it is blocking — Milestone 2 does not close until it passes. Its odds are also genuinely better than they look: the three access-control holes it would have tripped over were cleared on 4 August, so it can find new things rather than re-report known ones.",
+      done: "docs/08-security.md records a run with no unresolved critical or high findings on the authorisation surface.",
+      note: "Blocked on one line from you. The file .pipeline/unlock exists but is EMPTY — the guardrail splits its text, so a zero-byte file is an empty set and behaves exactly like a missing one, which is why it is invisible in a directory listing. It must contain the literal text 08. Claude Code deliberately will not write that line: a guard an agent can lift for itself is not a guard."
+    },
+    {
+      id: "T63", ms: "M2", size: "M", lane: "code", kind: "gate", status: "done",
+      title: "Reliability review — try to break the safety checker (first run, advisory)",
+      deps: ["T14a", "T56"], trace: "cadence.md §2 (M2 row); RR-4",
+      what: "The resilience agent injects real faults — provider timeouts and outages — against the gateway and checks that it holds rather than fails open. This execution IS T56's outage drill, run independently by a different agent.",
+      why: "A test written by the person who wrote the feature tends to test what the feature does. Running the same drill from a separate agent, with real network faults rather than mocks, is the point.",
+      done: "Under injected provider failure, the gateway holds every item and escalates past the threshold — no auto-publish."
+    },
+
+    // ---------------- Milestone 3 ----------------
+    {
+      id: "T20", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Search by keyword, topic and batch year",
+      deps: ["T17"], trace: "TRD:apis[A5], PRD:p0[R4], TRD:nfrs[search availability]",
+      what: "The full A5 endpoint: full-text keyword search over questions and answers, filters by topic and by batch cohort, an explicit empty-results payload that invites a new post, and a fallback to plain topic browsing if the search index is unavailable.",
+      why: "This is the compounding value of the product. The first hundred questions are a chat room; the same hundred, searchable across batches, is an archive a junior finds two years later. The empty state matters as much as the results — 'nothing found, ask it yourself' is how the archive grows.",
+      done: "Keyword, topic and cohort filters return relevant cross-batch results, and killing the index degrades to topic browse instead of erroring."
+    },
+    {
+      id: "T21", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Database tables for points and ban records",
+      deps: ["T13"], trace: "schema:tables[reputation_event, ban_record]",
+      what: "Migration 003: an append-only ledger of reputation events, plus the ban_record table. Includes a database trigger blocking self-votes, a partial unique index blocking duplicate votes, and maintenance for the cached score totals.",
+      why: "Append-only means a score is the sum of its history, not a number someone can set. Enforcing self-votes and duplicates in the database rather than only in code means the rule holds even if a future endpoint forgets it.",
+      done: "Migration applies and rolls back; a self-vote and a duplicate vote are both refused at the database level."
+    },
+    {
+      id: "T22", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Upvote and 'this answered my question'",
+      deps: ["T21"], trace: "TRD:apis[A6], PRD:p0[R5]",
+      what: "The A6 endpoint. Points are awarded by the server writing a ledger entry — the client never sends a score. Handles self-vote, duplicate vote, banned voter and missing target as distinct errors.",
+      why: "Server-authoritative is the whole design. If the client could say 'add 10 points', reputation would mean nothing within a week of anyone opening the network tab.",
+      done: "A vote visibly moves the score through the ledger, and every error branch returns its own truthful message."
+    },
+    {
+      id: "T23", ms: "M3", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "Check bans everywhere — asking, answering, voting",
+      deps: ["T8", "T21", "T50"], trace: "TRD:apis[A11], PRD:p0[R5]",
+      what: "Wire the ban lookup into posting, answering and voting. Sign-up already checks it (built in T8), so this task is guard-wiring only — the fingerprint procedure itself was built back at T50.",
+      why: "A ban that only blocks registration stops nobody who is already inside. Every write path needs the same guard, calling the same lookup.",
+      done: "A banned account is refused on all four surfaces, using the same normalisation everywhere."
+    },
+    {
+      id: "T24", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Actually issue a ban, and make it survive account deletion",
+      deps: ["T14a", "T21"], trace: "PRD:p0[R5], TRD:nfrs[ban durability]",
+      what: "The backend path that turns a severe moderation or grievance outcome into a ban_record plus a profile status change, structured so that deleting the account does not delete the ban.",
+      why: "Right now, deleting an account deletes the ban with it — so a banned person rejoins by pressing 'delete my account'. That is recorded as SEC-016/PRV-2 and it is fixed here, because the record that has to outlive the account does not exist until this task.",
+      done: "Delete the account, try to re-register with the same address, get refused.",
+      note: "This is the one open security finding that is deliberately unfixed rather than overlooked — the fix has nowhere to live until Milestone 3."
+    },
+    {
+      id: "T25", ms: "M3", size: "S", lane: "design", kind: "build", status: "todo",
+      title: "(Claude Design) Search, topic list and profile screens",
+      deps: ["T9"], trace: "UI:components[SearchPanel, TopicBrowseList, ProfileCard]",
+      what: "Design round 3 — prompts §3.9 to §3.11. A copy job: S9–S11 already exist in the design project.",
+      why: "Gates T26. Can be pulled today; nothing in Milestone 3's backend has to exist first.",
+      done: "SearchPanel, TopicBrowseList and ProfileCard are in client/src/components/."
+    },
+    {
+      id: "T26", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Wire the search, topic and profile screens",
+      deps: ["T20", "T22", "T25"], trace: "UX:flows[F4], UX:flows[F2], UX:flows[F5]",
+      what: "Connect S9–S11: search with a no-matches state that deep-links into asking the question, topic browse with the index-unavailable fallback, and the profile showing pseudonym, badge, reputation and status persisting across sessions.",
+      why: "Profile persistence is acceptance criterion R2 AC2 — the same pseudonym and accrued reputation have to survive logging out and back in, or reputation is meaningless.",
+      done: "All three screens work against the real endpoints, plus a visual QA pass against the briefs."
+    },
+    {
+      id: "T52", ms: "M3", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "Record how people use search",
+      deps: ["T26", "T44"], trace: "PRD:p0[R8], UX:flows[F8]",
+      what: "Event markers on the search screen: what was searched, whether anything came back, what happened next.",
+      why: "Searches that return nothing are the highest-value signal in the product — they are a list of questions the archive cannot yet answer, written by the people who wanted them answered.",
+      done: "Search usage is countable from events alone."
+    },
+    {
+      id: "T57", ms: "M3", size: "S", lane: "code", kind: "test", status: "todo",
+      title: "Tests: bans survive deletion, and search never dead-ends",
+      deps: ["T26"], trace: "TRD:nfrs[ban durability], TRD:nfrs[search availability]",
+      what: "Two tests. Delete an account, re-register with the same address, assert refusal. And: search always returns either results or a valid empty state, and an unavailable index falls back to topic browse instead of failing.",
+      why: "These are the two Milestone 3 promises that would fail silently. A ban that quietly stopped working looks exactly like a ban that works, until the banned person posts again.",
+      done: "Both run in CI from Milestone 3 onward."
+    },
+    {
+      id: "T65", ms: "M3", size: "M", lane: "code", kind: "gate", status: "todo",
+      title: "Security review of the ban system — BLOCKING",
+      deps: ["T23", "T24"], trace: "cadence.md §2 (M3 row); RR-7",
+      what: "The security agent's third run, attacking the ban path specifically: replaying normalisation variants — First.Last@ versus first.last@, plus-addressing, aliases — against the lookup to find an address shape that slips through.",
+      why: "Third run, so blocking. RR-7 names this exact failure: a ban that misses because two spellings of one address hash differently. It is the kind of bug that is invisible until someone finds it and tells their friends.",
+      done: "No normalisation variant evades the ban lookup."
+    },
+    {
+      id: "T66", ms: "M3", size: "M", lane: "code", kind: "gate", status: "todo",
+      title: "Speed check on search and points (first run, advisory)",
+      deps: ["T20", "T21", "T57"], trace: "cadence.md §2 (M3 row)",
+      what: "The performance agent runs query plans over the full-text search and measures what the reputation triggers and cached aggregates actually cost per vote.",
+      why: "Both are the classic places a small app is fine and a real one is not: full-text search without the right index, and a trigger that fires on every single vote.",
+      done: "Query plans and per-vote costs recorded in docs/12-performance.md, with any missing index named."
+    },
+
+    // ---------------- Milestone 4 ----------------
+    {
+      id: "T27", ms: "M4", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "Database tables for the offline outbox and saved drafts",
+      deps: ["T4"], trace: "schema:tables[sync_queue_item, content_draft]",
+      what: "Migration 004: sync_queue_item (a post written offline, waiting to be sent) and content_draft (a half-written post saved as you type).",
+      why: "These two are different things and are kept apart on purpose. A draft is yours and may never be sent; a queued item has been sent as far as the student is concerned and must reach a terminal state.",
+      done: "Migration applies and rolls back with its enums and indexes."
+    },
+    {
+      id: "T28", ms: "M4", size: "L", lane: "code", kind: "build", status: "todo",
+      title: "Save posts on the phone when offline, send them later",
+      deps: ["T19", "T27"], trace: "TRD:write_model[offline_write_queue], UX:flows[F9]",
+      what: "Client-side: persist the post locally when there is no signal, generate a local id and an idempotency key on the device, show a 'queued' state in the composers, and autosave drafts as they are typed.",
+      why: "Campus wifi in a hostel corridor is the actual environment. A product that loses a long, carefully worded question because a lift went past is one that gets uninstalled once.",
+      done: "Airplane mode, write a question, close the app, come back online — it sends itself, exactly once.",
+      note: "The idempotency key is generated on the device, before the first attempt. That is what makes 'sent twice because the retry succeeded too' impossible rather than unlikely."
+    },
+    {
+      id: "T29", ms: "M4", size: "L", lane: "code", kind: "build", status: "todo",
+      title: "Receive those saved posts, handle duplicates, check them for safety",
+      deps: ["T14a", "T15", "T27"], trace: "TRD:apis[A10], PRD:p0[R6], TRD:risks[LWW]",
+      what: "The A10 batch-sync endpoint: each item gets its own terminal result (synced, conflict or rejected), replaying the same batch changes nothing, last-write-wins is scoped to free text only — never to reputation or ban state — and every synced item re-enters the moderation gate before it can publish.",
+      why: "This is the second publish path, and the one most likely to accidentally skip the gate: the post was written hours ago, it feels already-sent, and the temptation is to just insert it. Routing it back through moderation is non-negotiable (R6).",
+      done: "Every item in a batch reports its own outcome, replaying is a no-op, and nothing publishes without a fresh moderation decision."
+    },
+    {
+      id: "T30", ms: "M4", size: "S", lane: "design", kind: "build", status: "todo",
+      title: "(Claude Design) The sync status screen",
+      deps: ["T9"], trace: "UI:components[SyncStatusList]",
+      what: "Design round 4 — prompt §3.12. Copy job: S12 already exists.",
+      why: "Gates T31. Pullable today.",
+      done: "SyncStatusList is in client/src/components/."
+    },
+    {
+      id: "T31", ms: "M4", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Show the honest status of every queued post",
+      deps: ["T28", "T29", "T30"], trace: "UX:flows[F9], TRD:risks[offline queue confusion]",
+      what: "Render the full chain — queued, syncing, pending review, published or blocked, plus conflict and rejected — with the actual reason attached to each.",
+      why: "RR-5 is the risk that a student sees 'sent' and then cannot find their post, because it synced fine and is now held for review. The fix is not a nicer message, it is never collapsing two different states into one word.",
+      done: "The state a student sees always matches the state the server holds, including the unglamorous ones."
+    },
+    {
+      id: "T32", ms: "M4", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "A watchdog that alerts if a post gets stuck forever",
+      deps: ["T29"], trace: "TRD:nfrs[offline sync reliability]",
+      what: "A background job that scans for any queued item still in a non-terminal state past a time limit, and raises an alert when it finds one.",
+      why: "This is the lesson of RES-3 applied in advance. The dangerous failure is not the loud one — it is the post that quietly sits invisible with nobody watching. Something has to be counting.",
+      done: "Deliberately wedge an item and the alert fires."
+    },
+    {
+      id: "T58", ms: "M4", size: "S", lane: "code", kind: "test", status: "todo",
+      title: "Test proving no offline post is ever silently lost",
+      deps: ["T31", "T32"], trace: "TRD:nfrs[offline sync reliability]",
+      what: "A property-style test — throw many generated batches at the sync path and assert that every single queued write ends in a terminal state — plus an assertion that the reconciliation job finds nothing stuck.",
+      why: "'100% of queued writes reach a terminal state' is the milestone's exit criterion. A few hand-written examples cannot support that claim; generated batches can.",
+      done: "Runs in CI from Milestone 4 onward with no unterminated item across the generated set."
+    },
+    {
+      id: "T67", ms: "M4", size: "L", lane: "code", kind: "gate", status: "waiting",
+      title: "Kill the server mid-save, then restore from backup — BLOCKING",
+      deps: ["T29", "T32", "T58", "T49"], trace: "cadence.md §2 (M4 row); RR-19",
+      what: "Two things. The resilience agent kills the process mid-batch and injects latency and network partitions, asserting every item still reaches a terminal state and every synced item still re-enters moderation. Then a real restore drill against the staging database, recording how much data was lost and how long recovery took.",
+      why: "Backups are hypotheses until restored. Nobody on this project has ever restored one, which means the backup strategy is currently a belief. Second run of this gate, so blocking.",
+      done: "Terminal state holds under every injected fault, and a restore is performed with recovery numbers written down.",
+      note: "Waiting on a database whose backups can be destroyed and rebuilt — the staging deployment from T49. It must never be run against production."
+    },
+    {
+      id: "T68", ms: "M4", size: "M", lane: "code", kind: "gate", status: "todo",
+      title: "Speed test: what if everyone comes back online at once — BLOCKING",
+      deps: ["T29"], trace: "cadence.md §2 (M4 row)",
+      what: "A load test shaped like the real worst case: a lecture ends, wifi returns, and hundreds of phones flush their queues into the batch-sync endpoint in the same few seconds.",
+      why: "Offline queues fail in bursts, not steadily. Average load tells you nothing about the moment that actually breaks.",
+      done: "The burst shape runs against defined thresholds and passes; failures are recorded as load numbers, not impressions."
+    },
+
+    // ---------------- Milestone 5 ----------------
+    {
+      id: "T33", ms: "M5", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "Database tables for complaints and their audit trail",
+      deps: ["T4"], trace: "schema:tables[grievance_report, grievance_audit_log, grievance_officer_contact]",
+      what: "Migration 005: the complaint itself (including a generated column that marks when its legal deadline has passed), an append-only log of every action taken on it, and the published contact details of the grievance officer.",
+      why: "Indian IT Rules 2021 require a named grievance officer and a tracked, time-bound complaints process. The audit log is not a nice-to-have — being unable to show who did what and when is itself the compliance failure.",
+      done: "Migration applies and rolls back; the deadline-breached flag computes itself from the timestamps."
+    },
+    {
+      id: "T34", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "'Report this post' — creates a ticket with a legal deadline attached",
+      deps: ["T33"], trace: "TRD:apis[A8], PRD:p0[R7]",
+      what: "The A8 endpoint: create the ticket, compute its deadline from the category, stamp the acknowledgement time, merge duplicate reports of the same content, support anonymous reporting, and rate-limit it.",
+      why: "The acknowledgement timestamp is the legally significant one — the clock starts when the report is received, not when someone gets around to it. Duplicate merging matters because one bad post generates twenty reports and twenty tickets would bury the queue.",
+      done: "A report produces one tracked ticket with a computed deadline and an acknowledgement time."
+    },
+    {
+      id: "T35", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "The moderator's tools: take down, dismiss, or escalate",
+      deps: ["T34"], trace: "TRD:apis[A9], PRD:p0[R7]",
+      what: "The A9 endpoint, operator-only: take the content down (which marks it blocked), dismiss the report, or escalate it further. Every action writes an audit entry. A missed deadline is flagged and logged — it never blocks the action itself.",
+      why: "Logging a breach rather than blocking on it is deliberate: a late takedown is still a takedown, and refusing to act because you are already late would be the worse outcome.",
+      done: "Each of the three actions works, is logged, and only an operator can perform it."
+    },
+    {
+      id: "T36", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "A way for a moderator to decide on posts the AI flagged but nobody reported",
+      deps: ["T14a"], trace: "UX:open_questions[OQ-11], PRD:p0[R6]",
+      what: "Design and build the missing contract for deciding an escalated moderation case that did not come from a complaint, writing the decision, the decider and the time onto the case.",
+      why: "This is a real gap in the frozen technical design — RR-11. Every AI escalation lands in a queue whose primary action has no endpoint behind it. Without this, escalated posts have no exit.",
+      done: "An escalated case can be decided by a human and the case records who decided it and when.",
+      note: "Documented as an addendum in the build notes, not by editing docs/03-trd.md — frozen documents are never edited, the same pattern T12 established."
+    },
+    {
+      id: "T37", ms: "M5", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "Moderator-only access — students get a polite refusal",
+      deps: ["T12"], trace: "TRD:apis[A9].errors[unauthorized caller]",
+      what: "Role-gated routes for the two operator screens, sitting outside the student tab structure entirely, with a clean forbidden response for anyone else.",
+      why: "RR-11 names missing authorisation on operator routes as the classic hole. An operator screen that is merely hidden rather than gated is one guessed URL away from being public.",
+      done: "A signed-in student hitting an operator route is refused by the server, not just by the navigation."
+    },
+    {
+      id: "T38", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Timers that chase the legal deadlines and alert the moderator",
+      deps: ["T5", "T33"], trace: "TRD:nfrs[grievance acknowledgement SLA], TRD:components[Notification Dispatcher]",
+      what: "Background jobs watching the acknowledgement deadline and the category-specific resolution deadline, and notifying the operator on new escalations and approaching breaches.",
+      why: "A one-person moderation team cannot poll a queue. The deadlines have legal weight, so the system has to be the thing that remembers them.",
+      done: "An approaching deadline produces a notification before it passes, not after."
+    },
+    {
+      id: "T39", ms: "M5", size: "M", lane: "design", kind: "build", status: "todo",
+      title: "(Claude Design) Five screens: report, my reports, contact, queue, resolve",
+      deps: ["T9"], trace: "UI:components[ReportContentModal..GrievanceResolutionPanel]",
+      what: "Design round 5 — prompts §3.13 to §3.17. Copy job: S13–S17 already exist.",
+      why: "Gates both T40 and T41, the two heaviest integration tasks in Milestone 5.",
+      done: "All five components are in client/src/components/."
+    },
+    {
+      id: "T40", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Wire the three student-facing complaint screens",
+      deps: ["T34", "T35", "T39"], trace: "UX:flows[F7], UX:open_questions[OQ-13]",
+      what: "The report modal opening from a thread (including the merged-with-an-existing-report state), the 'my reports' list, and the grievance contact panel — reachable from the profile and from the refused sign-up screen.",
+      why: "Reachable from the refused screen matters: someone wrongly refused registration currently has no appeal path at all (RR-12), and that contact panel is the only door they have.",
+      done: "A student can report content, see their reports, and find the officer's contact details.",
+      note: "Deadline-breach status is deliberately NOT shown to reporters — operator-only is the shipped default for open question OQ-13. Flipping it later is additive, not structural."
+    },
+    {
+      id: "T41", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Wire the two moderator screens",
+      deps: ["T35", "T36", "T37", "T39"], trace: "UX:flows[F10], PRD:p0[R6], PRD:p0[R7]",
+      what: "The operator console: the escalation queue deciding cases through T36's contract, grievance resolution through A9, deadline-breach state visible to the operator, and the manual review path for students whose year could not be read.",
+      why: "This closes the loop opened all the way back in Milestone 1 — the student blocked because their email format was unreadable finally has a human who can look at it.",
+      done: "An operator can clear an escalation, resolve a complaint, and approve a blocked registration."
+    },
+    {
+      id: "T43", ms: "M5", size: "M", lane: "legal", kind: "build", status: "waiting",
+      title: "(Lawyer) Confirm the legal deadlines and write the consent wording",
+      deps: ["T34"], trace: "TRD:escalations[SLA figures], TRD:risks[DPDP]",
+      what: "A lawyer confirms or corrects the deadline figures currently assumed from IT Rules 2021 — 24 hours to acknowledge, 15 days general resolution, 24 to 36 hours expedited — and writes the DPDP consent wording plus the data retention period.",
+      why: "Those figures are currently modelled guesses (RR-2) and they are compiled into deadline calculations and stored on every ticket. If they are wrong, both the code and the data already written are wrong. External legal review takes weeks, which is why it is the one human task worth starting long before it is needed.",
+      done: "Confirmed figures wired into the deadline computation, and consent copy wired into the sign-up flow.",
+      note: "Blocks T59 (the deadline tests), T70 (the full privacy audit), T75 (the breach runbook) and ultimately the launch decision. Longest lead time of anything on this board."
+    },
+    {
+      id: "T53", ms: "M5", size: "S", lane: "code", kind: "build", status: "todo",
+      title: "Record report and moderation statistics",
+      deps: ["T40", "T41", "T44"], trace: "PRD:p0[R8], UX:flows[F8]",
+      what: "Event markers on reporting and on operator decisions.",
+      why: "This is what turns RR-3 — the single-founder bottleneck — from a worry into a number. If escalation volume outruns one person's review capacity, these events are how you find out before the deadlines start slipping.",
+      done: "Report volume and operator decision throughput are both countable from events."
+    },
+    {
+      id: "T59", ms: "M5", size: "S", lane: "code", kind: "test", status: "todo",
+      title: "Tests proving the legal deadlines are calculated right",
+      deps: ["T40", "T43"], trace: "TRD:nfrs[grievance acknowledgement SLA/resolution SLA]",
+      what: "A timestamp test on the acknowledgement window, and category-segmented tests on the resolution deadlines, using whatever figures T43's legal review confirms.",
+      why: "An off-by-one in deadline arithmetic is a compliance failure that no user will ever report to you. It has to be caught by a test or not at all.",
+      done: "Both deadline classes computed correctly across categories, running in CI from Milestone 5 onward."
+    },
+    {
+      id: "T69", ms: "M5", size: "L", lane: "code", kind: "gate", status: "todo",
+      title: "The biggest security review — moderator powers and complaint data — BLOCKING",
+      deps: ["T35", "T36", "T37", "T38", "T40", "T41"], trace: "cadence.md §2 (M5 row); RR-11",
+      what: "The security agent's fourth and heaviest run: operator authorisation on the resolve endpoint and the new decide route, how complaint personal data is handled, whether the anonymous flag really keeps a reporter anonymous, and whether the deadline worker leaves usable traces.",
+      why: "This surface has the highest blast radius in the product. An authorisation hole here does not leak a feed — it hands a stranger the takedown button and the complaint file.",
+      done: "No unresolved critical or high finding across operator authorisation and grievance data."
+    },
+    {
+      id: "T70", ms: "M5", size: "L", lane: "code", kind: "gate", status: "todo",
+      title: "Full privacy audit — actually runs the deletion rules — BLOCKING",
+      deps: ["T43", "T33", "T34", "T35", "T61"], trace: "cadence.md §2 (M5 row); RR-10",
+      what: "The privacy agent's second run, and this one executes rather than reads: retention rules are actually run against real rows, consent presence is checked, the legal basis for keeping a ban while erasing an account is written down, third-party data flows are mapped, and complaint personal data is inventoried.",
+      why: "'Executed, not read' is the entire point, and it is this project's recurring lesson in another costume. A retention policy that has never been run is a document, not a control.",
+      done: "Retention actually deletes what it claims to, and the erasure-versus-ban tension has a written legal basis."
+    },
+    {
+      id: "T71", ms: "M5", size: "M", lane: "code", kind: "gate", status: "todo",
+      title: "Check the app produces useful logs before launch (first run, advisory)",
+      deps: ["T38", "T41"], trace: "cadence.md §2 (M5 row)",
+      what: "The observability agent runs the app and checks that logs, traces and metrics actually exist and carry no personal data — including from the deadline worker, which runs where nobody is watching.",
+      why: "You are the entire operations team. When something breaks at 2am the logs are all you get, and this project has already shipped logs containing session keys, login codes and a database password.",
+      done: "A smoke run shows structured logs, golden-signal metrics and a health endpoint, with no personal data in any of them."
+    },
+
+    // ---------------- Milestone 6 ----------------
+    {
+      id: "T54", ms: "M6", size: "S", lane: "human", kind: "build", status: "waiting",
+      title: "(You) Get prices from AI content-checking companies",
+      deps: [], trace: "TRD:risks[moderation cost], PRD open_questions[OQ-3]",
+      what: "Shortlist the AI moderation vendors, get real quotes, and run a sandbox classify call against each to see how they behave on the kind of text students actually write.",
+      why: "This is the single cheapest lever on the whole board — roughly thirty minutes, no dependencies, doable today. Until it is done, nothing users post can ever go public, because there is no checker to approve anything.",
+      done: "A chosen tier-1 and tier-2 provider, with real per-item costs written down.",
+      note: "Deliberately end-loaded by your own decision on 30 July, which is recorded as accepted risk RR-21: real vendor integration risk now lands at the last milestone instead of the first. The mitigation is that T14a's port is the only moderation seam in the codebase, so binding a provider is an adapter swap rather than a rewrite. Running this early collapses most of RR-21 at any time you choose."
+    },
+    {
+      id: "T14b", ms: "M6", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Plug the chosen AI checker in and tune it",
+      deps: ["T14a", "T54"], trace: "TRD:apis[A7], PRD:p0[R6]",
+      what: "Write the tier-1 and tier-2 adapters against the port T14a already defined, tune the auto-pass, auto-block and escalate thresholds against real classifier scores, and switch the live call over from the hold-everything default.",
+      why: "This is the moment the product becomes usable by real people. Until it lands, every question and answer is held forever — correct fail-closed behaviour, but not a product.",
+      done: "A real question passes a real classifier and publishes end to end.",
+      note: "Structurally this is small, because T14a did the hard part. The risk is not the code, it is discovering at Milestone 6 that the chosen provider's false-positive rate is unacceptable on the content students write (RR-21)."
+    },
+    {
+      id: "T64", ms: "M6", size: "M", lane: "code", kind: "gate", status: "todo",
+      title: "Try to trick the AI with text hidden inside posts",
+      deps: ["T14b", "T54"], trace: "cadence.md §4 (QK-5), PRD:p0[R6]",
+      what: "An adversarial suite against the bound provider: prompt injections buried in user posts, attempts to talk the classifier into passing content, attempts to force a downgrade from the expensive check to the cheap one.",
+      why: "The classifier reads attacker-controlled text by definition — that is its job. An injection that only downgrades the tier, without changing the final verdict, still counts as a finding, because it is the first half of a working attack.",
+      done: "The adversarial suite runs against the live provider with findings recorded.",
+      note: "Cannot run before a provider exists, which is why it moved to Milestone 6 alongside T14b."
+    },
+    {
+      id: "T42", ms: "M6", size: "S", lane: "human", kind: "build", status: "todo",
+      title: "(You) Write the real legal page and the officer's contact details",
+      deps: ["T33"], trace: "UI:open_questions[S15 copy], PRD:p0[R7]",
+      what: "The IT-Rules-compliant description of how complaints are handled, plus the real name and contact details of the grievance officer, loaded into the database.",
+      why: "Launch-blocking for R7 AC3 (RR-15). Placeholder copy renders until this lands, and the launch gate specifically checks that it is no longer placeholder.",
+      done: "Real process copy and real contact details are live on the contact screen."
+    },
+    {
+      id: "T46", ms: "M6", size: "M", lane: "code", kind: "build", status: "todo",
+      title: "Prove every number you care about can actually be calculated",
+      deps: ["T45", "T51", "T52", "T53"], trace: "PRD:p0[R8], TRD:nfrs[event instrumentation completeness]",
+      what: "Write the query behind each of the six promised metrics — registration penetration, weekly active density, thirty-day retention cohorts, activation, answer liquidity, and the auto-versus-escalated ratio — and audit that each one is computable from captured events with nothing missing.",
+      why: "The requirement is not 'we collect analytics', it is 'no metric is un-instrumented'. The only way to know is to actually compute all six and see which one comes back empty. T51 already found three that would have.",
+      done: "All six metrics compute from real events, with no un-instrumented gap.",
+      note: "Must not hard-code pass/fail thresholds — the numeric targets are still unset assumptions. The queries prove computability, not success."
+    },
+    {
+      id: "T72", ms: "M6", size: "S", lane: "human", kind: "build", status: "todo",
+      title: "(You) Emergency guide: how to change the secret keys",
+      deps: ["T50"], trace: "cadence.md §5.3 (QK-8); RR-13",
+      what: "Fill in the human-only sections of runbooks/pepper-rotation.md: who owns it, when it was last reviewed, where the secret actually lives, and the thresholds for the dual-hash rollout.",
+      why: "Rotating the pepper naively breaks every stored fingerprint at once — which means every ban stops matching and every duplicate check starts passing. The dual-hash strategy exists to prevent that, and it only works if someone follows it under pressure.",
+      done: "No unfilled human markers remain in the file.",
+      note: "Newly relevant: the database password has been on screen and still needs rotating, so this is not a hypothetical procedure."
+    },
+    {
+      id: "T73", ms: "M6", size: "S", lane: "human", kind: "build", status: "todo",
+      title: "(You) Emergency guide: what to do if the AI checker goes down",
+      deps: ["T14b"], trace: "cadence.md §5.3 (QK-8); RR-4",
+      what: "Fill in the human-only sections of runbooks/moderation-provider-outage.md — including the criteria for switching providers.",
+      why: "Those criteria have to be decided cold, before an outage, which is also why this cannot be written before a provider is bound: there is nothing to switch away from.",
+      done: "No unfilled human markers remain."
+    },
+    {
+      id: "T74", ms: "M6", size: "S", lane: "human", kind: "build", status: "todo",
+      title: "(You) Emergency guide: what to do if a legal deadline is missed",
+      deps: ["T35"], trace: "cadence.md §5.3 (QK-8); RR-2",
+      what: "Fill in the human-only sections of runbooks/takedown-sla-breach.md.",
+      why: "A missed deadline is a legal event, not an engineering one. The response has to be written by the person who is accountable for it.",
+      done: "No unfilled human markers remain."
+    },
+    {
+      id: "T75", ms: "M6", size: "S", lane: "legal", kind: "build", status: "todo",
+      title: "(Lawyer) Emergency guide: what to do if there is a data breach",
+      deps: ["T43"], trace: "cadence.md §5.3 (QK-8); RR-10",
+      what: "Fill in runbooks/dpdp-breach-notification.md, whose notification-clock section needs counsel.",
+      why: "DPDP breach notification runs on a legal clock with real penalties. This joins T43's existing legal engagement rather than being a separate one.",
+      done: "No unfilled human markers remain, and the notification clock is confirmed by counsel."
+    },
+    {
+      id: "T76", ms: "M6", size: "S", lane: "code", kind: "gate", status: "todo",
+      title: "Privacy expert signs off the final privacy document",
+      deps: ["T70"], trace: "cadence.md §2 (M6 row)",
+      what: "The privacy agent's third and final run: finalise docs/16-privacy.md and validate the machine-readable handoff against its schema, so the launch gate can consume it.",
+      why: "The launch decision reads structured handoffs, not prose. An unvalidated one silently fails to be counted.",
+      done: "docs/16-privacy.md is final and its handoff validates."
+    },
+    {
+      id: "T47", ms: "M6", size: "M", lane: "code", kind: "test", status: "todo",
+      title: "Run every single test one last time",
+      deps: ["T55", "T56", "T57", "T58", "T59", "T46"], trace: "TRD:nfrs[*]; QK-6",
+      what: "The test verifier's final full execution: every NFR test authored across Milestones 1 to 5, plus a pinning regression test for every critical or high finding fixed since Milestone 1, run together as one suite.",
+      why: "Tests written per-milestone can pass individually and conflict together. This is also the run the launch decision consumes, so it has to be one suite with one traceability scheme rather than six.",
+      done: "The merged suite is green, with coverage measured, as the launch-gate signal."
+    },
+    {
+      id: "T48", ms: "M6", size: "L", lane: "code", kind: "gate", status: "todo",
+      title: "The launch decision — re-checks everything, trusts nothing, says GO or NO-GO",
+      deps: ["T14b", "T54", "T42", "T43", "T46", "T47", "T60", "T61", "T62", "T63", "T64", "T65", "T66", "T67", "T68", "T69", "T70", "T71", "T72", "T73", "T74", "T75", "T76"],
+      trace: "TRD:stack.infra, PRD:goals[5], PRD:constraints[IT Act]; cadence.md §6.1",
+      what: "The production-test agent runs exactly once. It re-executes every prior signal from scratch — security, the full suite, load, resilience including how recently the restore drill ran, AI security, observability, privacy — scores a production-readiness checklist, and issues a verdict. Hosting, backups, TLS, rate limits and installability are checked here too.",
+      why: "It trusts no previous agent's claim, only signals it reproduces itself. On a project where a green tick has already turned out to belong to a pipe rather than the tests, and where security reports listed findings as open that had been fixed days earlier, that is the only defensible way to decide anything.",
+      done: "A recorded GO or NO-GO with the reproduced evidence behind it.",
+      note: "Depends on 23 tasks — essentially everything. It is the last thing that happens and it cannot be partially run."
+    },
+  ];
+
+  var MILESTONES = [
+    {
+      id: "M1", name: "Prove a student can sign up",
+      exit: "A real student, on a real phone, against a real deployment — not localhost — enters their college email, gets a code, confirms it, and sees their nickname and year badge. An inspection of every response shows their address nowhere. An unreadable year shows a truthful blocked state, never a guessed badge."
+    },
+    {
+      id: "M2", name: "Asking and answering questions",
+      exit: "A verified student posts a question, it enters the safety gateway and reaches a truthful terminal state under nickname-and-badge attribution, and an answer threads under it the same way. Fail-closed is proven directly: with no checker configured, zero items publish. The security review of who may read and write what must pass before this milestone closes."
+    },
+    {
+      id: "M3", name: "Search, upvotes, and bans",
+      exit: "Search returns relevant answers across batch years, or an empty state that invites the question. An upvote visibly moves reputation through the ledger. A banned address is refused re-registration even after the account is deleted. Nickname and reputation persist across sessions."
+    },
+    {
+      id: "M4", name: "Works without internet",
+      exit: "Every write made offline reaches a terminal state with none silently lost, and every synced item re-enters the safety gate before publishing. The status a student sees follows the honest chain — queued, sending, checking, live or blocked — and never jumps straight from queued to live."
+    },
+    {
+      id: "M5", name: "Reporting and the moderator's desk",
+      exit: "A report enters a tracked queue with a legal deadline and an acknowledgement time. A valid takedown happens within the deadline and is logged. The grievance officer's contact is published and reachable. Content the AI escalated reaches a human decision."
+    },
+    {
+      id: "M6", name: "Turn on real AI checking, then launch",
+      exit: "A real classifier is bound and a real question publishes end to end. Every promised metric computes from captured events. The full test suite is green, all four emergency runbooks are complete, the legal copy is real, and the launch gate re-runs every signal from scratch and issues GO or NO-GO."
+    }
+  ];
+
+  var PROBLEMS = [
+    {
+      sev: "serious", title: "Posting questions could never have worked",
+      tasks: ["T14a", "T15", "T16", "T17"], state: "Fixed 1 August",
+      body: "Two pieces of database code reused one parameter as both an enum and text, so Postgres refused them every single time — and those two are what mark a post approved and publish it. No post could ever have gone live. TypeScript cannot read inside SQL, and all 39 unit tests deliberately avoided the database, so it looked perfect for eleven days. Found the first time a real database was connected."
+    },
+    {
+      sev: "serious", title: "Everyone's email could have been unscrambled",
+      tasks: ["T50"], state: "Fixed 30 July",
+      body: "The secret used to scramble addresses was still the example value written in a public file. Anyone who read the project could have unscrambled every student's address. The app now refuses to start if it finds a placeholder key — a comment saying 'change me' did not work; refusing to boot does."
+    },
+    {
+      sev: "serious", title: "Held posts could get stuck invisible forever",
+      tasks: ["T14a"], state: "Fixed 2 August",
+      body: "If the safety checker failed in an unexpected way, the retry counter did not move — so the post was never retried and never escalated to a human. It just sat there, invisible, with nobody alerted. The nastiest kind of bug: the student cannot see their post, nobody else can, and nothing raises a flag."
+    },
+    {
+      sev: "serious", title: "A dropped database connection could take the whole server down — and print the password",
+      tasks: ["T4"], state: "Code fixed 7 August · password rotation still yours",
+      body: "The connection pool had no error listener, so an idle connection dying — routine against a remote database — became an unhandled crash. Worse, whatever reported it dumped the entire connection object, and the password sat in the middle of it in plain text. The listener is now in, and it copies out only the error's message and code, deliberately never handing the object to the logger. Five tests came with it, and the password test asserts against the written text of the log line rather than the object, because the leak happens at the moment of writing. TWO THINGS REMAIN: rotate the Supabase password, since it has been on screen; and scripts/db-inventory.ts still builds its own pool with no listener — it is a hand-run script so it cannot take the server down, but it can still print the password if it fails while you watch."
+    },
+    {
+      sev: "real", title: "Email encryption was silently switched off",
+      tasks: ["T50"], state: "Fixed 6 August",
+      body: "The key was blank, so the scrambler did nothing while every document, comment and note went on claiming addresses were encrypted. Nothing warned, nothing failed. What was broken was the claim, not a live leak — nothing in the app reads the encrypted address today. It would have become a real loss the moment the 'resend my code' screen went looking and found nothing, for every account created while the key was blank."
+    },
+    {
+      sev: "real", title: "Login codes and session keys were written into the logs",
+      tasks: ["T5", "T12"], state: "Both fixed 2 August",
+      body: "Every action by a signed-in student wrote their session key into the log in full, along with their IP address. Separately, the default email setting printed each student's real address and their login code straight to the log. On a real server that is every student's identity and password in one place. Found by reading the log during a test, not by any tool."
+    },
+    {
+      sev: "real", title: "Login codes could be guessed forever, and one person could sign up unlimited times",
+      tasks: ["T7", "T8"], state: "Both fixed 2 August",
+      body: "Nothing counted wrong guesses, so all million six-digit codes could be tried in minutes. This was the worst item on the list, because proving you are a real student is the foundation everything else stands on. Now five guesses, then the code is destroyed — and a wrong guess looks identical to a used-up code, so an attacker cannot tell when to start over. Separately, nothing limited sign-ups per person, only per address."
+    },
+    {
+      sev: "real", title: "Anyone with the app's public key could read — or wipe — the whole database",
+      tasks: ["T4"], state: "Fixed 4 August",
+      body: "The largest hole found so far. Supabase's public key account had full permission on every table, including 'empty this table completely'. Nobody granted it; it is the default, and it was quietly re-applied to each new table. Anyone reading the app's code could have published posts without any safety check, changed the checker's verdicts, or deleted everything. Permissions stripped, row-level security switched on behind them, and the default that kept re-granting them turned off. Deliberately NOT set to the strictest level: at that setting the lock also applies to the app itself, and with no access rules written yet every screen would have read zero rows while still reporting itself healthy."
+    },
+    {
+      sev: "real", title: "The database connection did not verify who it was talking to",
+      tasks: ["T49"], state: "Partly fixed 4 August — one minute of work left",
+      body: "The connection was encrypted but never confirmed the database was really our database, so someone in between could have impersonated it. Now a proper setting rather than a stray flag in a link. Not finished: Supabase signs its own certificates, so strict verification needs a file downloaded from your dashboard. Until then, protection is the same as before — not worse, not yet better. Step is written up in runbooks/staging-deploy-T49.md §2."
+    },
+    {
+      sev: "real", title: "Every response announced what the server was built with",
+      tasks: ["T2"], state: "Server fixed 4 August — the phone app is still open",
+      body: "Standard protective headers were missing and every reply advertised the framework it ran on, which is free reconnaissance. Added on the server. This does NOT cover the phone app itself — that is a separate, still-open item (SEC-013), and saying otherwise would be exactly the kind of false 'done' this project has already been bitten by."
+    },
+    {
+      sev: "real", title: "Deleting an account also deletes the ban",
+      tasks: ["T24"], state: "Open by design — belongs to T24",
+      body: "A banned person can delete their account and rejoin. Not fixed yet, and deliberately so: the ban record it has to outlive does not exist until Milestone 3."
+    },
+    {
+      sev: "tools", title: "The SQL checker hid its own findings",
+      tasks: ["T14a"], state: "Fixed 1 August",
+      body: "It ran all 25 database instructions in one transaction, so when the first failed the database refused the rest — reporting one real bug as 23 fake ones, and hiding a second real bug behind the first."
+    },
+    {
+      sev: "tools", title: "The tests could not read their own settings",
+      tasks: ["T3", "T56"], state: "Fixed 1 August",
+      body: "The tests checked 'do I have a database address?' before loading the file containing the database address, so the answer was always no. The database tests could never have run on your laptop, no matter what."
+    },
+    {
+      sev: "tools", title: "The tests deleted each other's data",
+      tasks: ["T3"], state: "Fixed 1 August",
+      body: "Test files ran in parallel against one shared database, each wiping it before starting — 26 failures, every one of them fake."
+    },
+    {
+      sev: "tools", title: "CI had never run once",
+      tasks: ["T3"], state: "Fixed 1 August",
+      body: "Written 21 July, but the code had never been pushed anywhere, so the pipeline had literally never executed. Every claim that 'the robot checks this' was false until the first run on 1 August."
+    },
+    {
+      sev: "tools", title: "The database tests had stopped running, and nothing said so",
+      tasks: ["T3"], state: "Found and fixed 4 August",
+      body: "When the 'do not wipe a real database' guard was fixed, the setting it looks for changed name and the settings file was never updated. From that moment all 53 database-backed tests refused to run on your laptop, silently, every time — while CI stayed green because its database passes the guard by name. The loud half kept saying green while the quiet half was not running at all."
+    },
+    {
+      sev: "tools", title: "The security reports are out of date",
+      tasks: ["T62"], state: "Standing caution",
+      body: "A finding listed as unfixed had already been fixed days earlier. The 'roughly 29 problems still open' figure is not a number to act on — check each finding against the actual code first. T62's run is what will rebuild an honest list."
+    },
+    {
+      sev: "tools", title: "The full test suite can no longer be trusted on your laptop",
+      tasks: ["T3"], state: "Standing rule since 5 August",
+      body: "Every query round-trips to a database in Sydney: about fifteen minutes on a good run, and on a bad one a single test sat for twenty-eight minutes before the connection died and took its whole file down. Three tests fail this way on a completely clean tree, so a local red result means nothing on its own. CI runs its own Postgres beside the tests and finishes in about a minute. Locally, run the tests that need no database, plus at most the one integration file you are working on."
+    },
+    {
+      sev: "tools", title: "A green tick that meant nothing",
+      tasks: ["T3"], state: "Caught 5 August",
+      body: "A verification run was reported as passing when it had in fact failed four test files. The output had been piped through another program to shorten it, and the shortening program's success was read as the test run's success. The tests had failed; the tick belonged to the pipe."
+    },
+    {
+      sev: "tools", title: "Nothing was checking the phone app at all",
+      tasks: ["T19"], state: "Fixed 2 August",
+      body: "The root typecheck excluded the client, eslint ignored it, and CI never checked it — so the four sign-up screens built in July had been sitting unexamined the whole time. Wiring it in found a real bug within minutes: two screens were handing the wrong kind of value to the code that decides which review-status card to show. That would have shipped."
+    }
+  ];
+
+  /* ------------------------------------------------------------------ */
+
+  var STATUS = {
+    done: { label: "Done", cls: "p-done" },
+    half: { label: "Half done", cls: "p-half" },
+    todo: { label: "Not started", cls: "p-todo" },
+    waiting: { label: "Waiting", cls: "p-waiting" }
+  };
+
+  var LANE = {
+    code: "Claude Code",
+    design: "Claude Design",
+    human: "You",
+    legal: "Lawyer"
+  };
+
+  var STORE_KEY = "murmur-board-ticks-v1";
+
+  var byId = {};
+  TASKS.forEach(function (t) {
+    t.blocks = [];
+    byId[t.id] = t;
+  });
+  TASKS.forEach(function (t) {
+    t.deps.forEach(function (d) {
+      if (byId[d]) byId[d].blocks.push(t.id);
+    });
+  });
+
+  var missingDeps = [];
+  TASKS.forEach(function (t) {
+    t.deps.forEach(function (d) { if (!byId[d]) missingDeps.push(t.id + "→" + d); });
+  });
+  if (missingDeps.length) console.warn("Unknown dependencies:", missingDeps);
+
+  function unmetDeps(t) {
+    return t.deps.filter(function (d) { return !byId[d] || byId[d].status !== "done"; });
+  }
+  function isActionable(t) {
+    return t.status === "todo" && unmetDeps(t).length === 0;
+  }
+
+  /* ---------- tick state ---------- */
+
+  var ticks = {};
+  (function loadTicks() {
+    var raw = null;
+    try { raw = window.localStorage.getItem(STORE_KEY); } catch (e) { raw = null; }
+    if (raw) {
+      try { ticks = JSON.parse(raw) || {}; } catch (e) { ticks = {}; }
+    } else {
+      TASKS.forEach(function (t) { if (t.status === "done") ticks[t.id] = true; });
+    }
+  })();
+
+  function saveTicks() {
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(ticks)); } catch (e) { /* private mode */ }
+  }
+
+  /* ---------- filters ---------- */
+
+  var filters = { status: "all", ms: "all", lane: "all", view: null, q: "" };
+
+  function matches(t) {
+    if (filters.status !== "all" && t.status !== filters.status) return false;
+    if (filters.ms !== "all" && t.ms !== filters.ms) return false;
+    if (filters.lane !== "all" && t.lane !== filters.lane) return false;
+    if (filters.view === "actionable" && !isActionable(t)) return false;
+    if (filters.view === "yours" && t.lane !== "human" && t.lane !== "legal") return false;
+    if (filters.view === "gates" && t.kind !== "gate") return false;
+    if (filters.q) {
+      var hay = (t.id + " " + t.title + " " + t.what + " " + t.why + " " + (t.note || "")).toLowerCase();
+      if (hay.indexOf(filters.q) === -1) return false;
+    }
+    return true;
+  }
+
+  /* ---------- render ---------- */
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function depChip(id, cls) {
+    var t = byId[id];
+    var title = t ? esc(t.title) : "unknown task";
+    return '<button type="button" class="dep ' + cls + '" data-goto="' + id + '" title="' + title + '">' + id + "</button>";
+  }
+
+  function taskHTML(t) {
+    var st = STATUS[t.status];
+    var actionable = isActionable(t);
+    var unmet = unmetDeps(t);
+    var checked = !!ticks[t.id];
+    var drifted = checked !== (t.status === "done");
+
+    var h = "";
+    h += '<article class="task s-' + t.status + (actionable ? " is-actionable" : "") + (checked ? " checked" : "") + '" id="task-' + t.id + '" data-id="' + t.id + '">';
+    h += '<div class="task-head">';
+    h += '<input type="checkbox" class="tick" data-tick="' + t.id + '" ' + (checked ? "checked" : "") + ' aria-label="Mark ' + t.id + ' as done in my copy">';
+    h += '<span class="task-id">' + t.id + "</span>";
+    h += '<button type="button" class="task-open" aria-expanded="false" data-toggle="' + t.id + '">';
+    h += '<span class="caret">▶</span><span class="task-title">' + esc(t.title) + "</span>";
+    h += "</button>";
+    h += '<span class="tags">';
+    if (drifted) h += '<span class="drift-dot" title="Your tick disagrees with docs/TASK-STATUS.md"></span>';
+    if (actionable) h += '<span class="pill p-go">Ready</span>';
+    h += '<span class="pill ' + st.cls + '">' + st.label + "</span>";
+    h += '<span class="pill p-lane">' + LANE[t.lane] + "</span>";
+    h += '<span class="p-size" title="Estimated size (assumption)">' + t.size + "</span>";
+    h += "</span></div>";
+
+    h += '<div class="detail">';
+    h += "<h4>What this actually is</h4><p>" + esc(t.what) + "</p>";
+    h += "<h4>Why it exists / what it costs if it is wrong</h4><p>" + esc(t.why) + "</p>";
+    h += "<h4>Done when</h4><p>" + esc(t.done) + "</p>";
+    if (t.note) h += "<h4>Worth knowing</h4><p class=\"note\">" + esc(t.note) + "</p>";
+
+    h += "<h4>Depends on</h4><div class=\"deps\">";
+    if (!t.deps.length) h += '<span class="dep none">nothing — startable in isolation</span>';
+    else t.deps.forEach(function (d) {
+      h += depChip(d, unmet.indexOf(d) === -1 ? "met" : "unmet");
+    });
+    h += "</div>";
+
+    h += "<h4>Unblocks</h4><div class=\"deps\">";
+    if (!t.blocks.length) h += '<span class="dep none">nothing waits on this</span>';
+    else t.blocks.forEach(function (d) { h += depChip(d, ""); });
+    h += "</div>";
+
+    h += '<p class="trace">Traces to ' + esc(t.trace) + "</p>";
+    h += "</div></article>";
+    return h;
+  }
+
+  var board = document.getElementById("board");
+
+  function renderBoard() {
+    var html = "";
+    MILESTONES.forEach(function (m) {
+      var list = TASKS.filter(function (t) { return t.ms === m.id; });
+      var doneN = list.filter(function (t) { return t.status === "done"; }).length;
+      html += '<section class="milestone" data-ms="' + m.id + '">';
+      html += '<div class="ms-head"><span class="ms-id">' + m.id + "</span><h2>" + esc(m.name) + "</h2>";
+      html += '<span class="ms-progress">' + doneN + " / " + list.length + " done</span></div>";
+      html += '<p class="ms-exit"><b>Closes when:</b> ' + esc(m.exit) + "</p>";
+      html += '<div class="rows">';
+      list.forEach(function (t) { html += taskHTML(t); });
+      html += "</div></section>";
+    });
+    board.innerHTML = html;
+    applyFilters();
+  }
+
+  function applyFilters() {
+    var shown = 0;
+    MILESTONES.forEach(function (m) {
+      var sec = board.querySelector('[data-ms="' + m.id + '"]');
+      var any = 0;
+      TASKS.filter(function (t) { return t.ms === m.id; }).forEach(function (t) {
+        var el = sec.querySelector('#task-' + t.id);
+        var ok = matches(t);
+        el.hidden = !ok;
+        if (ok) { any++; shown++; }
+      });
+      sec.hidden = any === 0;
+    });
+    document.getElementById("empty").hidden = shown > 0;
+    document.getElementById("result-count").textContent = shown + " of " + TASKS.length + " shown";
+  }
+
+  /* ---------- meter ---------- */
+
+  function renderMeter() {
+    var counts = { done: 0, half: 0, todo: 0, waiting: 0 };
+    TASKS.forEach(function (t) { counts[t.status]++; });
+    var n = TASKS.length;
+    document.getElementById("seg-done").style.width = (counts.done / n * 100) + "%";
+    document.getElementById("seg-half").style.width = (counts.half / n * 100) + "%";
+    document.getElementById("seg-waiting").style.width = (counts.waiting / n * 100) + "%";
+    document.getElementById("pct").textContent = Math.round(counts.done / n * 100) + "%";
+
+    var order = ["done", "half", "todo", "waiting"];
+    document.getElementById("legend").innerHTML = order.map(function (k) {
+      return '<li><span class="swatch ' + k + '"></span><b>' + counts[k] + "</b> <span>" + STATUS[k].label.toLowerCase() + "</span></li>";
+    }).join("") + '<li><span class="swatch" style="background:var(--accent);border-color:var(--accent)"></span><b>' +
+      TASKS.filter(isActionable).length + "</b> <span>ready to start</span></li>";
+  }
+
+  function renderDrift() {
+    var d = TASKS.filter(function (t) { return !!ticks[t.id] !== (t.status === "done"); });
+    var el = document.getElementById("drift");
+    if (!d.length) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = "<b>" + d.length + (d.length === 1 ? " tick" : " ticks") +
+      " disagree with the docs:</b> " + d.map(function (t) { return t.id; }).join(", ") +
+      ". Fold these into <code>docs/TASK-STATUS.md</code> — this page cannot.";
+  }
+
+  /* ---------- chips ---------- */
+
+  function buildChips(rowId, key, options) {
+    var row = document.getElementById(rowId);
+    options.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.setAttribute("aria-pressed", String(filters[key] === o.value));
+      b.innerHTML = esc(o.label) + (o.count === undefined ? "" : '<span class="count">' + o.count + "</span>");
+      b.addEventListener("click", function () {
+        filters[key] = o.value;
+        Array.prototype.forEach.call(row.querySelectorAll(".chip"), function (c) {
+          c.setAttribute("aria-pressed", String(c === b));
+        });
+        applyFilters();
+      });
+      row.appendChild(b);
+    });
+  }
+
+  function countBy(fn) { return TASKS.filter(fn).length; }
+
+  buildChips("row-status", "status", [
+    { value: "all", label: "All", count: TASKS.length },
+    { value: "todo", label: "Not started", count: countBy(function (t) { return t.status === "todo"; }) },
+    { value: "waiting", label: "Waiting", count: countBy(function (t) { return t.status === "waiting"; }) },
+    { value: "half", label: "Half done", count: countBy(function (t) { return t.status === "half"; }) },
+    { value: "done", label: "Done", count: countBy(function (t) { return t.status === "done"; }) }
+  ]);
+
+  buildChips("row-milestone", "ms", [{ value: "all", label: "All" }].concat(
+    MILESTONES.map(function (m) {
+      return { value: m.id, label: m.id, count: countBy(function (t) { return t.ms === m.id; }) };
+    })
+  ));
+
+  buildChips("row-lane", "lane", [
+    { value: "all", label: "All" },
+    { value: "code", label: "Claude Code", count: countBy(function (t) { return t.lane === "code"; }) },
+    { value: "human", label: "You", count: countBy(function (t) { return t.lane === "human"; }) },
+    { value: "design", label: "Claude Design", count: countBy(function (t) { return t.lane === "design"; }) },
+    { value: "legal", label: "Lawyer", count: countBy(function (t) { return t.lane === "legal"; }) }
+  ]);
+
+  /* ---------- quick views ---------- */
+
+  function bindView(btnId, name) {
+    var b = document.getElementById(btnId);
+    b.addEventListener("click", function () {
+      var on = filters.view === name;
+      filters.view = on ? null : name;
+      ["v-actionable", "v-yours", "v-gates"].forEach(function (id) {
+        document.getElementById(id).setAttribute("aria-pressed", "false");
+      });
+      b.setAttribute("aria-pressed", String(!on));
+      applyFilters();
+    });
+  }
+  bindView("v-actionable", "actionable");
+  bindView("v-yours", "yours");
+  bindView("v-gates", "gates");
+
+  document.getElementById("search").addEventListener("input", function (e) {
+    filters.q = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  /* ---------- board interactions ---------- */
+
+  board.addEventListener("click", function (e) {
+    var toggle = e.target.closest("[data-toggle]");
+    if (toggle) {
+      var art = toggle.closest(".task");
+      var open = art.classList.toggle("open");
+      toggle.setAttribute("aria-expanded", String(open));
+      return;
+    }
+    var goto = e.target.closest("[data-goto]");
+    if (goto) {
+      var id = goto.getAttribute("data-goto");
+      var target = document.getElementById("task-" + id);
+      if (!target) return;
+      if (target.hidden || target.closest(".milestone").hidden) {
+        filters = { status: "all", ms: "all", lane: "all", view: null, q: filters.q };
+        Array.prototype.forEach.call(document.querySelectorAll(".control-row .chip"), function (c) {
+          c.setAttribute("aria-pressed", String(c.textContent.indexOf("All") === 0));
+        });
+        ["v-actionable", "v-yours", "v-gates"].forEach(function (vid) {
+          document.getElementById(vid).setAttribute("aria-pressed", "false");
+        });
+        applyFilters();
+      }
+      target.classList.add("open");
+      var btn = target.querySelector("[data-toggle]");
+      if (btn) btn.setAttribute("aria-expanded", "true");
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.remove("flash");
+      void target.offsetWidth;
+      target.classList.add("flash");
+    }
+  });
+
+  board.addEventListener("change", function (e) {
+    var box = e.target.closest("[data-tick]");
+    if (!box) return;
+    var id = box.getAttribute("data-tick");
+    ticks[id] = box.checked;
+    saveTicks();
+    var art = document.getElementById("task-" + id);
+    art.classList.toggle("checked", box.checked);
+    var t = byId[id];
+    var tags = art.querySelector(".tags");
+    var dot = tags.querySelector(".drift-dot");
+    var drifted = box.checked !== (t.status === "done");
+    if (drifted && !dot) {
+      var s = document.createElement("span");
+      s.className = "drift-dot";
+      s.title = "Your tick disagrees with docs/TASK-STATUS.md";
+      tags.insertBefore(s, tags.firstChild);
+    } else if (!drifted && dot) {
+      dot.remove();
+    }
+    renderDrift();
+  });
+
+  document.getElementById("expand-all").addEventListener("click", function () {
+    Array.prototype.forEach.call(board.querySelectorAll(".task"), function (a) {
+      if (a.hidden) return;
+      a.classList.add("open");
+      a.querySelector("[data-toggle]").setAttribute("aria-expanded", "true");
+    });
+  });
+
+  document.getElementById("collapse-all").addEventListener("click", function () {
+    Array.prototype.forEach.call(board.querySelectorAll(".task"), function (a) {
+      a.classList.remove("open");
+      a.querySelector("[data-toggle]").setAttribute("aria-expanded", "false");
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    if (!window.confirm("Reset every tick back to what docs/TASK-STATUS.md says?")) return;
+    ticks = {};
+    TASKS.forEach(function (t) { if (t.status === "done") ticks[t.id] = true; });
+    saveTicks();
+    renderBoard();
+    renderDrift();
+  });
+
+  /* ---------- export / import ---------- */
+
+  document.getElementById("export").addEventListener("click", function () {
+    var payload = JSON.stringify({
+      source: "murmur-build-board",
+      exported: new Date().toISOString(),
+      docsSyncedAt: "2026-08-06",
+      ticks: ticks,
+      disagreesWithDocs: TASKS.filter(function (t) {
+        return !!ticks[t.id] !== (t.status === "done");
+      }).map(function (t) { return { id: t.id, docStatus: t.status, ticked: !!ticks[t.id] }; })
+    }, null, 2);
+    var name = "murmur-board-" + new Date().toISOString().slice(0, 10) + ".json";
+
+    if (window.claude && window.claude.downloads) {
+      window.claude.downloads.save({ filename: name, data: payload }).catch(function (err) {
+        if (err && err.code === "declined") return;
+        fallbackDownload(name, payload);
+      });
+    } else {
+      fallbackDownload(name, payload);
+    }
+  });
+
+  function fallbackDownload(name, payload) {
+    try {
+      var blob = new Blob([payload], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    } catch (e) {
+      window.prompt("Copy your ticks:", payload);
+    }
+  }
+
+  document.getElementById("import").addEventListener("click", function () {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.addEventListener("change", function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(String(reader.result));
+          if (!data || typeof data.ticks !== "object") throw new Error("no ticks");
+          ticks = data.ticks;
+          saveTicks();
+          renderBoard();
+          renderDrift();
+        } catch (e) {
+          window.alert("That file does not look like a board export. Nothing changed.");
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  });
+
+  /* ---------- problems ---------- */
+
+  (function renderProblems() {
+    var sevLabel = { serious: "Serious", real: "Real, less dangerous", tools: "In our tools, not the product" };
+    var html = "";
+    ["serious", "real", "tools"].forEach(function (sev) {
+      var list = PROBLEMS.filter(function (p) { return p.sev === sev; });
+      html += '<h3 style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:22px 0 8px;">' +
+        sevLabel[sev] + " · " + list.length + "</h3>";
+      list.forEach(function (p) {
+        html += '<details class="prob"><summary><strong>' + esc(p.title) + "</strong>" +
+          '<span class="pill p-lane" style="margin-left:auto">' + esc(p.state) + "</span></summary>";
+        html += '<div class="prob-body"><p>' + esc(p.body) + "</p>";
+        html += '<div class="deps">' + p.tasks.map(function (id) { return depChip(id, ""); }).join("") + "</div>";
+        html += "</div></details>";
+      });
+    });
+    var host = document.getElementById("problem-list");
+    host.innerHTML = html;
+    host.addEventListener("click", function (e) {
+      var g = e.target.closest("[data-goto]");
+      if (!g) return;
+      var target = document.getElementById("task-" + g.getAttribute("data-goto"));
+      if (!target) return;
+      if (target.hidden || target.closest(".milestone").hidden) {
+        filters.status = "all"; filters.ms = "all"; filters.lane = "all"; filters.view = null;
+        Array.prototype.forEach.call(document.querySelectorAll(".control-row .chip"), function (c) {
+          c.setAttribute("aria-pressed", String(c.textContent.indexOf("All") === 0));
+        });
+        applyFilters();
+      }
+      target.classList.add("open");
+      target.querySelector("[data-toggle]").setAttribute("aria-expanded", "true");
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.remove("flash");
+      void target.offsetWidth;
+      target.classList.add("flash");
+    });
+  })();
+
+  renderBoard();
+  renderMeter();
+  renderDrift();
+})();
+</script>
