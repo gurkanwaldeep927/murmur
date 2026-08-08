@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { config } from "../config/index.js";
+import { logger } from "../shared/logger.js";
 
 /**
  * Single shared connection pool for the modular monolith. Modules never construct
@@ -41,6 +42,52 @@ export const pool = new pg.Pool({
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
+});
+
+/**
+ * The fields of a pool error that are safe to log.
+ *
+ * Exported so the test pins what the service actually emits rather than a copy of it —
+ * same reasoning as `REDACT_PATHS` in shared/logger.ts.
+ *
+ * This returns a hand-built plain object instead of handing the error to pino's `err`
+ * serializer, and that is the whole point. A pg error raised on a connection carries
+ * references back to the client that raised it, and a pg `Client` holds
+ * `connectionParameters` — including the password parsed out of `DATABASE_URL`. Any
+ * reporter that walks the error's own properties therefore prints the database password in
+ * clear text; that was observed in test output on 2026-08-05. Copying three scalars out is
+ * the only shape that cannot regress into serializing the connection.
+ */
+export function poolErrorFields(err: unknown): { message: string; code?: string } {
+  if (!(err instanceof Error)) return { message: String(err) };
+  // `code` is pg/libuv's error code (ECONNRESET, 57P01 admin shutdown, ...) — the field
+  // that makes the log line actionable. It is a string on pg errors, guarded because the
+  // type says `unknown` for a plain Error.
+  const code = (err as { code?: unknown }).code;
+  return {
+    message: err.message,
+    ...(typeof code === "string" ? { code } : {}),
+  };
+}
+
+/**
+ * Idle-client failures must be observed, not crash the process.
+ *
+ * node-postgres emits `error` on the pool when a client sitting IDLE in the pool dies —
+ * a network blip, or the provider recycling the connection. Against a remote database
+ * that is routine, not exceptional. With no listener, Node's EventEmitter contract turns
+ * that event into a thrown error with nowhere to catch it: the API process exits on a
+ * hiccup that costs nothing to survive, because the pool simply discards the dead client
+ * and opens a fresh one on the next query.
+ *
+ * Errors on a CHECKED-OUT client are not this event — pg rejects that client's query, so
+ * the request's own error path already handles them.
+ *
+ * The `client` argument pg passes alongside the error is deliberately not received: there
+ * is no use for it here, and naming it invites a future edit to log it (see above).
+ */
+pool.on("error", (err) => {
+  logger.error(poolErrorFields(err), "idle database client errored; discarded by the pool");
 });
 
 export type DbPool = pg.Pool;
