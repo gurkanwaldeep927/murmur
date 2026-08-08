@@ -123,6 +123,16 @@ export function candidateHashes(normalized: string): string[] {
   return versions.map((p) => `${p.version}$${hmac(p.secret, normalized)}`);
 }
 
+/**
+ * The version prefix of the pepper new hashes are written under (the `v<n>` in
+ * `v<n>$<digest>`). Exposed so callers can tell whether a STORED hash predates the current
+ * rotation without re-hashing anything — T24's ban issuance needs exactly that, and the
+ * alternative was hashing a dummy string just to read its prefix.
+ */
+export function activePepperVersion(): string {
+  return activePepper().version;
+}
+
 /** Is `domain` in the configured single-campus allowlist? */
 export function isCampusDomain(domain: string): boolean {
   return config.campusEmailDomains.includes(domain.toLowerCase());

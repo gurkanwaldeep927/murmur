@@ -291,6 +291,31 @@ const cases: Case[] = [
     sql: `UPDATE answer SET accepted = true WHERE id = $1`,
     values: [UUID],
   },
+  // ---- ban-issuance.ts (T24) ----
+  {
+    name: "banIdentity: resolve identity from profile",
+    sql: `SELECT ia.id AS identity_account_id, ia.email_hash
+            FROM pseudonymous_profile p
+            JOIN identity_account ia ON ia.id = p.identity_account_id
+           WHERE p.id = $1`,
+    values: [UUID],
+  },
+  {
+    name: "banIdentity: insert ban_record",
+    sql: `INSERT INTO ban_record (email_hash, ban_reason, originating_moderation_case_id)
+          VALUES ($1, $2, $3) ON CONFLICT (email_hash) DO NOTHING`,
+    values: ["v1$deadbeef", "reason", null],
+  },
+  {
+    name: "banIdentity: mark profile banned",
+    sql: `UPDATE pseudonymous_profile SET status = 'banned' WHERE id = $1`,
+    values: [UUID],
+  },
+  {
+    name: "banIdentity: mark account banned",
+    sql: `UPDATE identity_account SET ban_status = true WHERE id = $1`,
+    values: [UUID],
+  },
   {
     name: "findScoreDrift (reconciliation)",
     sql: `SELECT p.id AS profile_id, p.reputation_score AS cached,

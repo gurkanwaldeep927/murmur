@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 29 done · 1 half done · 42 not started · 5 waiting on something** *(= 77)*
+**Score so far: 30 done · 1 half done · 41 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -129,13 +129,51 @@ down as not done rather than quietly skipped.
 | T21 | Database tables for points and ban records | ✅ *(see below)* |
 | T22 | Upvote and "this answered my question" — points are awarded by the server so nobody can cheat | ✅ *(see below)* |
 | T23 | Check bans everywhere — asking, answering, voting | ✅ *(see below)* |
-| T24 | Actually issue a ban, and make it survive someone deleting their account | ⬜ |
+| T24 | Actually issue a ban, and make it survive someone deleting their account | ✅ *(see below)* |
 | T25 | *(Designer — copy job)* Search, topic list, profile screens | ⬜ |
 | T26 | Connect those three screens | ⬜ |
 | T52 | Record how people use search | ⬜ |
 | T57 | Test: delete account → try to rejoin with same email → refused | ⬜ |
 | T65 | Security expert attacks the ban system with tricks like `First.Last@` vs `first.last@` | ⬜ |
 | T66 | Speed check on search and points | ⬜ |
+
+**About T24 (done 8 August):** actually issuing a ban — **this closes problem #7.**
+
+Until today, "banned" was a state the app could *read* but nothing could ever *set*. The
+sign-up check and the session gate had both been looking at columns no code ever wrote.
+
+Issuing a ban now does three things together, or none of them: it writes the permanent ban
+record, marks the profile banned, and marks the account banned. Together matters — a record
+without the status change lets the person keep posting until someone notices, and a status
+change without the record vanishes the moment they delete their account, which is exactly the
+bug being fixed. There is a test that deliberately crashes the operation halfway and checks
+nothing survived.
+
+**And it now survives deletion, proven rather than argued.** The test deletes the account and
+then tries to sign up again with the same address — refused. Also refused: the same address
+with capitals, and with a `+tag`. Also checked, because a ban must not become a blanket
+refusal: an unrelated student can still sign up afterwards.
+
+**Nothing bans anyone automatically, and that is deliberate.** The obvious wiring would be
+"the AI blocked this post, so ban the author". It was rejected: one blocked post is not a
+severe violation, there is no severity measure to trigger on, and **the false-positive rate of
+the AI checker is completely unknown until you get vendor quotes (T54)**. One wrong automatic
+ban permanently removes a real student — permanently, because ban records are never deleted by
+design. The trigger is meant to be a human, arriving with the moderator's desk in Milestone 5.
+There is even a test asserting nothing calls it yet, so that when M5 wires it up, the decision
+gets revisited instead of quietly drifting.
+
+**What this costs you right now, plainly:** until Milestone 5, the app cannot remove anyone. It
+can hold and block their posts one at a time, but a repeat offender stays. That is the real
+state of the product.
+
+**A gap in the plan, found while doing this and worth your attention:** *there is no way to
+delete an account.* No screen, no endpoint, nothing — and no task in the plan builds one. But
+T57 (Milestone 3) is written as "delete account → try to rejoin → refused", and the privacy
+work in Milestone 5 assumes deletion exists. Today's test does the deletion directly in the
+database, exactly as a real erasure would, and says so rather than pretending. **The likely
+right home is T70 (privacy, M5)** — it should not be invented earlier, because the legal
+retention decisions from T43 shape what deletion is even allowed to remove.
 
 **About T23 (done 8 August):** checking bans everywhere.
 
@@ -497,8 +535,13 @@ This does **not** cover the phone app itself (SEC-013) — that's a separate, st
 and saying otherwise would be the kind of false "done" this project has already been bitten by.
 
 ### 7. Deleting an account also deletes the ban (SEC-016 / PRV-2)
-A banned person could delete their account and rejoin. Not fixed yet — it's properly part of
-**T24**, since the ban record it has to survive doesn't exist until Milestone 3.
+**Fixed 8 August, in T24.** A banned person could delete their account and rejoin. The ban
+record deliberately has no link back to the account, so there is nothing for a deletion to
+travel along — and there is now a test that deletes the account and confirms the same address
+is still refused, including under capitals and `+tags`.
+
+Worth knowing: the fix was waiting on the record itself, which only arrived with T21 that same
+morning. It was open by design, not overlooked.
 
 ---
 
@@ -635,15 +678,15 @@ A test suite that can't run is worth less than one that runs and fails.
    guard.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
-3. **T24** — actually issuing a ban, and making it survive someone deleting their account.
-   This is what finally closes problem #7 above, which has been open by design since the record
-   it needs had nowhere to live.
+3. **T25** — *(yours, 15 min)* pull the search, topic-list and profile screens out of the design
+   project. It is a copy job, and it is the only thing standing between now and T26.
+   Then **T26** wires them up, and Milestone 3 is nearly done.
 4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 5. Then the rest of Milestone 3, plus fixing the remaining problems above.
 
 ~~T22 — upvoting and accepting~~ — **done 8 August**, including the reconciliation query T21
 required of it. ~~T23 — ban checks everywhere~~ — **done 8 August**, and it closed a fail-open
-path in the ban lookup.
+path in the ban lookup. ~~T24 — issuing a ban~~ — **done 8 August**, closing problem #7.
 
 **Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
 questions, answers and the feed. Building *those* areas before it runs would just make its job
