@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 36 done · 1 half done · 35 not started · 5 waiting on something** *(= 77)*
+**Score so far: 37 done · 0 half done · 35 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -57,7 +57,7 @@ before it goes public, so the space stays safe.
 | T9 | *(Designer)* Make the 4 sign-up screens look good | ✅ |
 | T10 | Connect those 4 screens to the real sign-up system | ✅ |
 | T44 | Start recording anonymous usage stats (how many sign up, etc.) | ✅ |
-| T45 | Record the sign-up funnel specifically | 🟡 half |
+| T45 | Record the sign-up funnel specifically | ✅ *(see below)* |
 | T50 | The scrambler that hides emails so nobody can read them from the database | ✅ |
 | T55 | A test that checks no email ever leaks out in any response | ✅ |
 | T60 | Security expert reviews the sign-up code | ✅ |
@@ -85,6 +85,50 @@ before it goes public, so the space stays safe.
 | T19 | Connect those 4 screens to the real system | ✅ *(one bit left — see below)* |
 | T51 | Finish recording usage stats for this section | ✅ *(see below)* |
 | **T62** | **Security expert checks who's allowed to read/write what. Must pass before this milestone can close** ← **next job** | ⬜ |
+
+**About T45 (done 9 August):** proving the sign-up funnel is actually recorded — **and finding
+that one of the six numbers the product promises was quietly wrong.**
+
+The markers themselves were written back in July. What was never written was **anything that
+checks they fire.** Exactly the hole found in T51 for a different section: a marker is one line
+inside a branch, and a tidy-up can delete it without a single test going red. You'd find out at
+T46, months later, with the work that produced it long finished.
+
+**The first test of this path found a real bug in the product, not in the test.**
+
+*"How many people who start signing up actually finish"* — activation — is one of the six
+numbers the product promises. Its recording ran **inside** the database transaction that creates
+the account. But recording a statistic is deliberately "fire and forget": it goes off on a
+*different* database connection and does not wait. So it was arriving **before** the new account
+existed, the database rejected it for pointing at somebody who wasn't there yet, and — because a
+failed statistic is designed never to break anything — **it was thrown away in silence.**
+
+So: every successful sign-up was being counted as not-finished. Activation would have read
+**zero, for ever**, while people were signing up normally.
+
+Nothing could have caught this. No test read that table on this path, and the only trace was one
+warning line among many. It is the same shape as the very first serious bug in this project —
+code that looked perfect, failed every single time, and was invisible because nothing was
+watching. **Fixed:** all four sign-up outcomes are now recorded *after* the account is safely
+saved. That also makes the other three honest, because a record of something that got undone is
+a lie.
+
+**Every dead-end branch is now tested too** — year unreadable, address banned, too many wrong
+codes. Those are exactly the ones a tidy-up removes, because nothing visible depends on them.
+
+**Two properties pinned that would be impossible to reconstruct later:**
+
+- "Too many wrong codes" is recorded with **no name attached** — deliberately. Whoever burned
+  through those guesses may well *not* be the owner of that address. Attaching a name would put
+  an attacker's behaviour onto a real student's record.
+- **No email address appears anywhere** in what gets recorded — checked against the actual stored
+  text, not against the code that stored it.
+
+**And a check the codebase asked for but could not enforce.** A comment in the code says "keep
+this list in step with what the app sends". Comments have failed this project four times already.
+There is now a test that reads the app's own source and proves every marker it sends is one the
+server accepts. Without it, a marker the server doesn't recognise is refused with an error the
+app never looks at — nothing breaks, nothing is logged, the number is just **absent**.
 
 **About T51 (done 6 August):** "recording usage stats" means dropping little markers in the
 code that say *this just happened*, so that later you can count how many people used the app
@@ -989,8 +1033,13 @@ report limit plus a flaky test that had been teaching everyone to re-run instead
 
 ~~T32 — the stuck-post watchdog~~ — **done 9 August**.
 
-**That is the end of what can be built without you.** Six tasks landed today (T34, T38, T27, T29,
-T32 — plus a flaky test fixed). What remains is, without exception, one of:
+~~T45 — the sign-up funnel~~ — **done 9 August**, and it found that the activation number had
+been silently reading zero.
+
+**That is the end of what can be built without you, and there is now nothing half-finished.**
+Six tasks landed today (T34, T38, T27, T29, T32, T45), plus two bugs the tests flushed out — one
+in the product (activation never recorded) and one in the tools (a flaky test). What remains is,
+without exception, one of:
 
 - **behind T62** — T37, and through it T35, T36 and T41; plus T20 and all of Milestone 3 after it.
   These all change the code T62 is waiting to inspect;
