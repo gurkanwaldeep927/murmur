@@ -236,6 +236,9 @@ export const config = {
   rateLimitInitiatePerHour: intOpt("RATE_LIMIT_INITIATE_PER_HOUR", 10),
   rateLimitConfirmPerHour: intOpt("RATE_LIMIT_CONFIRM_PER_HOUR", 30),
   rateLimitEventsPerHour: intOpt("RATE_LIMIT_EVENTS_PER_HOUR", 300),
+  // T34 — A8 report intake. Bucketed per PROFILE rather than per address (the route is
+  // authenticated, and one campus NAT is one address); see shared/rate-limit.ts.
+  rateLimitReportsPerHour: intOpt("RATE_LIMIT_REPORTS_PER_HOUR", 10),
   trustProxy: optional("TRUST_PROXY", ""),
 
   // T14a — Moderation Gateway. Deliberately DEFAULTS TO EMPTY.

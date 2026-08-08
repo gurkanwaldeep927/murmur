@@ -41,7 +41,10 @@ export type ErrorCode =
   | "duplicate_vote_forbidden"
   | "answer_not_found"
   | "accept_not_question_author"
-  | "answer_already_accepted";
+  | "answer_already_accepted"
+  // A8 (report intake, T34). "duplicate report" is deliberately NOT here: TRD apis[A8]
+  // makes a duplicate a merge outcome, not an error.
+  | "reported_content_not_found";
 
 export class AppError extends Error {
   readonly status: number;
@@ -103,6 +106,15 @@ export const errors = {
     new AppError(403, "accept_not_question_author", message),
   answerAlreadyAccepted: (message = "This question already has an accepted answer.") =>
     new AppError(409, "answer_already_accepted", message),
+
+  /**
+   * A8 (T34). The same refusal whether the content never existed, was deleted, or is held or
+   * blocked — a student can only see published content, so a different answer for a hidden
+   * item would confirm to someone guessing IDs that it exists. Same posture as A6's
+   * `answer_not_found`.
+   */
+  reportedContentNotFound: (message = "That post is no longer available to report.") =>
+    new AppError(404, "reported_content_not_found", message),
 };
 
 export function sendError(res: Response, err: AppError): void {

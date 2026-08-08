@@ -28,6 +28,12 @@ describe("content routes are registered and guarded", () => {
     ["get", "/questions"],
     ["get", "/questions/00000000-0000-4000-8000-000000000001"],
     ["get", "/topics"],
+    // A8 report intake (T34). Worth pinning here as well as in the DB-backed suite: the
+    // route is the one place a student's complaint about another student enters the system,
+    // and an unauthenticated intake would be an unbounded abuse channel. `isAnonymous` means
+    // "store no reporter", never "accept a report from nobody".
+    ["post", "/reports"],
+    ["get", "/reports/reasons"],
   ];
 
   for (const [method, path] of guarded) {
