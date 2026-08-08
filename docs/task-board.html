@@ -642,7 +642,7 @@
       <p class="lede">
         All 77 tasks from <code>docs/07-plan.md</code>, each one explained: what it actually is,
         why it exists, what breaks if it is wrong, and what it unblocks. Statuses are copied from
-        <code>docs/TASK-STATUS.md</code> as of 6 August 2026, plus the 7 August database-pool fix.
+        <code>docs/TASK-STATUS.md</code> as of 8 August 2026.
         <b>That markdown file stays the source of truth</b> — ticking a box here is your own note,
         not a status change.
       </p>
@@ -1002,12 +1002,13 @@
       done: "Keyword, topic and cohort filters return relevant cross-batch results, and killing the index degrades to topic browse instead of erroring."
     },
     {
-      id: "T21", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      id: "T21", ms: "M3", size: "M", lane: "code", kind: "build", status: "done",
       title: "Database tables for points and ban records",
       deps: ["T13"], trace: "schema:tables[reputation_event, ban_record]",
       what: "Migration 003: an append-only ledger of reputation events, plus the ban_record table. Includes a database trigger blocking self-votes, a partial unique index blocking duplicate votes, and maintenance for the cached score totals.",
-      why: "Append-only means a score is the sum of its history, not a number someone can set. Enforcing self-votes and duplicates in the database rather than only in code means the rule holds even if a future endpoint forgets it.",
-      done: "Migration applies and rolls back; a self-vote and a duplicate vote are both refused at the database level."
+      why: "Append-only means a score is the sum of its history, not a number someone can set. Enforcing self-votes and duplicates in the database rather than only in code means the rule holds even if a future endpoint forgets it — including under two taps arriving at the same instant, which an application-layer check cannot catch.",
+      done: "Migration applies and rolls back; a self-vote and a duplicate vote are both refused at the database level.",
+      note: "Done 8 August. Two open questions the frozen schema left to the build stage were closed in decisions/oq-schema-aggregates-and-vote-enforcement.md: scores update synchronously in the vote's own transaction rather than by a background job (with a reconciliation query now required of T22), and the vote rules stay enforced in BOTH layers — the database makes the rule true, the application produces the message. Also worth knowing: the file is numbered 003 but runs AFTER 006/007/008 on the live database, so migration 008's security sweep will never see these two tables. The RLS and grant hardening is written into 003 itself, and a test asserts it, because removing it as 'duplicated' would strip the second lock off the tables that decide who is banned."
     },
     {
       id: "T22", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
@@ -1875,7 +1876,7 @@
     var payload = JSON.stringify({
       source: "murmur-build-board",
       exported: new Date().toISOString(),
-      docsSyncedAt: "2026-08-06",
+      docsSyncedAt: "2026-08-08",
       ticks: ticks,
       disagreesWithDocs: TASKS.filter(function (t) {
         return !!ticks[t.id] !== (t.status === "done");

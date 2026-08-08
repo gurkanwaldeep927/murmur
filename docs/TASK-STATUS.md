@@ -1,6 +1,6 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-06**
+**Last updated: 2026-08-08**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 26 done · 1 half done · 45 not started · 5 waiting on something** *(= 77)*
+**Score so far: 27 done · 1 half done · 44 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -126,7 +126,7 @@ down as not done rather than quietly skipped.
 | Task | In plain words | Status |
 |---|---|---|
 | T20 | Search by keyword, topic, and batch year | ⬜ |
-| T21 | Database tables for points and ban records | ⬜ |
+| T21 | Database tables for points and ban records | ✅ *(see below)* |
 | T22 | Upvote and "this answered my question" — points are awarded by the server so nobody can cheat | ⬜ |
 | T23 | Check bans everywhere — asking, answering, voting | ⬜ |
 | T24 | Actually issue a ban, and make it survive someone deleting their account | ⬜ |
@@ -136,6 +136,50 @@ down as not done rather than quietly skipped.
 | T57 | Test: delete account → try to rejoin with same email → refused | ⬜ |
 | T65 | Security expert attacks the ban system with tricks like `First.Last@` vs `first.last@` | ⬜ |
 | T66 | Speed check on search and points | ⬜ |
+
+**About T21 (done 8 August):** two new tables — the points ledger and the ban list — plus the
+rules the database itself refuses to break.
+
+The points table is **append-only**: a score is not a number anyone sets, it is the sum of
+everything that ever happened. That is what makes cheating structural rather than a rule
+someone has to remember.
+
+Two rules are enforced *inside the database*, not only in the code:
+
+- **You cannot upvote your own answer.** A trigger checks the answer's author before the row
+  is allowed in.
+- **You cannot upvote the same answer twice.** An index refuses the second one. This half
+  matters more than it sounds: if only the code checked, two taps arriving at the same instant
+  would both read "not voted yet" and both go through. The database is the only place that can
+  refuse the second one, because it decides at the moment of writing.
+
+The ban list is **deliberately not linked** to accounts or profiles. That looks like an
+oversight and is the opposite of one: a link is exactly what would let deleting your account
+take the ban with it — the problem listed as #7 above. There is nothing for a delete to travel
+along. It is matched by the same email fingerprint the sign-up check uses, so a capital letter
+or a `+tag` cannot make a ban quietly stop matching.
+
+**Two decisions were written down rather than left to whoever builds T22**, in
+`decisions/oq-schema-aggregates-and-vote-enforcement.md` — the frozen schema document had
+explicitly left both to the build stage:
+
+1. **Scores update immediately, in the same transaction as the vote** — not by a background
+   job. A background job that dies keeps serving stale numbers with nothing raising a flag,
+   which is this project's most-repeated failure. The cost: T22 must ship a reconciliation
+   query comparing the cached score against the ledger, so a disagreement is *detectable*
+   rather than assumed impossible.
+2. **The rule lives in the database, the message lives in the code.** Both layers stay. The
+   code checks first so a student gets "you cannot vote for yourself" instead of a raw
+   database error; the database refuses regardless of what the code checked.
+
+**One thing about this migration that is easy to get wrong later:** it is numbered 003 but it
+runs *after* 006, 007 and 008 on your existing database, because it was written later than
+them. Migration 008 is the one that closed the biggest security hole (problem #6b), and it
+works by sweeping every table that existed *at the time it ran* — so it will never see these
+two. The protection is therefore written into migration 003 itself, which means it is correct
+whether it runs before or after 008. There is a test asserting it, because a future tidy-up
+that removes it as "duplicated" would silently strip the second lock off the two tables that
+decide who is banned.
 
 ---
 
@@ -528,10 +572,21 @@ A test suite that can't run is worth less than one that runs and fails.
    guard.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
-3. **T19b** — swap in the two cards Claude Design is redrawing (see below).
-4. Then Milestone 3, plus fixing the remaining problems above.
+3. **T22** — upvoting and "this answered my question". T21 built the tables it needs, so this
+   is the next thing being built. It must ship the reconciliation query the T21 decision
+   requires: cached score versus the ledger, so the two disagreeing is something you find out
+   about rather than something assumed impossible.
+4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
+5. Then the rest of Milestone 3, plus fixing the remaining problems above.
 
-~~T51 — finish the usage stats~~ — **done 6 August.**
+**Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
+questions, answers and the feed. Building *those* areas before it runs would just make its job
+bigger and its findings staler. T21 touched none of them — it only added two tables — so it was
+safe to build in front of the gate. The same will not be true of T20 (search), which changes
+the read path T62 is about to look at; that one waits.
+
+~~T51 — finish the usage stats~~ — **done 6 August.** ~~T21 — the points and ban tables~~ —
+**done 8 August.**
 
 **One change in how we work, from problem 11d:** anything that touches the database is now
 checked by the automatic checker abroad, not on your laptop. Your laptop still runs the

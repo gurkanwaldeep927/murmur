@@ -66,13 +66,18 @@ async function assertDisposableDatabase(): Promise<void> {
 
 /**
  * DESTRUCTIVE — point DATABASE_URL at a disposable database before calling this.
- * Covers migration 002's tables (T13) as well; a table missing from this list leaks
- * rows between tests instead of failing loudly.
+ * Covers migration 002's tables (T13) and 003's (T21) as well; a table missing from this
+ * list leaks rows between tests instead of failing loudly.
+ *
+ * `ban_record` has to be named explicitly and cannot be left to CASCADE: it deliberately
+ * carries no foreign key to identity_account or pseudonymous_profile (schema §3.8 — a ban
+ * must outlive the account that earned it), so truncating those two reaches everything
+ * except the one table whose leftover row would refuse the next test's registration.
  */
 export async function truncateAll(): Promise<void> {
   await assertDisposableDatabase();
   await pool.query(`
-    TRUNCATE moderation_case, answer, question, analytics_event,
+    TRUNCATE reputation_event, ban_record, moderation_case, answer, question, analytics_event,
              pseudonymous_profile, identity_account RESTART IDENTITY CASCADE;
   `);
   // topic_tag is deliberately NOT truncated: migration 002 seeds it, and the seed is
