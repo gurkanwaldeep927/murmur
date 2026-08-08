@@ -88,6 +88,18 @@ async function hardEraseAccount(profileId: string): Promise<void> {
     `SELECT identity_account_id FROM pseudonymous_profile WHERE id = $1`,
     [profileId],
   );
+  // An erasure cannot just drop the profile row: analytics_event and reputation_event both
+  // hold foreign keys to it, and CI's first run of this test failed on exactly that
+  // (analytics_event_actor_profile_id_fkey). That is a REAL constraint on whatever T70
+  // builds — a DPDP erasure has to decide, per table, between deleting the rows and
+  // nulling the reference, and nulling loses the ability to count a cohort while deleting
+  // rewrites history. Recorded in TASK-STATUS; this test deletes, because it only needs the
+  // account gone.
+  await pool.query(`DELETE FROM analytics_event WHERE actor_profile_id = $1`, [profileId]);
+  await pool.query(
+    `DELETE FROM reputation_event WHERE actor_profile_id = $1 OR subject_profile_id = $1`,
+    [profileId],
+  );
   await pool.query(`DELETE FROM pseudonymous_profile WHERE id = $1`, [profileId]);
   await pool.query(`DELETE FROM identity_account WHERE id = $1`, [
     rows[0]!.identity_account_id,

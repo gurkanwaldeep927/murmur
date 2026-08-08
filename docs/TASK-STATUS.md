@@ -176,6 +176,14 @@ the crash happened first. Whether an *erased* address may ever be reused is a le
 (T43/T70), deliberately not decided here; this only stops a crash from standing in for an
 answer.
 
+**And a second thing the same test found, which matters for the privacy work:** *an account
+cannot simply be deleted.* The usage-statistics table and the points ledger both point at the
+profile, so the database refuses to remove it. Whoever builds erasure (T70) has to decide, table
+by table, between **deleting those rows** — which rewrites history and changes past numbers —
+and **cutting the link but keeping the row**, which keeps the numbers but leaves a trail. That
+is a real decision with a real cost either way, and it is better found now than at the moment
+someone exercises their legal right to be forgotten.
+
 **A gap in the plan, found while doing this and worth your attention:** *there is no way to
 delete an account.* No screen, no endpoint, nothing — and no task in the plan builds one. But
 T57 (Milestone 3) is written as "delete account → try to rejoin → refused", and the privacy
