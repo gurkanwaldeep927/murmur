@@ -1029,13 +1029,13 @@
       note: "Done 8 August. Most of it was already true structurally — one session gate loads the profile live on every request, so a ban lands on the very next tap and no route can forget to check — and the job was proving it, including with a session issued before the ban. One real defect fixed: the ban lookup answered 'not banned' when the ban table was missing. That escape hatch was correct only until migration 003 landed; left in, it was a permanent fail-open path where a schema problem readmits every banned person silently. It now fails loudly. Deliberate trade recorded: a ban follows an address through capitals and +tags but NOT through dots on a campus domain, because collapsing dots would refuse a real different student."
     },
     {
-      id: "T24", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      id: "T24", ms: "M3", size: "M", lane: "code", kind: "build", status: "done",
       title: "Actually issue a ban, and make it survive account deletion",
       deps: ["T14a", "T21"], trace: "PRD:p0[R5], TRD:nfrs[ban durability]",
       what: "The backend path that turns a severe moderation or grievance outcome into a ban_record plus a profile status change, structured so that deleting the account does not delete the ban.",
       why: "Right now, deleting an account deletes the ban with it — so a banned person rejoins by pressing 'delete my account'. That is recorded as SEC-016/PRV-2 and it is fixed here, because the record that has to outlive the account does not exist until this task.",
       done: "Delete the account, try to re-register with the same address, get refused.",
-      note: "This is the one open security finding that is deliberately unfixed rather than overlooked — the fix has nowhere to live until Milestone 3."
+      note: "Done 8 August — this closed problem #7. Issuing a ban writes the record, marks the profile and marks the account, all in one transaction or not at all; a test crashes it halfway to prove nothing survives. Durability is proven by deleting the account and being refused on re-registration, including under capitals and +tags. Nothing calls it automatically, deliberately: one blocked post is not a severe violation, there is no severity measure, and the AI false-positive rate is unknown until T54 — one wrong automatic ban permanently removes a real student. The trigger is the M5 operator console, and a test asserts nothing calls it yet. Found while building: there is NO account-deletion endpoint anywhere, and no task builds one, although T57 assumes it exists."
     },
     {
       id: "T25", ms: "M3", size: "S", lane: "design", kind: "build", status: "todo",

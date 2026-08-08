@@ -92,12 +92,30 @@ export async function initiateVerification(rawEmail: string): Promise<InitiateRe
   }
 
   // New account.
-  await repo.createPending(pool, {
-    emailHash,
-    emailEncrypted: encryptEmail(normalized.normalized),
-    tokenHash,
-    tokenExpiresAt: expiresAt,
-  });
+  //
+  // A SOFT-DELETED account for this address is invisible to the duplicate check above
+  // (`findByAnyEmailHash` filters `deleted_at IS NULL`) but still occupies the UNIQUE index
+  // on `email_hash`. Without this catch the insert raises 23505 and the caller gets a 500 —
+  // found by T24's deletion test on 2026-08-08, and it meant the A2 ban check never even
+  // got a chance to run for a deleted account.
+  //
+  // Translated to the refusal that is already true: an account for this address exists.
+  // Whether an ERASED address may ever be reused is a DPDP question owned by T43/T70, and
+  // is deliberately not decided here — this only stops a crash from standing in for an
+  // answer.
+  try {
+    await repo.createPending(pool, {
+      emailHash,
+      emailEncrypted: encryptEmail(normalized.normalized),
+      tokenHash,
+      tokenExpiresAt: expiresAt,
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      throw new AppError(409, "email_already_registered", "This email is already registered.");
+    }
+    throw err;
+  }
   await deliverOrBlock(normalized.normalized, otp);
   emit({ eventType: RegistrationEvents.VERIFICATION_INITIATED });
   return { status: "verification_pending", resendAvailableInSeconds: config.verificationResendCooldownSeconds };
