@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 28 done · 1 half done · 43 not started · 5 waiting on something** *(= 77)*
+**Score so far: 29 done · 1 half done · 42 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -128,7 +128,7 @@ down as not done rather than quietly skipped.
 | T20 | Search by keyword, topic, and batch year | ⬜ |
 | T21 | Database tables for points and ban records | ✅ *(see below)* |
 | T22 | Upvote and "this answered my question" — points are awarded by the server so nobody can cheat | ✅ *(see below)* |
-| T23 | Check bans everywhere — asking, answering, voting | ⬜ |
+| T23 | Check bans everywhere — asking, answering, voting | ✅ *(see below)* |
 | T24 | Actually issue a ban, and make it survive someone deleting their account | ⬜ |
 | T25 | *(Designer — copy job)* Search, topic list, profile screens | ⬜ |
 | T26 | Connect those three screens | ⬜ |
@@ -136,6 +136,33 @@ down as not done rather than quietly skipped.
 | T57 | Test: delete account → try to rejoin with same email → refused | ⬜ |
 | T65 | Security expert attacks the ban system with tricks like `First.Last@` vs `first.last@` | ⬜ |
 | T66 | Speed check on search and points | ⬜ |
+
+**About T23 (done 8 August):** checking bans everywhere.
+
+**Most of this turned out to be already true, and the job was proving it.** Every signed-in
+action goes through one gate that loads your profile *fresh from the database on every single
+request* — so a ban takes effect on the very next tap, and no individual screen or endpoint has
+to remember to check. There are now tests for asking, answering, upvoting and accepting,
+including one that uses a session issued *before* the ban to prove the app trusts the database
+and not the login token.
+
+**One real thing was wrong, and it was the dangerous direction.** The ban lookup contained an
+escape hatch: if the ban table did not exist, it answered *"not banned"* and let registration
+continue. That was written deliberately back in July, when the lookup existed but the table did
+not yet — and it was correct until 8 August, when the table arrived. Left alone it would have
+become a permanent path where a database problem quietly readmits every banned person, with
+nothing reporting it. **Removed.** An unreadable ban table now stops registration loudly. A
+student who cannot sign up today is a problem someone fixes; a banned student who quietly gets
+back in is not.
+
+**One thing about matching that is worth knowing, because it is a deliberate trade.** A ban
+follows the address through capital letters (`First.Last@` = `first.last@`) and through
+`+tags`. It does **not** follow it through dots on a college domain — `first.last@` and
+`firstlast@` are treated as two different people. Gmail treats them as one; most college
+schemes do not, and collapsing them would refuse a real, different student. **The cost: if the
+launch campus does alias dots, a banned person returns by removing one.** The fix, if so, is to
+add that specific domain to the aliasing list — not to loosen matching for everyone. Written
+down here rather than left in a code comment, because it is your call, not the code's.
 
 **About T22 (done 8 August):** upvoting, and marking an answer as the one that solved it.
 
@@ -608,14 +635,15 @@ A test suite that can't run is worth less than one that runs and fails.
    guard.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
-3. **T23 and T24** — checking bans everywhere, and issuing one that survives account deletion.
-   T24 is what finally closes problem #7 above, which has been open by design since it had
-   nowhere to live.
+3. **T24** — actually issuing a ban, and making it survive someone deleting their account.
+   This is what finally closes problem #7 above, which has been open by design since the record
+   it needs had nowhere to live.
 4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 5. Then the rest of Milestone 3, plus fixing the remaining problems above.
 
 ~~T22 — upvoting and accepting~~ — **done 8 August**, including the reconciliation query T21
-required of it.
+required of it. ~~T23 — ban checks everywhere~~ — **done 8 August**, and it closed a fail-open
+path in the ban lookup.
 
 **Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
 questions, answers and the feed. Building *those* areas before it runs would just make its job

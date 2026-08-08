@@ -198,7 +198,9 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
     const fresh = await repo.findByAnyEmailHash(client, hashes);
     if (!fresh || fresh.verification_status !== "pending") throw invalidToken();
 
-    // A11 ban enforcement check (mechanism live from M1; real matches once ban_record lands, M3).
+    // A11 ban enforcement check. Live and fail-closed since T23: `ban_record` exists
+    // (migration 003), so an unreadable ban table now aborts registration instead of
+    // being read as "not banned" — see ban-check.ts.
     const ban = await checkBanByNormalizedEmail(client, normalized.normalized);
     if (ban.banned) {
       emit({ eventType: RegistrationEvents.REGISTRATION_REFUSED_BANNED });
