@@ -19,7 +19,6 @@ let closeDb: () => Promise<void>;
 let pool: import("pg").Pool;
 
 let student: SignedInUser;
-let topicId: string;
 
 beforeAll(async () => {
   process.env.EMAIL_HASH_PEPPER_ACTIVE ??= "v1:test-pepper";
@@ -41,8 +40,6 @@ beforeEach(async () => {
   await truncateAll();
   const { signIn } = await import("../helpers/auth.js");
   student = await signIn(app, "t32.student.24@nitj.ac.in");
-  const topic = await pool.query<{ id: string }>(`SELECT id FROM topic_tag WHERE slug='advice'`);
-  topicId = topic.rows[0]!.id;
 });
 
 afterAll(async () => {
@@ -56,28 +53,28 @@ async function runPass() {
   return runSyncReconciliationPass();
 }
 
-let n = 0;
 /** A queue row of a chosen age and status, planted directly. */
+// `secs`, not `hours`: make_interval's `hours` parameter is an int, and only `secs` is
+// double precision — CI refused "make_interval(hours => double precision)" outright.
 async function plant(opts: {
   ageHours: number;
   status?: string;
   entityType?: string;
   retryCount?: number;
 }): Promise<string> {
-  n += 1;
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO sync_queue_item
        (owner_profile_id, client_local_id, idempotency_key, entity_type, payload,
         client_created_at, sync_status, retry_count, created_at)
      VALUES ($1, gen_random_uuid(), gen_random_uuid(), $2, '{"title":"t"}'::jsonb, now(),
-             $3, $4, now() - make_interval(hours => $5::double precision))
+             $3, $4, now() - make_interval(secs => $5::double precision))
      RETURNING id`,
     [
       student.profile.id,
       opts.entityType ?? "question",
       opts.status ?? "pending",
       opts.retryCount ?? 0,
-      opts.ageHours,
+      opts.ageHours * 3600,
     ],
   );
   return rows[0]!.id;
