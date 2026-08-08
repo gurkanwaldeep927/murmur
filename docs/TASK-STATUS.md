@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 33 done · 1 half done · 38 not started · 5 waiting on something** *(= 77)*
+**Score so far: 34 done · 1 half done · 37 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -307,7 +307,7 @@ decide who is banned.
 
 | Task | In plain words | Status |
 |---|---|---|
-| T27 | Database tables for the offline outbox and saved drafts | ⬜ |
+| T27 | Database tables for the offline outbox and saved drafts | ✅ *(see below)* |
 | T28 | Save posts on the phone when offline, send them later | ⬜ |
 | T29 | Receive those saved posts, handle duplicates, check them for safety before publishing | ⬜ |
 | T30 | *(Designer — copy job)* The "sync status" screen | ⬜ |
@@ -316,6 +316,33 @@ decide who is banned.
 | T58 | Test proving no offline post is ever silently lost | ⬜ |
 | T68 | Speed test: what if everyone comes back online at once | ⬜ |
 | T67 | Kill the server mid-save, then restore from backup. **Needs a database we're allowed to destroy and rebuild** | 🔴 waiting |
+
+**About T27 (done 9 August):** the two tables the offline mode needs — the outbox, and saved
+drafts.
+
+**The design document contradicted itself, and copying it faithfully would have shipped the bug.**
+The schema document has two halves: a list of tables, and a list of the indexes those tables need.
+The index list says a student may have **one saved draft** — one for a question, one per question
+they're answering. The table list, which is the half a database change gets copied from, says
+nothing about it at all.
+
+Copying the table list alone would have produced autosave with nothing to overwrite: **every
+save inserts a new row.** A student writing one question would leave behind a draft for every few
+seconds of typing, and reopening the composer would face a pile of them with no sensible way to
+pick one. Nothing would have errored. The table would just have grown. Both indexes are in, with a
+test for each.
+
+**One thing about the replay guard that is easy to get backwards.** A phone that was offline
+invents its own id for each post. The rule is "the same id twice **from the same student** is a
+replay" — not "the same id twice, ever". Two different phones can independently invent the same
+id, and that is two different people, not a duplicate. Making it globally unique would have
+**refused a stranger's genuine post.** There is a test for both directions.
+
+**These two tables are the most sensitive in the product, and that changes how they were built.**
+Everything else stores things a student chose to publish. These store what they *haven't*: a post
+waiting for signal that no moderator has seen, and a half-written thought that may never be posted
+at all. So the same second lock that protects the complaints table is carried here too, and the
+comment saying why is deliberately blunt — so nobody removes it later as duplication.
 
 ---
 
@@ -862,9 +889,18 @@ T62's way (new tables, new endpoints, a background job); T37 cannot be. **So T62
 bottleneck, and it is waiting on one line from you** (item 1 below). Milestone 5 can go no further
 in the meantime.
 
-**What is still buildable without touching that surface:** T27 (the offline-outbox tables, M4) —
-a pure new-tables task of exactly the kind that has been safe in front of the gate all along.
-That is what gets picked up next if T62 stays closed.
+~~T27 — the offline-outbox and draft tables~~ — **done 9 August**, and it caught a contradiction
+between the design document's two halves.
+
+**T27 also unblocked the next one: T29** — receiving a batch of posts a phone wrote while it had
+no signal. It is a new endpoint that *calls* the existing "post a question" code rather than
+changing it, so it stays out of T62's way for the same reason T21 and T34 did. **That is what
+gets built next.**
+
+**What is genuinely stuck behind T62, and it is now most of the product:** T37, and through T37
+the whole rest of Milestone 5 (T35, T36, T41); plus T20 (search) and everything after it in
+Milestone 3. All of those change the code T62 is waiting to inspect. **Your one line in
+`.pipeline/unlock` now unblocks roughly half of what is left.**
 
 **Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
 questions, answers and the feed. Building *those* areas before it runs would just make its job
