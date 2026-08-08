@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 32 done · 1 half done · 39 not started · 5 waiting on something** *(= 77)*
+**Score so far: 33 done · 1 half done · 38 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -330,7 +330,7 @@ decide who is banned.
 | T35 | The moderator's tools: take down, dismiss, or escalate — every action logged | ⬜ |
 | T36 | A way for a moderator to decide on posts the AI flagged but nobody reported | ⬜ |
 | T37 | Moderator-only access — students get a polite "not allowed" | ⬜ |
-| T38 | Timers that chase the legal deadlines and alert the moderator | ⬜ |
+| T38 | Timers that chase the legal deadlines and alert the moderator | ✅ *(see below)* |
 | T39 | *(Designer — copy job)* 5 screens: report, my reports, contact info, queue, resolve | ⬜ |
 | T40 | Connect the 3 student-facing ones | ⬜ |
 | T41 | Connect the 2 moderator ones | ⬜ |
@@ -340,6 +340,50 @@ decide who is banned.
 | T70 | Full privacy audit — actually runs the data-deletion rules, not just reads them | ⬜ |
 | T71 | Check the app produces useful logs before launch | ⬜ |
 | T43 | *(Lawyer)* Confirm the legal deadlines and write the consent wording | 🔴 waiting on a lawyer |
+
+**About T38 (done 9 August):** the watchdog that chases the legal deadlines.
+
+**The task title asks for three timers. One of them should not exist, and building it anyway
+would have been the dangerous choice.** The "acknowledge within 24 hours" timer has nothing to
+count down to — T34 acknowledges every report in the same single write that creates it, so the
+deadline cannot be missed by anyone being slow. A countdown there would sit silent forever, and
+**that silence would have been read as compliance.** What it does instead: a report with no
+acknowledgement means the code that files reports is *broken*, so it is alerted the moment it is
+seen, at any age. There is a test that breaks one on purpose.
+
+**The "deadline approaching" warning is a percentage, not a number of hours.** This sounds like a
+detail and is not. A single fixed warning window cannot serve both clocks: "two days left" on a
+24-hour deadline fires *before the report was even filed*, and "six hours left" on a 15-day
+deadline arrives about ninety hours too late to do anything with. So the warning fires when **a
+quarter of that category's budget remains** — 6 hours on the fast clock, 3¾ days on the slow one.
+It stays correct on its own if the lawyer (T43) changes the deadlines.
+
+**A missed deadline gets one email, and a count on every single check.** One email, because an
+alert that repeats every five minutes is an alert people filter out. A count every check, because
+a breach nobody has acted on must not go quiet just because its one email was already sent. That
+number is what a monitoring rule (T71) watches.
+
+**Nothing is recorded as "sent" unless it was actually sent.** Right now the app has **nobody to
+send these to** — the officer's contact details are T42, which is yours, and no fallback address
+is set. So today every check finds the alerts, sends nothing, **writes nothing**, and logs one
+loud line saying it has no recipient. The alerts stay *due*: there is a test that adds an officer
+afterwards and watches them fire. Writing "the officer was notified" into a legal record when
+nobody was notified is worse than having no record at all.
+
+**The alert emails say almost nothing on purpose** — ticket number, category, deadline. No
+reported post, no reporter, no author. An operator's mailbox is a place things get forwarded from,
+and the whole promise of this product is that a post can't be traced back to a student. The
+officer opens the ticket in the console to see the rest. The test checks the actual text of the
+email, not just that one was sent.
+
+**Where the watchdog keeps its memory, and why it matters:** in the complaint's own audit trail,
+not in a new hidden field. "The officer was warned at 14:02" is exactly the kind of fact that
+belongs in a compliance record, and it means no database change was needed to build any of this.
+
+**What it costs you right now, plainly:** until **T42** (your task — the real grievance officer's
+name and contact), this entire watchdog can see the deadlines and can tell nobody about them. It
+is not broken and it is not silent — it says so on every check. But nothing reaches a human until
+that contact exists.
 
 **About T34 (done 9 August):** "report this post" — the ticket, and the clock attached to it.
 
@@ -804,17 +848,23 @@ path in the ban lookup. ~~T24 — issuing a ban~~ — **done 8 August**, closing
 ~~T34 — report a post~~ — **done 9 August**, and it closed a way of hiding a missed legal
 deadline that T33 had left open.
 
-**The next piece of code work is T35** — the moderator's tools: take down, dismiss or escalate,
-every action logged. Its one dependency (T34) is now done. It is deliberately *not* being started
-in the same breath as T34, because it needs one decision T34 did not make: T35 is "operator-only",
-and **nothing in this app knows what an operator is yet** — that is T37, a small task with no
-blockers, and building the resolve endpoint before the role exists would mean writing a permission
-check against a permission that does not exist. T37 first, then T35.
+~~T38 — the deadline watchdog~~ — **done 9 August**, and it deliberately did not build one of the
+three timers its own title asks for, because that one could never fire.
 
-**And a caution that applies to both:** T37 changes the session gate, which is the exact surface
-T62 is waiting to inspect. That is why T37 has been left until now rather than picked up as easy
-work — the same rule that kept T20 (search) parked. **T62 is still blocked on one line from you**
-(see item 1 below), and it is now blocking more than it was.
+**Everything left in Milestone 5 needs the same missing thing: the app does not know what an
+operator is.** T35 (the moderator's tools), T36 (deciding on AI-flagged posts) and T41 (the
+moderator screens) are all "operator-only", and there is no such thing as an operator yet. That
+is **T37**, a small task with no blockers.
+
+**And T37 is the one thing that cannot be built in front of T62.** It changes the session gate —
+the exact code T62 is waiting to inspect. Every task built so far has been chosen to stay out of
+T62's way (new tables, new endpoints, a background job); T37 cannot be. **So T62 is now the real
+bottleneck, and it is waiting on one line from you** (item 1 below). Milestone 5 can go no further
+in the meantime.
+
+**What is still buildable without touching that surface:** T27 (the offline-outbox tables, M4) —
+a pure new-tables task of exactly the kind that has been safe in front of the gate all along.
+That is what gets picked up next if T62 stays closed.
 
 **Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
 questions, answers and the feed. Building *those* areas before it runs would just make its job
