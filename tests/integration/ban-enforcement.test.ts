@@ -66,14 +66,22 @@ async function banEmail(raw: string, reason = "harassment"): Promise<void> {
   ]);
 }
 
-/** Drive A1 + A2 and return the confirm response, whatever its outcome. */
+/**
+ * Drive A1 + A2 and return the confirm response, whatever its outcome.
+ *
+ * The OTP is looked up by the NORMALIZED address, not the one the caller typed. A1
+ * normalizes before sending, so a plus-addressed sign-up stores its token under the
+ * stripped address — looking it up by the raw string finds nothing, which is exactly how
+ * the first run of this suite failed.
+ */
 async function tryRegister(email: string) {
   await request(app).post("/verification/initiate").send({ email });
   const { memoryEmailProvider } = await import(
     "../../server/src/modules/notification/email-provider.js"
   );
-  const otp = memoryEmailProvider?.lastToken(email.toLowerCase());
-  if (!otp) throw new Error(`no OTP captured for ${email} — is EMAIL_PROVIDER=memory?`);
+  const key = normalizeEmail(email)?.normalized ?? email.toLowerCase();
+  const otp = memoryEmailProvider?.lastToken(key);
+  if (!otp) throw new Error(`no OTP captured for ${key} — is EMAIL_PROVIDER=memory?`);
   return request(app).post("/verification/confirm").send({ email, token: otp });
 }
 
@@ -123,8 +131,13 @@ describe("A11 — a banned address cannot register again", () => {
     // The cost is real and belongs on the record: if a campus DOES alias dots, a banned
     // person returns by removing one. Closing that means adding the domain to that set
     // after the founder confirms the scheme (T6) — not loosening the matcher globally.
+    //
+    // The address keeps its ".24" ending: the T6 year rule reads the year as the final
+    // DOT-SEPARATED token, so "firstlast24@" would be refused for an unparseable year and
+    // this test would pass for entirely the wrong reason. Only the dot between the name
+    // parts is removed, which is the difference actually under test.
     await banEmail("first.last.24@nitj.ac.in");
-    const res = await tryRegister("firstlast24@nitj.ac.in");
+    const res = await tryRegister("firstlast.24@nitj.ac.in");
     expect(res.status).toBe(200);
   });
 
