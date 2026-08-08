@@ -10,7 +10,7 @@ import {
 import { encryptEmail } from "../../shared/email-encryption.js";
 import { issueBootstrapToken } from "../../shared/session.js";
 import { logger } from "../../shared/logger.js";
-import { emit } from "../analytics/analytics.service.js";
+import { emit, type AnalyticsEventInput } from "../analytics/analytics.service.js";
 import { createProfile, type PublicProfile } from "../profile/profile.repo.js";
 import { emailProvider } from "../notification/email-provider.js";
 import * as repo from "./identity.repo.js";
@@ -209,7 +209,27 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
     throw invalidToken();
   }
 
-  return withTransaction(async (client) => {
+  /**
+   * Events raised INSIDE the transaction below, emitted after it commits.
+   *
+   * Found by T45's first test of this path, and it was a live defect rather than a test
+   * artifact. `emit()` is fire-and-forget on the shared pool, so its INSERT runs on a
+   * DIFFERENT connection and does not wait for this transaction — and `analytics_event`
+   * has a foreign key to `pseudonymous_profile`. Emitting `activation.profile_created`
+   * beside the profile insert therefore races the COMMIT that makes that profile visible,
+   * loses, and violates the foreign key. `emit` swallows its own errors by contract (A12),
+   * so the row was simply never written and nothing said so: **activation, the metric this
+   * whole task exists to produce, was silently dropping the successful registrations it is
+   * supposed to count.**
+   *
+   * Deferring also makes the other three honest. An event for a transaction that rolled back
+   * is a lie, and every one of these describes something that only happened if it committed.
+   * The same reasoning is already written into `content.service.ts` and the moderation retry
+   * job; this path predates both.
+   */
+  const deferred: AnalyticsEventInput[] = [];
+
+  const result = await withTransaction<ConfirmResult>(async (client) => {
     // Re-read inside the transaction: the checks above ran on a separate connection, so
     // this is what makes two concurrent confirms of the same valid code produce one
     // verified account rather than two profiles.
@@ -221,7 +241,7 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
     // being read as "not banned" — see ban-check.ts.
     const ban = await checkBanByNormalizedEmail(client, normalized.normalized);
     if (ban.banned) {
-      emit({ eventType: RegistrationEvents.REGISTRATION_REFUSED_BANNED });
+      deferred.push({ eventType: RegistrationEvents.REGISTRATION_REFUSED_BANNED });
       return { outcome: "refused_banned" };
     }
 
@@ -229,7 +249,7 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
     const parsed = parseEnrollmentYear(normalized);
     if (parsed.year === null) {
       await repo.markBlockedUnparseable(client, fresh.id);
-      emit({
+      deferred.push({
         eventType: RegistrationEvents.VERIFICATION_BLOCKED_YEAR,
         metadata: { noRuleForDomain: parsed.noRuleForDomain },
       });
@@ -238,12 +258,19 @@ export async function confirmVerification(rawEmail: string, otp: string): Promis
 
     await repo.markVerified(client, fresh.id, parsed.year);
     const profile = await createProfile(client, fresh.id, String(parsed.year));
-    emit({ eventType: RegistrationEvents.VERIFICATION_CONFIRMED, actorProfileId: profile.id });
-    emit({ eventType: RegistrationEvents.ACTIVATED, actorProfileId: profile.id });
+    deferred.push(
+      { eventType: RegistrationEvents.VERIFICATION_CONFIRMED, actorProfileId: profile.id },
+      { eventType: RegistrationEvents.ACTIVATED, actorProfileId: profile.id },
+    );
     // 15-minute bootstrap credential, not the session itself: the client trades it at
     // POST /session/exchange (T12, decisions/oq-14-session-mechanism.md §2). The field
     // name is T8's and stays as-is so the A2 response shape never changed.
     const sessionToken = issueBootstrapToken(profile.id);
     return { outcome: "verified", profile, sessionToken };
   });
+
+  // Only reached when the transaction committed; a throw propagates and emits nothing, which
+  // is the whole point.
+  for (const event of deferred) emit(event);
+  return result;
 }

@@ -101,7 +101,7 @@ describe("the top of the funnel", () => {
     const { config } = await import("../../server/src/config/index.js");
     await pool.query(
       `UPDATE identity_account
-          SET verification_token_sent_at = now() - make_interval(secs => $1::double precision)`,
+          SET last_verification_sent_at = now() - make_interval(secs => $1::double precision)`,
       [config.verificationResendCooldownSeconds + 5],
     );
     await initiate(OK);
@@ -171,7 +171,9 @@ describe("the branches that produce no account, which are the ones a refactor dr
     await banEmail(banned);
     await initiate(banned);
     const res = await confirm(banned, await otpFor(banned));
-    expect(res.body.outcome).toBe("refused_banned");
+    // The route deliberately answers "refused" without saying why — telling a banned caller
+    // that they are banned is an oracle. The EVENT is where the reason is recorded.
+    expect(res.body.outcome).toBe("refused");
 
     expect(await waitForEvents(pool, "registration.refused_banned")).toHaveLength(1);
     expect(await readEvents(pool, "activation.profile_created")).toHaveLength(0);
