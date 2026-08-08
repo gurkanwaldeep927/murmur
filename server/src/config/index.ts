@@ -258,6 +258,18 @@ export const config = {
   grievanceAlertEmail: optional("GRIEVANCE_ALERT_EMAIL", ""),
   grievanceSlaIntervalSeconds: intOpt("GRIEVANCE_SLA_INTERVAL_SECONDS", 300),
 
+  /**
+   * T32 — the offline-queue reconciliation audit.
+   *
+   * `[ASSUMPTION]` on both figures; no upstream document sets a window. 24 hours is chosen to
+   * be longer than any plausible "the phone was in a lecture hall with no signal" gap, so a
+   * normally-behaving client never appears in the report — an audit that routinely flags
+   * healthy items is one people learn to ignore, which is the same alert-fatigue failure the
+   * grievance alerts are shaped around.
+   */
+  syncStuckAfterSeconds: intOpt("SYNC_STUCK_AFTER_SECONDS", 24 * 60 * 60),
+  syncReconcileIntervalSeconds: intOpt("SYNC_RECONCILE_INTERVAL_SECONDS", 900),
+
   // T14a — Moderation Gateway. Deliberately DEFAULTS TO EMPTY.
   //
   // Empty means "no provider configured", which resolves to the hold-all adapter:
