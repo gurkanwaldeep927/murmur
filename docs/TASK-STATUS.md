@@ -6,6 +6,12 @@ A simple map of all 77 tasks: what each one actually *means*, whether it's finis
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
 this file is the human-readable one.
 
+**Interactive version:** <https://claude.ai/code/artifact/fbb2c323-e656-4583-bab6-640db91d76db>
+— the same 77 tasks as a filterable board with per-task explanations, built from
+`docs/task-board.html`. It is a *view*: ticking a box there is a personal note stored in that
+browser. **This file remains the source of truth**, and a real status change is still an edit
+here, in the same turn as the work.
+
 **Score so far: 26 done · 1 half done · 45 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
