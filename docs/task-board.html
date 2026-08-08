@@ -1164,12 +1164,13 @@
 
     // ---------------- Milestone 5 ----------------
     {
-      id: "T33", ms: "M5", size: "S", lane: "code", kind: "build", status: "todo",
+      id: "T33", ms: "M5", size: "S", lane: "code", kind: "build", status: "done",
       title: "Database tables for complaints and their audit trail",
       deps: ["T4"], trace: "schema:tables[grievance_report, grievance_audit_log, grievance_officer_contact]",
       what: "Migration 005: the complaint itself (including a generated column that marks when its legal deadline has passed), an append-only log of every action taken on it, and the published contact details of the grievance officer.",
       why: "Indian IT Rules 2021 require a named grievance officer and a tracked, time-bound complaints process. The audit log is not a nice-to-have — being unable to show who did what and when is itself the compliance failure.",
-      done: "Migration applies and rolls back; the deadline-breached flag computes itself from the timestamps."
+      done: "Migration applies and rolls back; the deadline-breached flag computes itself from the timestamps.",
+      note: "Done 8 August. The breach flag is a GENERATED column: no code path can forget to set it and none can un-set it — a test writes to it directly and the database refuses. An overdue but unresolved report reads as not breached, because a breach is a fact about when it was actually resolved. Anonymity is stored rather than styled: an anonymous report keeps no reporter id at all, so no future query can undo it. The audit log constrains actor_type to reporter/operator/system, because telling an operator action from an automatic one is the whole value of the log. Carries its own RLS and grant revoke, same apply-order trap as migration 003."
     },
     {
       id: "T34", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
