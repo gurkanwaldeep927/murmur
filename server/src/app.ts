@@ -10,6 +10,7 @@ import { sessionRouter } from "./modules/session/session.routes.js";
 import { contentRouter } from "./modules/content/content.routes.js";
 import { reputationRouter } from "./modules/reputation/reputation.routes.js";
 import { grievanceRouter } from "./modules/grievance/grievance.routes.js";
+import { syncRouter } from "./modules/sync/sync.routes.js";
 import { pool } from "./db/pool.js";
 
 /**
@@ -75,6 +76,8 @@ export function createApp() {
   app.use(reputationRouter);
   // M5 — grievance: A8 report intake (T34). A9 resolve arrives with T35.
   app.use(grievanceRouter);
+  // M4 — offline write queue: A10 batch sync (T29).
+  app.use(syncRouter);
 
   // 404 fallback.
   app.use((_req, _res, next) => next(errors.notFound("Route not found")));

@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 34 done · 1 half done · 37 not started · 5 waiting on something** *(= 77)*
+**Score so far: 35 done · 1 half done · 36 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -309,13 +309,75 @@ decide who is banned.
 |---|---|---|
 | T27 | Database tables for the offline outbox and saved drafts | ✅ *(see below)* |
 | T28 | Save posts on the phone when offline, send them later | ⬜ |
-| T29 | Receive those saved posts, handle duplicates, check them for safety before publishing | ⬜ |
+| T29 | Receive those saved posts, handle duplicates, check them for safety before publishing | ✅ *(see below)* |
 | T30 | *(Designer — copy job)* The "sync status" screen | ⬜ |
 | T31 | Show the honest status of each post: waiting → sending → checking → live / blocked | ⬜ |
 | T32 | A watchdog that alerts if any post gets stuck forever | ⬜ |
 | T58 | Test proving no offline post is ever silently lost | ⬜ |
 | T68 | Speed test: what if everyone comes back online at once | ⬜ |
 | T67 | Kill the server mid-save, then restore from backup. **Needs a database we're allowed to destroy and rebuild** | 🔴 waiting |
+
+**About T29 (done 9 August):** receiving the posts a phone wrote while it had no signal.
+
+**The whole design turns on one distinction: is this failure permanent, or is it "try again"?**
+Get it backwards and a student loses a post they never did anything wrong with.
+
+- **Permanent** — the topic doesn't exist; the question this answer replies to was itself
+  refused; you voted on your own answer. None of these become true later, so the post is marked
+  refused and the phone can stop carrying it.
+- **Try again** — a database hiccup, a rate limit, an unexpected error. The post was never going
+  to be refused. Marking it "refused" would *destroy* it. These stay queued with the attempt
+  counted.
+
+The list of permanent reasons is a **list of what IS permanent**, not a list of what isn't. So a
+reason nobody has classified yet falls through to "try again". The cost of forgetting one is a
+post that arrives a batch later; the cost of the other arrangement is a post thrown away.
+
+**One bad post does not cost you the other thirty-nine.** There is no all-or-nothing here — each
+item in the batch reports its own outcome. The technical spec is unusually blunt about this
+("partial-batch failure is expected, not exceptional") and the code is shaped around it.
+
+**Posts sent this way cannot skip the safety check — not because something checks, but because
+there is no other road.** Sync doesn't have its own way to publish anything; it calls the exact
+same "post a question" code the app uses when online. The test proves it by making the safety
+checker return a specific verdict, which only happens if the checker actually ran.
+
+**The hard case, and the one the outbox table exists for.** You're offline. You write a question,
+then write an answer to your own question. Neither exists on the server yet — so the answer can
+only refer to its question by the id **your phone made up**. The server now translates: it
+processes them oldest-first, so the question gets a real id, and the answer finds it. If the
+question was refused, the answer is refused too. If the question just hasn't landed yet, the
+answer **waits** — it isn't refused, because its only problem is where it sits in a queue.
+
+**A hole closed while building it:** the limit on how many reports one person can file lives on
+the "report" endpoint. Sync doesn't go through that endpoint — so offline reporting would have
+been a way around the limit entirely. It's now checked here too, and being over the limit counts
+as "try again", not "refused".
+
+**One thing done differently from the spec, deliberately.** The spec lists "banned user" as a
+per-post rejection reason. A ban applies to the *person*, not to a post, so the whole batch is
+refused at the door instead — by the same gate every other signed-in route uses. Writing a
+second ban check to produce a prettier response is exactly the duplication that gate exists to
+prevent. **This puts a job on whoever builds the phone side (T28):** a "you're banned" response
+must make the phone stop retrying, not keep the queue forever. It's written down in the code,
+because no response body can say it.
+
+**And something recorded rather than faked.** The design allows for a "conflict" outcome —
+two versions of the same thing, newest wins. **It can never happen today**, because every kind
+of thing the queue can carry is a *new* post, never an *edit* — and nothing in the entire plan
+builds editing. Rather than leave that as a comment, there's a test asserting no conflict is ever
+produced. It will start failing the day editing arrives, which is exactly when someone needs to
+design that rule instead of assuming it was already handled.
+
+**A flaky test found and fixed on the way, and it matters more than it looks.** The usage-stats
+writes are deliberately "fire and forget" — they're allowed to finish *after* the app has already
+replied, so that recording a statistic can never slow down or break a student's post. But that
+means a test which deletes an account can be beaten by a stats write still in the air, and it
+fails on something unrelated to what it was testing. It did exactly that, **intermittently** —
+which is the worst kind, because it teaches everyone to just re-run instead of reading. There's
+now a way to wait for those writes to land, used by the tests. **The same thing will be needed
+twice more:** by a proper shutdown (so a deploy doesn't discard the last few seconds of
+statistics), and by the real account-deletion work in T70.
 
 **About T27 (done 9 August):** the two tables the offline mode needs — the outbox, and saved
 drafts.
@@ -892,10 +954,14 @@ in the meantime.
 ~~T27 — the offline-outbox and draft tables~~ — **done 9 August**, and it caught a contradiction
 between the design document's two halves.
 
-**T27 also unblocked the next one: T29** — receiving a batch of posts a phone wrote while it had
-no signal. It is a new endpoint that *calls* the existing "post a question" code rather than
-changing it, so it stays out of T62's way for the same reason T21 and T34 did. **That is what
-gets built next.**
+~~T29 — receiving the offline queue~~ — **done 9 August**, and it closed a way around the
+report limit plus a flaky test that had been teaching everyone to re-run instead of read.
+
+**T29 in turn unblocks T32** — the watchdog that notices if any queued post gets stuck forever.
+The query it needs is already written and already tested (T29 shipped it, because a claim like
+"nothing is ever silently lost" is worth nothing without the query that could disprove it). T32
+is the alerting around it. **That is next**, and it is also a background job, so it stays clear
+of T62.
 
 **What is genuinely stuck behind T62, and it is now most of the product:** T37, and through T37
 the whole rest of Milestone 5 (T35, T36, T41); plus T20 (search) and everything after it in
