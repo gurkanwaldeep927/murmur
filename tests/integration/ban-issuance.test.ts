@@ -18,8 +18,12 @@ import { auth, type SignedInUser } from "../helpers/auth.js";
  * no account-deletion endpoint. There is no DELETE /account and no erasure route — checked
  * against the route table, not assumed — and no task in docs/07-plan.md builds one, even
  * though T57 is specified as "delete account → re-register → refused". The gap is recorded
- * in TASK-STATUS and decisions/t24-ban-issuance-policy.md §5. So this test performs the
- * soft delete directly, exactly as an erasure path would, and does not pretend otherwise.
+ * in TASK-STATUS and decisions/t24-ban-issuance-policy.md §5. So these tests remove the rows
+ * directly and do not pretend otherwise — and they distinguish the two shapes an erasure could
+ * take, because only one of them lets the ban be the thing that refuses:
+ *
+ *   soft delete (flag the row) -> A1 refuses first, on the address already existing;
+ *   hard erase  (remove it)    -> A1 accepts, and the A11 ban check is what refuses.
  *
  * Requires DATABASE_URL pointing at a DISPOSABLE test Postgres — the harness truncates.
  */
@@ -72,6 +76,21 @@ async function softDeleteAccount(profileId: string): Promise<void> {
   );
   await pool.query(`UPDATE pseudonymous_profile SET deleted_at = now() WHERE id = $1`, [
     profileId,
+  ]);
+}
+
+/**
+ * What a DPDP erasure will do once it exists: the identity row is gone, not flagged.
+ * Only then does A1 accept the address again and the A11 ban check get to speak.
+ */
+async function hardEraseAccount(profileId: string): Promise<void> {
+  const { rows } = await pool.query<{ identity_account_id: string }>(
+    `SELECT identity_account_id FROM pseudonymous_profile WHERE id = $1`,
+    [profileId],
+  );
+  await pool.query(`DELETE FROM pseudonymous_profile WHERE id = $1`, [profileId]);
+  await pool.query(`DELETE FROM identity_account WHERE id = $1`, [
+    rows[0]!.identity_account_id,
   ]);
 }
 
@@ -183,21 +202,6 @@ describe("banning twice", () => {
 });
 
 describe("the ban outlives the account — problem #7", () => {
-  it("refuses re-registration with the same address after the account is deleted", async () => {
-    await ban(offender.profile.id, "the reason they were removed");
-    await softDeleteAccount(offender.profile.id);
-
-    // Sanity: the account really is gone as far as the app is concerned.
-    const gone = await pool.query<{ n: string }>(
-      `SELECT count(*) AS n FROM identity_account WHERE deleted_at IS NULL`,
-    );
-    expect(gone.rows[0]!.n).toBe("0");
-
-    const res = await tryRegister(OFFENDER);
-    expect(res.status).toBe(403);
-    expect(res.body.outcome).toBe("refused");
-  });
-
   it("keeps the ban row itself through the deletion", async () => {
     await ban(offender.profile.id);
     await softDeleteAccount(offender.profile.id);
@@ -205,23 +209,53 @@ describe("the ban outlives the account — problem #7", () => {
     expect(rows[0]!.n).toBe("1");
   });
 
-  it("still refuses a capitalised or plus-addressed retry after deletion", async () => {
-    // Deleting and coming back under a cosmetic variant is the obvious next attempt.
-    await ban(offender.profile.id);
-    await softDeleteAccount(offender.profile.id);
+  it("refuses re-registration after a HARD erasure — the ban is what stops them", async () => {
+    // This is the real problem-#7 proof, and it needs the identity row actually gone.
+    // With the row merely soft-deleted (the test below), A1 refuses first and the ban check
+    // never runs — so a soft-delete test would "pass" while proving nothing about the ban.
+    await ban(offender.profile.id, "the reason they were removed");
+    await hardEraseAccount(offender.profile.id);
 
-    const capitalised = await tryRegister("Offender.Student.24@NITJ.ac.in");
-    expect(capitalised.status).toBe(403);
-    const plussed = await tryRegister("offender.student.24+again@nitj.ac.in");
-    expect(plussed.status).toBe(403);
+    const remaining = await pool.query<{ n: string }>(
+      `SELECT count(*) AS n FROM identity_account`,
+    );
+    expect(remaining.rows[0]!.n).toBe("0");
+
+    const res = await tryRegister(OFFENDER);
+    expect(res.status).toBe(403);
+    expect(res.body.outcome).toBe("refused");
   });
 
-  it("lets an unrelated student register after the deletion", async () => {
-    // The negative half: the ban must not become a blanket refusal.
+  it("still refuses a capitalised or plus-addressed retry after erasure", async () => {
+    await ban(offender.profile.id);
+    await hardEraseAccount(offender.profile.id);
+
+    expect((await tryRegister("Offender.Student.24@NITJ.ac.in")).status).toBe(403);
+    expect((await tryRegister("offender.student.24+again@nitj.ac.in")).status).toBe(403);
+  });
+
+  it("lets an unrelated student register after the erasure", async () => {
+    // The negative half: a ban must not become a blanket refusal.
+    await ban(offender.profile.id);
+    await hardEraseAccount(offender.profile.id);
+    expect((await tryRegister("innocent.student.25@nitj.ac.in")).status).toBe(200);
+  });
+
+  it("refuses a SOFT-deleted address truthfully rather than crashing", async () => {
+    // Found by this suite on 2026-08-08. A soft-deleted account is invisible to A1's
+    // duplicate check (which filters deleted_at IS NULL) but still holds the UNIQUE index
+    // on email_hash, so the insert raised 23505 and the caller got a 500 — and the A2 ban
+    // check never ran at all.
+    //
+    // The refusal is `email_already_registered`, NOT the ban: with the row still present,
+    // the prior account is what stops them. Asserting the code, not just the status, is the
+    // difference between proving that and assuming it.
     await ban(offender.profile.id);
     await softDeleteAccount(offender.profile.id);
-    const res = await tryRegister("innocent.student.25@nitj.ac.in");
-    expect(res.status).toBe(200);
+
+    const res = await request(app).post("/verification/initiate").send({ email: OFFENDER });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("email_already_registered");
   });
 });
 

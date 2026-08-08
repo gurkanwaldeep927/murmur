@@ -167,6 +167,15 @@ gets revisited instead of quietly drifting.
 can hold and block their posts one at a time, but a repeat offender stays. That is the real
 state of the product.
 
+**A crash found and fixed on the way.** Deleting an account and then trying to sign up again
+with the same address returned a **500 error** — the app crashed. The sign-up check ignores
+deleted accounts, but the database still reserves the address, so the insert collided and
+nobody caught it. It now returns the honest "this email is already registered" instead. It
+also means something more important: **the ban check never even ran** for a deleted account —
+the crash happened first. Whether an *erased* address may ever be reused is a legal question
+(T43/T70), deliberately not decided here; this only stops a crash from standing in for an
+answer.
+
 **A gap in the plan, found while doing this and worth your attention:** *there is no way to
 delete an account.* No screen, no endpoint, nothing — and no task in the plan builds one. But
 T57 (Milestone 3) is written as "delete account → try to rejoin → refused", and the privacy
