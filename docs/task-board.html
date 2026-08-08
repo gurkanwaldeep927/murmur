@@ -854,13 +854,14 @@
       done: "Events land in the table, and breaking the ingest endpoint on purpose does not break sign-up."
     },
     {
-      id: "T45", ms: "M1", size: "S", lane: "code", kind: "build", status: "half",
+      id: "T45", ms: "M1", size: "S", lane: "code", kind: "build", status: "done",
       title: "Record the sign-up funnel specifically",
       deps: ["T10", "T44"], trace: "PRD:p0[R8], UX:flows[F8]",
       what: "Drop event markers across the sign-up screens so you can later count how many people started, how many finished, and where the rest fell out.",
       why: "'Registration penetration' and 'activation' are two of the six numbers the product promises to report. Without markers at these three points they are uncountable, not merely unmeasured.",
       done: "Every step of the funnel emits an event, and T46 can compute the funnel from them alone.",
-      note: "Marked half done: the registration and activation events exist in registration-events.ts, but the full metric derivation is T46 at Milestone 6. Because a half-done dependency does not count as met, this is what keeps T46 out of 'actionable now'."
+      note: "Marked half done: the registration and activation events exist in registration-events.ts, but the full metric derivation is T46 at Milestone 6. Because a half-done dependency does not count as met, this is what keeps T46 out of 'actionable now'.",
+      note: "Done 9 August, and it found a LIVE BUG in the product rather than a problem in the test. The events themselves were written back in M1; nothing had ever checked they fire - the same hole T51 found in the M2 hooks, where the only mention of the analytics table in the whole suite was the line that empties it. The first test of this path caught it: activation.profile_created was emitted INSIDE the account-creating transaction, but emit() is fire-and-forget on the shared pool, so its INSERT runs on a DIFFERENT connection and does not wait for the COMMIT that makes the profile visible. It violated the foreign key to pseudonymous_profile and was swallowed by A12's fire-and-forget contract. Activation - one of the six metrics the product promises - was silently dropping every successful registration it exists to count, and would have read ZERO for ever while people signed up normally. All four A2 events now emit after the transaction commits, which also makes the other three honest, since an event for a rolled-back transaction is a lie. Every dead-end branch is now tested, including the three that create no account, because those are exactly the ones a refactor drops. The exhausted-guess-budget event carries NO actor, deliberately: whoever burned the budget may not be the address's owner, and attributing it would put an attacker's behaviour on a real student's record. No email address appears anywhere in the stored rows, asserted against the stored bytes rather than the code that stored them. Plus a static check the allowlist's own comment asks for and cannot enforce: every emitEvent name in client/src is one the server accepts."
     },
     {
       id: "T55", ms: "M1", size: "S", lane: "code", kind: "test", status: "done",
@@ -1088,12 +1089,13 @@
 
     // ---------------- Milestone 4 ----------------
     {
-      id: "T27", ms: "M4", size: "S", lane: "code", kind: "build", status: "todo",
+      id: "T27", ms: "M4", size: "S", lane: "code", kind: "build", status: "done",
       title: "Database tables for the offline outbox and saved drafts",
       deps: ["T4"], trace: "schema:tables[sync_queue_item, content_draft]",
       what: "Migration 004: sync_queue_item (a post written offline, waiting to be sent) and content_draft (a half-written post saved as you type).",
       why: "These two are different things and are kept apart on purpose. A draft is yours and may never be sent; a queued item has been sent as far as the student is concerned and must reach a terminal state.",
-      done: "Migration applies and rolls back with its enums and indexes."
+      done: "Migration applies and rolls back with its enums and indexes.",
+      note: "Done 9 August. Migration 004 takes the empty 004 slot, so it runs between 003 and 005 on a fresh database and LAST on the live one - migration 008's security sweep will never see these two, so 004 carries its own RLS and grant revoke. That matters more here than anywhere else: these tables hold text a student wrote and did NOT publish - a queued post no moderator has seen, and a half-finished thought that may never be posted at all. FOUND HERE: the frozen schema contradicts itself. Section 5's index table requires content_draft to be partial-unique per entity type; section 4's DDL block - the half a migration gets copied from - declares no content_draft index at all. Copying the DDL alone would have shipped autosave with nothing to upsert against: a new row on every save, silently, for ever, and a pile of drafts with no defensible way to pick one. Both indexes added, with a test each. The answer index depends on the existing CHECK for its correctness, which is worth knowing: two NULL parents would not conflict in Postgres, so without 'an answer draft must have a parent' the uniqueness would quietly not hold."
     },
     {
       id: "T28", ms: "M4", size: "L", lane: "code", kind: "build", status: "todo",
@@ -1105,12 +1107,13 @@
       note: "The idempotency key is generated on the device, before the first attempt. That is what makes 'sent twice because the retry succeeded too' impossible rather than unlikely."
     },
     {
-      id: "T29", ms: "M4", size: "L", lane: "code", kind: "build", status: "todo",
+      id: "T29", ms: "M4", size: "L", lane: "code", kind: "build", status: "done",
       title: "Receive those saved posts, handle duplicates, check them for safety",
       deps: ["T14a", "T15", "T27"], trace: "TRD:apis[A10], PRD:p0[R6], TRD:risks[LWW]",
       what: "The A10 batch-sync endpoint: each item gets its own terminal result (synced, conflict or rejected), replaying the same batch changes nothing, last-write-wins is scoped to free text only — never to reputation or ban state — and every synced item re-enters the moderation gate before it can publish.",
       why: "This is the second publish path, and the one most likely to accidentally skip the gate: the post was written hours ago, it feels already-sent, and the temptation is to just insert it. Routing it back through moderation is non-negotiable (R6).",
-      done: "Every item in a batch reports its own outcome, replaying is a no-op, and nothing publishes without a fresh moderation decision."
+      done: "Every item in a batch reports its own outcome, replaying is a no-op, and nothing publishes without a fresh moderation decision.",
+      note: "Done 9 August. Built around one distinction: a failure is TERMINAL or TRANSIENT, and treating a transient one as terminal destroys a post that was never going to be refused. Terminal codes are an allowlist rather than a denylist, so an unclassified code falls through to retry - a forgotten entry costs a batch, the other arrangement costs the student their post. No batch-wide transaction anywhere, because partial-batch failure is the normal case here: one typo'd topic must not cost the other thirty-nine posts the phone was holding. Sync cannot bypass moderation structurally rather than by a check - it calls A3/A4 and has no publish path of its own, asserted through the fixture provider's own marker, which only takes effect if the gateway actually ran. An answer written offline to a question also written offline resolves its parent through the outbox's ID mapping; if the parent was rejected the child is rejected, and if the parent is merely still queued the child stays PENDING, because its only problem is its position in a queue. Closed on the way: offline reporting bypassed the per-profile report ceiling entirely, since that limiter is middleware on POST /reports and nothing in this path goes through it. Recorded rather than faked: the 'conflict' status is unreachable, because every queueable entity is a CREATE and nothing in the plan builds editing - with a test that will start failing the day it does. A banned caller is refused as a whole batch, which puts an obligation on T28: a 403 must end the queue, not retry it."
     },
     {
       id: "T30", ms: "M4", size: "S", lane: "design", kind: "build", status: "todo",
@@ -1118,7 +1121,8 @@
       deps: ["T9"], trace: "UI:components[SyncStatusList]",
       what: "Design round 4 — prompt §3.12. Copy job: S12 already exists.",
       why: "Gates T31. Pullable today.",
-      done: "SyncStatusList is in client/src/components/."
+      done: "SyncStatusList is in client/src/components/.",
+      note: "BRIEF WRITTEN AND WAITING FOR YOU, 9 August: docs/design-prompts/T30-sync-status.md. Written after the backend was finished, so the design is drawn against what the server actually produces rather than against a guess - which is what round 3 had to correct. It carries three things the design would otherwise get wrong. First: sync status and moderation status are TWO questions, not one chain - a post can have arrived at the server and still be blocked, and it can wait for review for days. Second: a 'waiting on something else' state the UX spec never anticipated, where an offline answer to an offline question is held rather than refused, and which must not read as an error. Third: the 'conflict' state the spec lists CANNOT HAPPEN, because nothing in this product can be edited - so it is explicitly asked not to be drawn. It also asks for a screen that exists nowhere: a banned student's queued posts are refused as a whole batch and will never send, so the phone must stop trying. Deliberately not asked for: a retry button (duplicates automatic behaviour), a delete-from-queue (no backend supports it), or any time estimate anywhere."
     },
     {
       id: "T31", ms: "M4", size: "M", lane: "code", kind: "build", status: "todo",
@@ -1129,12 +1133,13 @@
       done: "The state a student sees always matches the state the server holds, including the unglamorous ones."
     },
     {
-      id: "T32", ms: "M4", size: "S", lane: "code", kind: "build", status: "todo",
+      id: "T32", ms: "M4", size: "S", lane: "code", kind: "build", status: "done",
       title: "A watchdog that alerts if a post gets stuck forever",
       deps: ["T29"], trace: "TRD:nfrs[offline sync reliability]",
       what: "A background job that scans for any queued item still in a non-terminal state past a time limit, and raises an alert when it finds one.",
       why: "This is the lesson of RES-3 applied in advance. The dangerous failure is not the loud one — it is the post that quietly sits invisible with nobody watching. Something has to be counting.",
-      done: "Deliberately wedge an item and the alert fires."
+      done: "Deliberately wedge an item and the alert fires.",
+      note: "Done 9 August. Every test plants a stuck item on purpose, because an all-clear from a check nobody has ever seen fail is not evidence - the third time that lesson has been applied here. It audits 'syncing' as well as 'pending': nothing sets 'syncing' today, which is precisely why, since a state never written is one nobody would notice being written by mistake and never cleared. It deliberately does NOT retry. The payload is stored, so the server could re-drive a stuck item without the phone ever coming back, and for an owner who uninstalled the app that is the only thing that would ever finish it - but a post appearing under a student's name days later, at a moment they did not choose, is a product decision and not a reconciliation detail, and the give-up rule it needs exists in no upstream document. The cost is stated rather than hidden: an item whose client never returns stays counted for ever. It also does NOT email anyone. Unlike the grievance alerts, which have a recipient the law requires to exist, a stuck queue item has no mandated audience and no configured one, and inventing an ops mailbox nobody monitors would look like alerting while being nothing of the kind. It emits the structured line an alert rule reads; T71 is the task that turns that into something reaching a human. Until then it is visible in the logs and nowhere else - which is said out loud in the job itself."
     },
     {
       id: "T58", ms: "M4", size: "S", lane: "code", kind: "test", status: "todo",
@@ -1173,12 +1178,13 @@
       note: "Done 8 August. The breach flag is a GENERATED column: no code path can forget to set it and none can un-set it — a test writes to it directly and the database refuses. An overdue but unresolved report reads as not breached, because a breach is a fact about when it was actually resolved. Anonymity is stored rather than styled: an anonymous report keeps no reporter id at all, so no future query can undo it. The audit log constrains actor_type to reporter/operator/system, because telling an operator action from an automatic one is the whole value of the log. Carries its own RLS and grant revoke, same apply-order trap as migration 003."
     },
     {
-      id: "T34", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      id: "T34", ms: "M5", size: "M", lane: "code", kind: "build", status: "done",
       title: "'Report this post' — creates a ticket with a legal deadline attached",
       deps: ["T33"], trace: "TRD:apis[A8], PRD:p0[R7]",
       what: "The A8 endpoint: create the ticket, compute its deadline from the category, stamp the acknowledgement time, merge duplicate reports of the same content, support anonymous reporting, and rate-limit it.",
       why: "The acknowledgement timestamp is the legally significant one — the clock starts when the report is received, not when someone gets around to it. Duplicate merging matters because one bad post generates twenty reports and twenty tickets would bury the queue.",
-      done: "A report produces one tracked ticket with a computed deadline and an acknowledgement time."
+      done: "A report produces one tracked ticket with a computed deadline and an acknowledgement time.",
+      note: "Done 9 August. The task is 'compute the SLA deadline', and doing it surfaced the gap: the TRD requires a CATEGORY-SEGMENTED resolution SLA and the frozen schema shipped grievance_report with a free-text reason and no category column at all, so there was nothing to segment on. Resolved by reading UX F7 literally - the reporter SELECTS a reason, i.e. a closed set - so the reason IS the category, pinned to eight values by a CHECK in migration 010. Without that, an unknown reason silently takes the general 15-day branch on a complaint the law may give 24 hours: a plausible deadline on the wrong clock, which is invisible. Migration 010 also FREEZES sla_deadline after insert: T33 made the breach flag impossible to set or unset, but it is generated from resolved_at > sla_deadline, so a mutable deadline defeats it without ever touching it - push the deadline out, resolve late, read compliant. Intake acknowledges inside its own transaction, which makes the 24h acknowledgement SLA structurally unbreachable and changes what T38 must build. Duplicates merge into the reporter's open ticket and create NO second row, because a second row would carry its own deadline and its own breach flag and sit open for ever. Anonymity holds in the audit log too, not only on the row - the stated cost being that anonymous reports cannot be de-duplicated. Every SLA figure is an assumption awaiting T43's legal review. Decisions: decisions/a8-report-intake-slas.md."
     },
     {
       id: "T35", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
@@ -1206,12 +1212,13 @@
       done: "A signed-in student hitting an operator route is refused by the server, not just by the navigation."
     },
     {
-      id: "T38", ms: "M5", size: "M", lane: "code", kind: "build", status: "todo",
+      id: "T38", ms: "M5", size: "M", lane: "code", kind: "build", status: "done",
       title: "Timers that chase the legal deadlines and alert the moderator",
       deps: ["T5", "T33"], trace: "TRD:nfrs[grievance acknowledgement SLA], TRD:components[Notification Dispatcher]",
       what: "Background jobs watching the acknowledgement deadline and the category-specific resolution deadline, and notifying the operator on new escalations and approaching breaches.",
       why: "A one-person moderation team cannot poll a queue. The deadlines have legal weight, so the system has to be the thing that remembers them.",
-      done: "An approaching deadline produces a notification before it passes, not after."
+      done: "An approaching deadline produces a notification before it passes, not after.",
+      note: "Done 9 August. Three watches, and one of the three timers the title implies was deliberately NOT built. T34 acknowledges every report inside the intake transaction, so the 24h acknowledgement SLA cannot be missed by anyone being slow - a countdown there would sit silent for ever, and its silence would have read as compliance. Instead a report with no acknowledgement is treated as a DEFECT and alerted on sight at any age, with a reconciliation query and a test that breaks the invariant on purpose. The approaching-deadline warning fires at a FRACTION of that category's budget (25%), not a fixed number of hours: two days before an expedited deadline is before the ticket even exists, and six hours before a fifteen-day one is far too late to act. Passed deadlines are emailed once and COUNTED on every pass - one email because an alert repeating every five minutes gets filtered, a count because a breach nobody acted on must not go quiet. The job's memory is the audit log, not a new column, so 'the officer was told at this time' lands in the compliance record. Nothing is recorded as sent unless it was sent: with no officer contact and no fallback address - the state until T42 - the pass sends nothing, writes nothing, logs one loud line, and leaves every alert DUE. Notices carry the ticket, category and deadline and nothing else, because an operator mailbox is a place things get forwarded from."
     },
     {
       id: "T39", ms: "M5", size: "M", lane: "design", kind: "build", status: "todo",
@@ -1879,7 +1886,7 @@
     var payload = JSON.stringify({
       source: "murmur-build-board",
       exported: new Date().toISOString(),
-      docsSyncedAt: "2026-08-08",
+      docsSyncedAt: "2026-08-09",
       ticks: ticks,
       disagreesWithDocs: TASKS.filter(function (t) {
         return !!ticks[t.id] !== (t.status === "done");
