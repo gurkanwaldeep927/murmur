@@ -71,7 +71,9 @@ async function report(
      RETURNING id`,
     [
       questionId,
-      (extra.reporter as string | null) ?? reporter.profile.id,
+      // `??` would be wrong here: passing an explicit null (an anonymous report) must mean
+      // "no reporter", not "fall back to the default". CI caught exactly that.
+      "reporter" in extra ? (extra.reporter as string | null) : reporter.profile.id,
       String(hours),
       extra.isAnonymous ?? false,
       extra.resolvedAt ?? null,
@@ -172,7 +174,9 @@ describe("the breach flag is computed, not set", () => {
     const { id } = await report(-1, { resolvedAt: "now()" });
     await expect(
       pool.query(`UPDATE grievance_report SET sla_breached = false WHERE id = $1`, [id]),
-    ).rejects.toThrow(/generated/i);
+      // Postgres's wording for a generated column, verbatim rather than paraphrased —
+      // matching /generated/ passed nothing, because the message does not contain the word.
+    ).rejects.toThrow(/can only be updated to DEFAULT/i);
   });
 });
 
