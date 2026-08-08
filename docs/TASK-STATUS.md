@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 35 done · 1 half done · 36 not started · 5 waiting on something** *(= 77)*
+**Score so far: 36 done · 1 half done · 35 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -312,10 +312,40 @@ decide who is banned.
 | T29 | Receive those saved posts, handle duplicates, check them for safety before publishing | ✅ *(see below)* |
 | T30 | *(Designer — copy job)* The "sync status" screen | ⬜ |
 | T31 | Show the honest status of each post: waiting → sending → checking → live / blocked | ⬜ |
-| T32 | A watchdog that alerts if any post gets stuck forever | ⬜ |
+| T32 | A watchdog that alerts if any post gets stuck forever | ✅ *(see below)* |
 | T58 | Test proving no offline post is ever silently lost | ⬜ |
 | T68 | Speed test: what if everyone comes back online at once | ⬜ |
 | T67 | Kill the server mid-save, then restore from backup. **Needs a database we're allowed to destroy and rebuild** | 🔴 waiting |
+
+**About T32 (done 9 August):** the watchdog for offline posts that never finish.
+
+The product promises that **every** post written offline eventually ends up in one of three
+states — posted, refused, or resolved. A promise like that is worth nothing unless something
+could catch it being false, so this is that something. Every test for it **plants a stuck post
+on purpose** and checks the watchdog spots it. An all-clear from a check nobody has ever seen
+fail is not evidence — the third time that lesson has been applied in this project.
+
+**Two deliberate omissions, both with a stated cost.**
+
+**It doesn't retry.** The server keeps the post's text, so it *could* finish the job itself even
+if the phone never comes back — and for someone who deleted the app, that's the only thing that
+ever would. Not built, for one reason worth understanding: **a post appearing under a student's
+name days later, at a moment they didn't choose, is a product decision, not a plumbing detail.**
+It also needs a "give up after N tries" rule that no document anywhere sets. *The cost:* a post
+whose phone never returns stays stuck for ever, and this watchdog keeps counting it for ever.
+That's a permanent visible number rather than a queue that looks clean because nobody counted.
+There's a test asserting no retry happens, so the decision gets revisited rather than drifting.
+
+**It doesn't email anyone.** The complaint deadlines (T38) have a recipient the law requires to
+exist. A stuck post doesn't — there is no engineer's mailbox configured anywhere, and inventing
+one nobody reads would *look* like alerting while being nothing of the kind. It writes a proper
+error line with counts on every check, which is the thing an alerting system reads. **T71 is the
+task that turns it into something reaching a human. Until then it is visible in the logs and
+nowhere else** — and that sentence is written into the code itself, not just here.
+
+It watches a status called "syncing" as well as "waiting", even though **nothing in the app ever
+sets "syncing"**. That's the reason to watch it: a state nothing writes is a state nobody would
+notice being written by mistake and never cleared.
 
 **About T29 (done 9 August):** receiving the posts a phone wrote while it had no signal.
 
@@ -957,11 +987,20 @@ between the design document's two halves.
 ~~T29 — receiving the offline queue~~ — **done 9 August**, and it closed a way around the
 report limit plus a flaky test that had been teaching everyone to re-run instead of read.
 
-**T29 in turn unblocks T32** — the watchdog that notices if any queued post gets stuck forever.
-The query it needs is already written and already tested (T29 shipped it, because a claim like
-"nothing is ever silently lost" is worth nothing without the query that could disprove it). T32
-is the alerting around it. **That is next**, and it is also a background job, so it stays clear
-of T62.
+~~T32 — the stuck-post watchdog~~ — **done 9 August**.
+
+**That is the end of what can be built without you.** Six tasks landed today (T34, T38, T27, T29,
+T32 — plus a flaky test fixed). What remains is, without exception, one of:
+
+- **behind T62** — T37, and through it T35, T36 and T41; plus T20 and all of Milestone 3 after it.
+  These all change the code T62 is waiting to inspect;
+- **the phone app** — T28 and T31, which need the screens from T30 first;
+- **a designer** — T25, T30, T39;
+- **you** — T49 (deploy), T54 (AI vendor prices), T42 (officer details), T43 (lawyer),
+  T72–T75 (emergency guides).
+
+**The single highest-value thing you can do is the one line in `.pipeline/unlock`.** It is the
+literal text `08`. It unblocks T62, and T62 unblocks roughly half of everything left.
 
 **What is genuinely stuck behind T62, and it is now most of the product:** T37, and through T37
 the whole rest of Milestone 5 (T35, T36, T41); plus T20 (search) and everything after it in
