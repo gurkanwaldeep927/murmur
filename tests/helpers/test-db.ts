@@ -78,7 +78,8 @@ export async function truncateAll(): Promise<void> {
   await assertDisposableDatabase();
   await pool.query(`
     TRUNCATE grievance_audit_log, grievance_report, grievance_officer_contact,
-             reputation_event, ban_record, moderation_case, answer, question, analytics_event,
+             reputation_event, ban_record, moderation_case, content_draft, sync_queue_item,
+             answer, question, analytics_event,
              pseudonymous_profile, identity_account RESTART IDENTITY CASCADE;
   `);
   // topic_tag is deliberately NOT truncated: migration 002 seeds it, and the seed is
