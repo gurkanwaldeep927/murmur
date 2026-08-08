@@ -354,7 +354,7 @@ decide who is banned.
 | T27 | Database tables for the offline outbox and saved drafts | ✅ *(see below)* |
 | T28 | Save posts on the phone when offline, send them later | ⬜ |
 | T29 | Receive those saved posts, handle duplicates, check them for safety before publishing | ✅ *(see below)* |
-| T30 | *(Designer — copy job)* The "sync status" screen | ⬜ |
+| T30 | *(Designer)* The "sync status" screen — **brief written, ready for you** | ⬜ |
 | T31 | Show the honest status of each post: waiting → sending → checking → live / blocked | ⬜ |
 | T32 | A watchdog that alerts if any post gets stuck forever | ✅ *(see below)* |
 | T58 | Test proving no offline post is ever silently lost | ⬜ |
@@ -1044,7 +1044,11 @@ without exception, one of:
 - **behind T62** — T37, and through it T35, T36 and T41; plus T20 and all of Milestone 3 after it.
   These all change the code T62 is waiting to inspect;
 - **the phone app** — T28 and T31, which need the screens from T30 first;
-- **a designer** — T25, T30, T39;
+- **a designer** — T25, T30, T39. **T30's brief is now written and waiting**:
+  `docs/design-prompts/T30-sync-status.md`. It carries three things the design would otherwise
+  get wrong — a "waiting on something else" state the spec never anticipated, a `conflict` state
+  the spec lists that **can never happen** (so please don't draw it), and a missing screen for
+  "your account was removed, these posts will never send";
 - **you** — T49 (deploy), T54 (AI vendor prices), T42 (officer details), T43 (lawyer),
   T72–T75 (emergency guides).
 
