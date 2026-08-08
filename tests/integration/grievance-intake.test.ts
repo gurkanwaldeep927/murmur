@@ -50,19 +50,22 @@ async function seed(): Promise<void> {
   const author = await signIn(app, "t34.author.23@nitj.ac.in");
 
   const topic = await pool.query<{ id: string }>(`SELECT id FROM topic_tag WHERE slug='advice'`);
-  const insertQuestion = async (status: string) => {
+  // `published_at` is passed as its own parameter rather than derived from `$3` inside a
+  // CASE. Reusing one placeholder as both a moderation_status_enum and a text comparand made
+  // Postgres refuse the statement outright ("inconsistent types deduced for parameter $3") —
+  // caught by CI, which is the only honest gate for anything that touches the database.
+  const insertQuestion = async (status: string, publishedAt: Date | null) => {
     const { rows } = await pool.query<{ id: string }>(
       `INSERT INTO question (author_profile_id, topic_tag_id, title, body, idempotency_key,
                              moderation_status, published_at)
-       VALUES ($1, $2, 't', 'b', gen_random_uuid(), $3,
-               CASE WHEN $3 = 'published' THEN now() ELSE NULL END)
+       VALUES ($1, $2, 't', 'b', gen_random_uuid(), $3, $4)
        RETURNING id`,
-      [author.profile.id, topic.rows[0]!.id, status],
+      [author.profile.id, topic.rows[0]!.id, status, publishedAt],
     );
     return rows[0]!.id;
   };
-  questionId = await insertQuestion("published");
-  heldQuestionId = await insertQuestion("pending");
+  questionId = await insertQuestion("published", new Date());
+  heldQuestionId = await insertQuestion("pending", null);
 
   const a = await pool.query<{ id: string }>(
     `INSERT INTO answer (question_id, author_profile_id, body, idempotency_key, moderation_status)
