@@ -1020,12 +1020,13 @@
       note: "Done 8 August. Four rules nothing upstream specified are now decided in decisions/a6-vote-accept-semantics.md: only the question's author may accept; you cannot accept your own answer (a real hole — the frozen trigger guarded upvotes only, so self-answering was 15 points from nothing, closed by migration 009); one accepted answer per question, not movable; upvote +1 and accept +15, both named assumptions. Also found and fixed here: you could earn points on an answer still held for review or already blocked — now refused as 'no such answer', deliberately indistinguishable from a genuinely missing one. The reconciliation query T21 promised exists, and its tests corrupt a score on purpose to prove the query notices."
     },
     {
-      id: "T23", ms: "M3", size: "S", lane: "code", kind: "build", status: "todo",
+      id: "T23", ms: "M3", size: "S", lane: "code", kind: "build", status: "done",
       title: "Check bans everywhere — asking, answering, voting",
       deps: ["T8", "T21", "T50"], trace: "TRD:apis[A11], PRD:p0[R5]",
       what: "Wire the ban lookup into posting, answering and voting. Sign-up already checks it (built in T8), so this task is guard-wiring only — the fingerprint procedure itself was built back at T50.",
       why: "A ban that only blocks registration stops nobody who is already inside. Every write path needs the same guard, calling the same lookup.",
-      done: "A banned account is refused on all four surfaces, using the same normalisation everywhere."
+      done: "A banned account is refused on all four surfaces, using the same normalisation everywhere.",
+      note: "Done 8 August. Most of it was already true structurally — one session gate loads the profile live on every request, so a ban lands on the very next tap and no route can forget to check — and the job was proving it, including with a session issued before the ban. One real defect fixed: the ban lookup answered 'not banned' when the ban table was missing. That escape hatch was correct only until migration 003 landed; left in, it was a permanent fail-open path where a schema problem readmits every banned person silently. It now fails loudly. Deliberate trade recorded: a ban follows an address through capitals and +tags but NOT through dots on a campus domain, because collapsing dots would refuse a real different student."
     },
     {
       id: "T24", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
