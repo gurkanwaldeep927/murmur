@@ -34,7 +34,14 @@ export type ErrorCode =
   // with its moderation status, per TRD apis[A3].outputs.
   | "topic_invalid"
   | "parent_question_not_found"
-  | "idempotency_key_conflict";
+  | "idempotency_key_conflict"
+  // A6 (vote / accept, T22). The first three are TRD apis[A6].errors; the last two cover
+  // accept rules no upstream document specified — see decisions/a6-vote-accept-semantics.md.
+  | "self_vote_forbidden"
+  | "duplicate_vote_forbidden"
+  | "answer_not_found"
+  | "accept_not_question_author"
+  | "answer_already_accepted";
 
 export class AppError extends Error {
   readonly status: number;
@@ -82,6 +89,20 @@ export const errors = {
    */
   idempotencyKeyConflict: (message = "This submission conflicts with an earlier one.") =>
     new AppError(409, "idempotency_key_conflict", message),
+
+  // A6 (T22). Self-vote is 403 rather than 400: the request is well-formed and the caller
+  // is authenticated — they are simply not allowed to be the one crediting this answer.
+  // Both duplicate cases are 409: the request was valid, the world had already moved.
+  selfVoteForbidden: (message = "You can't vote for your own answer.") =>
+    new AppError(403, "self_vote_forbidden", message),
+  duplicateVoteForbidden: (message = "You've already upvoted this answer.") =>
+    new AppError(409, "duplicate_vote_forbidden", message),
+  answerNotFound: (message = "That answer is no longer available.") =>
+    new AppError(404, "answer_not_found", message),
+  acceptNotQuestionAuthor: (message = "Only the person who asked can mark an answer accepted.") =>
+    new AppError(403, "accept_not_question_author", message),
+  answerAlreadyAccepted: (message = "This question already has an accepted answer.") =>
+    new AppError(409, "answer_already_accepted", message),
 };
 
 export function sendError(res: Response, err: AppError): void {

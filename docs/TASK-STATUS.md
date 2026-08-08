@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 27 done · 1 half done · 44 not started · 5 waiting on something** *(= 77)*
+**Score so far: 28 done · 1 half done · 43 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -127,7 +127,7 @@ down as not done rather than quietly skipped.
 |---|---|---|
 | T20 | Search by keyword, topic, and batch year | ⬜ |
 | T21 | Database tables for points and ban records | ✅ *(see below)* |
-| T22 | Upvote and "this answered my question" — points are awarded by the server so nobody can cheat | ⬜ |
+| T22 | Upvote and "this answered my question" — points are awarded by the server so nobody can cheat | ✅ *(see below)* |
 | T23 | Check bans everywhere — asking, answering, voting | ⬜ |
 | T24 | Actually issue a ban, and make it survive someone deleting their account | ⬜ |
 | T25 | *(Designer — copy job)* Search, topic list, profile screens | ⬜ |
@@ -136,6 +136,42 @@ down as not done rather than quietly skipped.
 | T57 | Test: delete account → try to rejoin with same email → refused | ⬜ |
 | T65 | Security expert attacks the ban system with tricks like `First.Last@` vs `first.last@` | ⬜ |
 | T66 | Speed check on search and points | ⬜ |
+
+**About T22 (done 8 August):** upvoting, and marking an answer as the one that solved it.
+
+**The client never sends points.** It sends *which answer* — the server decides what that is
+worth and writes it to the ledger. Sending `{"delta": 9999}` in the request body does nothing,
+and there is a test that proves it, because "nobody can cheat" is the actual requirement.
+
+**Four rules nothing upstream had decided, now decided and written down** in
+`decisions/a6-vote-accept-semantics.md`, each with what it costs:
+
+- **Only the person who asked can accept an answer.** "Accepted" means *this solved my
+  problem*, and exactly one person knows. Cost: a question whose author never comes back can
+  never have an accepted answer.
+- **You cannot accept your own answer to your own question.** This one was a real hole. The
+  frozen schema's anti-cheat trigger guarded upvotes only — so asking a question, answering it
+  yourself and accepting it was 15 points out of nothing. Migration 009 widens the trigger.
+- **One accepted answer per question, and it cannot be moved.** Cost, and it is the weakest of
+  the four: accept the wrong answer by mistake and you are stuck with it. Un-accepting needs a
+  compensating entry in the ledger, which brings its own abuse questions, and nothing needs it
+  yet.
+- **An upvote is worth 1, an accepted answer 15.** Both are guesses — no document anywhere sets
+  them. They live as two named constants. Changing them later will *not* move existing scores,
+  because the ledger records what was applied at the time, not a pointer to today's number.
+
+**One thing found while building it, and fixed here:** you could have earned points on an
+answer that was still being reviewed, or one that had been blocked. The plan's own wording is
+"reputation on published content", and an answer nobody can see has not helped anyone yet.
+Voting on unpublished content now returns "no such answer" — deliberately the same response as
+a genuinely missing one, so someone guessing IDs cannot learn that a hidden answer exists.
+
+**The promise T21 made is kept.** T21 chose to update scores instantly rather than by a
+background job, and the price of that choice was that a bug could leave the stored score
+disagreeing with the ledger. There is now a query that finds exactly that — and, more
+importantly, **tests that deliberately corrupt a score and check the query notices.** An
+all-clear from a check nobody has ever seen fail is not evidence, which is the same lesson as
+problems 8 through 11e, in a different costume.
 
 **About T21 (done 8 August):** two new tables — the points ledger and the ban list — plus the
 rules the database itself refuses to break.
@@ -572,12 +608,14 @@ A test suite that can't run is worth less than one that runs and fails.
    guard.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
-3. **T22** — upvoting and "this answered my question". T21 built the tables it needs, so this
-   is the next thing being built. It must ship the reconciliation query the T21 decision
-   requires: cached score versus the ledger, so the two disagreeing is something you find out
-   about rather than something assumed impossible.
+3. **T23 and T24** — checking bans everywhere, and issuing one that survives account deletion.
+   T24 is what finally closes problem #7 above, which has been open by design since it had
+   nowhere to live.
 4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 5. Then the rest of Milestone 3, plus fixing the remaining problems above.
+
+~~T22 — upvoting and accepting~~ — **done 8 August**, including the reconciliation query T21
+required of it.
 
 **Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
 questions, answers and the feed. Building *those* areas before it runs would just make its job

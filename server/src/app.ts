@@ -8,6 +8,7 @@ import { identityRouter } from "./modules/identity/identity.routes.js";
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { sessionRouter } from "./modules/session/session.routes.js";
 import { contentRouter } from "./modules/content/content.routes.js";
+import { reputationRouter } from "./modules/reputation/reputation.routes.js";
 import { pool } from "./db/pool.js";
 
 /**
@@ -69,6 +70,8 @@ export function createApp() {
   app.use(sessionRouter);
   // M2 — Q&A core behind the T14a moderation gateway (T15 A3, T16 A4, T17 A5-browse).
   app.use(contentRouter);
+  // M3 — reputation: A6 vote/accept (T22).
+  app.use(reputationRouter);
 
   // 404 fallback.
   app.use((_req, _res, next) => next(errors.notFound("Route not found")));

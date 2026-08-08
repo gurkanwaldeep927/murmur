@@ -243,6 +243,75 @@ const cases: Case[] = [
                               WHERE mc.question_id = q.id AND mc.decision = 'published')`,
     values: [],
   },
+
+  // ---- reputation.repo.ts (T22) ----
+  {
+    name: "findVoteTarget",
+    sql: `SELECT a.id AS answer_id, a.question_id, a.author_profile_id AS answer_author_profile_id,
+                 q.author_profile_id AS question_author_profile_id, a.accepted, a.vote_count,
+                 a.moderation_status
+            FROM answer a JOIN question q ON q.id = a.question_id
+           WHERE a.id = $1 AND a.deleted_at IS NULL`,
+    values: [UUID],
+  },
+  {
+    name: "hasUpvoted",
+    sql: `SELECT 1 FROM reputation_event
+           WHERE event_type = 'upvote' AND actor_profile_id = $1 AND answer_id = $2 LIMIT 1`,
+    values: [UUID, UUID],
+  },
+  {
+    name: "questionHasAcceptedAnswer",
+    sql: `SELECT 1 FROM answer WHERE question_id = $1 AND accepted LIMIT 1`,
+    values: [UUID],
+  },
+  {
+    name: "appendEvent",
+    sql: `INSERT INTO reputation_event
+            (event_type, delta, actor_profile_id, subject_profile_id, answer_id)
+          VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    // The enum literal goes in as a parameter here, which is exactly the shape that broke
+    // recordVerdict and publish-question on 1 August (one parameter used as both enum and
+    // text, refused by Postgres every time, invisible to tsc). This case exists to catch it.
+    values: ["upvote", 1, UUID, UUID, UUID],
+  },
+  {
+    name: "applyScoreDelta",
+    sql: `UPDATE pseudonymous_profile SET reputation_score = reputation_score + $2
+           WHERE id = $1 RETURNING reputation_score`,
+    values: [UUID, 1],
+  },
+  {
+    name: "incrementVoteCount",
+    sql: `UPDATE answer SET vote_count = vote_count + 1 WHERE id = $1 RETURNING vote_count`,
+    values: [UUID],
+  },
+  {
+    name: "markAccepted",
+    sql: `UPDATE answer SET accepted = true WHERE id = $1`,
+    values: [UUID],
+  },
+  {
+    name: "findScoreDrift (reconciliation)",
+    sql: `SELECT p.id AS profile_id, p.reputation_score AS cached,
+                 COALESCE(SUM(e.delta), 0)::int AS ledger
+            FROM pseudonymous_profile p
+            LEFT JOIN reputation_event e ON e.subject_profile_id = p.id
+           GROUP BY p.id, p.reputation_score
+          HAVING p.reputation_score <> COALESCE(SUM(e.delta), 0)::int
+           ORDER BY p.id`,
+    values: [],
+  },
+  {
+    name: "findVoteCountDrift (reconciliation)",
+    sql: `SELECT a.id AS answer_id, a.vote_count AS cached, count(e.id)::int AS ledger
+            FROM answer a
+            LEFT JOIN reputation_event e ON e.answer_id = a.id AND e.event_type = 'upvote'
+           GROUP BY a.id, a.vote_count
+          HAVING a.vote_count <> count(e.id)::int
+           ORDER BY a.id`,
+    values: [],
+  },
 ];
 
 async function main() {

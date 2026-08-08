@@ -1011,12 +1011,13 @@
       note: "Done 8 August. Two open questions the frozen schema left to the build stage were closed in decisions/oq-schema-aggregates-and-vote-enforcement.md: scores update synchronously in the vote's own transaction rather than by a background job (with a reconciliation query now required of T22), and the vote rules stay enforced in BOTH layers — the database makes the rule true, the application produces the message. Also worth knowing: the file is numbered 003 but runs AFTER 006/007/008 on the live database, so migration 008's security sweep will never see these two tables. The RLS and grant hardening is written into 003 itself, and a test asserts it, because removing it as 'duplicated' would strip the second lock off the tables that decide who is banned."
     },
     {
-      id: "T22", ms: "M3", size: "M", lane: "code", kind: "build", status: "todo",
+      id: "T22", ms: "M3", size: "M", lane: "code", kind: "build", status: "done",
       title: "Upvote and 'this answered my question'",
       deps: ["T21"], trace: "TRD:apis[A6], PRD:p0[R5]",
       what: "The A6 endpoint. Points are awarded by the server writing a ledger entry — the client never sends a score. Handles self-vote, duplicate vote, banned voter and missing target as distinct errors.",
       why: "Server-authoritative is the whole design. If the client could say 'add 10 points', reputation would mean nothing within a week of anyone opening the network tab.",
-      done: "A vote visibly moves the score through the ledger, and every error branch returns its own truthful message."
+      done: "A vote visibly moves the score through the ledger, and every error branch returns its own truthful message.",
+      note: "Done 8 August. Four rules nothing upstream specified are now decided in decisions/a6-vote-accept-semantics.md: only the question's author may accept; you cannot accept your own answer (a real hole — the frozen trigger guarded upvotes only, so self-answering was 15 points from nothing, closed by migration 009); one accepted answer per question, not movable; upvote +1 and accept +15, both named assumptions. Also found and fixed here: you could earn points on an answer still held for review or already blocked — now refused as 'no such answer', deliberately indistinguishable from a genuinely missing one. The reconciliation query T21 promised exists, and its tests corrupt a score on purpose to prove the query notices."
     },
     {
       id: "T23", ms: "M3", size: "S", lane: "code", kind: "build", status: "todo",
