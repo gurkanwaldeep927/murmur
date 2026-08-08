@@ -81,3 +81,41 @@ export function resolutionDeadline(reason: ReportReason, filedAt: Date): Date {
 export function acknowledgementDeadline(filedAt: Date): Date {
   return new Date(filedAt.getTime() + ACKNOWLEDGEMENT_SLA_MS);
 }
+
+// ---------------------------------------------------------------------------
+// T38 — when the operator gets warned that a deadline is coming.
+// ---------------------------------------------------------------------------
+
+/**
+ * How much of the budget must remain for the warning to still be useful, as a FRACTION of
+ * that category's budget rather than a fixed number of hours.
+ *
+ * A fixed window cannot work across these two clocks: "two days left" fires before an
+ * expedited ticket even exists, and "six hours left" on a fifteen-day ticket arrives far too
+ * late to do anything with. A fraction is category-segmented by construction, which is exactly
+ * what the task asks for — and it stays correct if T43's legal review moves the budgets.
+ *
+ * `[ASSUMPTION]` at 25%: 6 hours on the 24-hour clock, 3¾ days on the 15-day one. Both are
+ * enough time for a human to act, which is the only thing a warning is for.
+ */
+export const WARN_AT_REMAINING_FRACTION = 0.25;
+
+export function resolutionBudgetMs(reason: ReportReason): number {
+  return isExpedited(reason) ? RESOLUTION_SLA_EXPEDITED_MS : RESOLUTION_SLA_GENERAL_MS;
+}
+
+/** The moment the warning becomes due for a ticket with this reason and this deadline. */
+export function warningDueAt(reason: ReportReason, deadline: Date): Date {
+  return new Date(deadline.getTime() - resolutionBudgetMs(reason) * WARN_AT_REMAINING_FRACTION);
+}
+
+/**
+ * The widest warning lead time across every category — the bound the SLA job uses to keep its
+ * scan short without ever missing a warning.
+ *
+ * Derived rather than written as a number on purpose: a literal "4 days" here would silently
+ * stop catching warnings the moment T43 lengthens the general budget, and nothing would say so.
+ */
+export const MAX_WARNING_LEAD_MS = Math.max(
+  ...REPORT_REASONS.map((r) => resolutionBudgetMs(r) * WARN_AT_REMAINING_FRACTION),
+);

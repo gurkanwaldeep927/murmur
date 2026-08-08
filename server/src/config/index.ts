@@ -241,6 +241,23 @@ export const config = {
   rateLimitReportsPerHour: intOpt("RATE_LIMIT_REPORTS_PER_HOUR", 10),
   trustProxy: optional("TRUST_PROXY", ""),
 
+  /**
+   * T38 — grievance SLA job.
+   *
+   * `grievanceAlertEmail` is a FALLBACK only. The real recipient is the current row in
+   * `grievance_officer_contact`, which T42 loads with the officer IT Rules 2021 requires to be
+   * published. This exists so staging has somewhere to send while that row does not exist yet
+   * — and it deliberately defaults to empty rather than to a developer address, because a
+   * legal deadline quietly notifying nobody-in-particular is worse than one that reports, on
+   * every pass, that it has no recipient.
+   *
+   * The interval is minutes rather than seconds: the tightest warning window is six hours, so
+   * a five-minute cadence is two orders of magnitude finer than anything it must catch, and a
+   * shorter one would only add load.
+   */
+  grievanceAlertEmail: optional("GRIEVANCE_ALERT_EMAIL", ""),
+  grievanceSlaIntervalSeconds: intOpt("GRIEVANCE_SLA_INTERVAL_SECONDS", 300),
+
   // T14a — Moderation Gateway. Deliberately DEFAULTS TO EMPTY.
   //
   // Empty means "no provider configured", which resolves to the hold-all adapter:
