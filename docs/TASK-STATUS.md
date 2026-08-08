@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 30 done · 1 half done · 41 not started · 5 waiting on something** *(= 77)*
+**Score so far: 31 done · 1 half done · 40 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -325,7 +325,7 @@ decide who is banned.
 
 | Task | In plain words | Status |
 |---|---|---|
-| T33 | Database tables for complaints and their audit trail | ⬜ |
+| T33 | Database tables for complaints and their audit trail | ✅ *(see below)* |
 | T34 | "Report this post" — creates a ticket with a legal deadline attached | ⬜ |
 | T35 | The moderator's tools: take down, dismiss, or escalate — every action logged | ⬜ |
 | T36 | A way for a moderator to decide on posts the AI flagged but nobody reported | ⬜ |
@@ -340,6 +340,28 @@ decide who is banned.
 | T70 | Full privacy audit — actually runs the data-deletion rules, not just reads them | ⬜ |
 | T71 | Check the app produces useful logs before launch | ⬜ |
 | T43 | *(Lawyer)* Confirm the legal deadlines and write the consent wording | 🔴 waiting on a lawyer |
+
+**About T33 (done 8 August):** the three tables the complaints process needs.
+
+**The one worth understanding: "this deadline was missed" is not a flag anybody sets.** The
+database works it out from two timestamps — when it was due, and when it was actually
+resolved. Nobody can forget to mark it, and, more to the point, **nobody can un-mark it**:
+there is a test that tries to write the flag directly and the database refuses outright. On a
+process with legal deadlines attached, that difference is the whole thing.
+
+An overdue-but-unresolved report reads as **not breached** — it is unfinished, not late. The
+breach is a fact about when it actually got resolved.
+
+**Anonymity is stored, not styled.** An anonymous report keeps no reporter at all, rather than
+keeping the reporter and hiding them on screen. Hiding on screen is something a future query
+can undo by accident.
+
+**The audit log only accepts three kinds of actor** — the reporter, an operator, or the system
+— because being able to tell an operator's action from an automatic one is the entire value of
+having the log. Anything else is refused by the database.
+
+Same apply-order trap as T21: numbered 005, but it runs *after* the security migration on your
+database, so it carries its own locks. Tested.
 
 ---
 
