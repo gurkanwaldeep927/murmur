@@ -76,6 +76,14 @@ async function assertDisposableDatabase(): Promise<void> {
  */
 export async function truncateAll(): Promise<void> {
   await assertDisposableDatabase();
+
+  // Drain the fire-and-forget analytics writes first. They are allowed to land after the
+  // response a test already waited on (A12), so without this a write in flight arrives after
+  // the truncate and either fails its foreign key — silently, since `emit` swallows errors —
+  // or leaves a row belonging to the previous test in the next test's table.
+  const { settleEmits } = await import("../../server/src/modules/analytics/analytics.service.js");
+  await settleEmits();
+
   await pool.query(`
     TRUNCATE grievance_audit_log, grievance_report, grievance_officer_contact,
              reputation_event, ban_record, moderation_case, content_draft, sync_queue_item,

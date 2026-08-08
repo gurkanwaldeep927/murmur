@@ -95,6 +95,16 @@ async function hardEraseAccount(profileId: string): Promise<void> {
   // nulling the reference, and nulling loses the ability to count a cohort while deleting
   // rewrites history. Recorded in TASK-STATUS; this test deletes, because it only needs the
   // account gone.
+  //
+  // Drain first. Analytics writes are fire-and-forget by contract (A12), which means a row can
+  // land AFTER the response this test already waited on — so clearing the table and then
+  // deleting the profile loses a race against a write still in flight, and fails on the same
+  // foreign key for a reason that has nothing to do with bans. It did exactly that on CI on
+  // 2026-08-09, intermittently. This is also what a real erasure will have to do.
+  const { settleEmits } = await import(
+    "../../server/src/modules/analytics/analytics.service.js"
+  );
+  await settleEmits();
   await pool.query(`DELETE FROM analytics_event WHERE actor_profile_id = $1`, [profileId]);
   await pool.query(
     `DELETE FROM reputation_event WHERE actor_profile_id = $1 OR subject_profile_id = $1`,
