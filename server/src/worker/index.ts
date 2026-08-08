@@ -2,12 +2,13 @@ import { logger } from "../shared/logger.js";
 import { closePool } from "../db/pool.js";
 import { moderationRetryJob } from "../modules/moderation/moderation-retry.job.js";
 import { initModerationProviders } from "../modules/moderation/providers/index.js";
+import { grievanceSlaJob } from "../modules/grievance/grievance-sla.job.js";
 
 /**
  * Background worker process (architecture §5). Runs the async/retry jobs the API must
  * not do inline. Jobs land as their milestones do:
  *   - moderation-retry.job.ts        (T14a, M2) — fail-closed moderation retry/escalate ✓
- *   - grievance-sla.job.ts           (T38, M5)  — acknowledgement + resolution SLA timers
+ *   - grievance-sla.job.ts           (T38, M5)  — acknowledgement + resolution SLA alerts ✓
  *   - sync-reconciliation.job.ts     (T32, M4)  — no sync item stuck non-terminal
  *
  * The two-process shape (api + worker) was established at M1 with no jobs, so later
@@ -16,7 +17,7 @@ import { initModerationProviders } from "../modules/moderation/providers/index.j
 
 type Job = { name: string; intervalMs: number; run: () => Promise<void> };
 
-const jobs: Job[] = [moderationRetryJob];
+const jobs: Job[] = [moderationRetryJob, grievanceSlaJob];
 
 const timers: NodeJS.Timeout[] = [];
 

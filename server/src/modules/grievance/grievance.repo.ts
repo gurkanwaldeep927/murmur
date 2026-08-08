@@ -181,3 +181,106 @@ export async function findUnacknowledgedReports(
   );
   return rows;
 }
+
+// ---------------------------------------------------------------------------
+// T38 — what the SLA job needs to see.
+// ---------------------------------------------------------------------------
+
+/**
+ * Actions the SLA job writes to the audit log. They are the job's ONLY memory of what it has
+ * already sent — there is no `last_alerted_at` column, deliberately.
+ *
+ * Using the audit log as the state has two properties a column would not: it needs no schema
+ * change, and "the officer was warned at 14:02" becomes part of the compliance record rather
+ * than a housekeeping field. The audit log is append-only, which is also the correct shape for
+ * a record of notifications sent.
+ */
+export const SlaAlertActions = {
+  WARNING: "sla_warning_sent",
+  BREACH: "sla_breach_alert_sent",
+  UNACKNOWLEDGED: "unacknowledged_alert_sent",
+} as const;
+
+export interface SlaCandidate {
+  id: string;
+  reason: string;
+  sla_deadline: Date;
+  created_at: Date;
+  acknowledged_at: Date | null;
+  warned: boolean;
+  breach_alerted: boolean;
+  unack_alerted: boolean;
+}
+
+/**
+ * Open tickets that might need an alert, most urgent first.
+ *
+ * `maxWarningLeadMs` is passed in rather than hard-coded so the SQL bound is DERIVED from the
+ * SLA constants (grievance.slas.ts): a literal interval here would silently stop catching
+ * warnings the moment T43 lengthens a budget, and nothing would report it. The filter is a
+ * deliberate SUPERSET — the per-category warning time is computed in TypeScript, where the one
+ * copy of the SLA table lives.
+ *
+ * Merged duplicates are excluded: a merged row is not a second obligation, and alerting on one
+ * would tell the operator about work that does not exist.
+ */
+export async function findSlaCandidates(
+  client: Queryable,
+  maxWarningLeadMs: number,
+  limit: number,
+): Promise<SlaCandidate[]> {
+  const { rows } = await client.query<SlaCandidate>(
+    `SELECT r.id, r.reason, r.sla_deadline, r.created_at, r.acknowledged_at,
+            EXISTS (SELECT 1 FROM grievance_audit_log l
+                     WHERE l.grievance_report_id = r.id AND l.action = $1) AS warned,
+            EXISTS (SELECT 1 FROM grievance_audit_log l
+                     WHERE l.grievance_report_id = r.id AND l.action = $2) AS breach_alerted,
+            EXISTS (SELECT 1 FROM grievance_audit_log l
+                     WHERE l.grievance_report_id = r.id AND l.action = $3) AS unack_alerted
+       FROM grievance_report r
+      WHERE r.status = 'open'
+        AND r.merged_into_report_id IS NULL
+        AND (r.acknowledged_at IS NULL
+             OR r.sla_deadline <= now() + make_interval(secs => $4::double precision))
+      ORDER BY r.sla_deadline
+      LIMIT $5`,
+    [
+      SlaAlertActions.WARNING,
+      SlaAlertActions.BREACH,
+      SlaAlertActions.UNACKNOWLEDGED,
+      maxWarningLeadMs / 1000,
+      limit,
+    ],
+  );
+  return rows;
+}
+
+/**
+ * How many open tickets are already past their deadline.
+ *
+ * Logged on every pass, not emailed on every pass. The email fires once per ticket, because an
+ * alert that repeats every minute is an alert that gets filtered — but a breach that nobody
+ * acts on must not become invisible either. A number on every pass is what an alerting rule
+ * (T71) can watch without anyone's inbox being the mechanism.
+ */
+export async function countOverdueOpenReports(client: Queryable): Promise<number> {
+  const { rows } = await client.query<{ n: string }>(
+    `SELECT count(*) AS n FROM grievance_report
+      WHERE status = 'open' AND merged_into_report_id IS NULL AND sla_deadline <= now()`,
+  );
+  return Number(rows[0]!.n);
+}
+
+/**
+ * The grievance officer to notify — the most recent contact whose `effective_from` has
+ * arrived. Null when none is configured, which is a state T42 exists to end.
+ */
+export async function findCurrentOfficerEmail(client: Queryable): Promise<string | null> {
+  const { rows } = await client.query<{ contact_email: string }>(
+    `SELECT contact_email FROM grievance_officer_contact
+      WHERE effective_from <= now()
+      ORDER BY effective_from DESC
+      LIMIT 1`,
+  );
+  return rows[0]?.contact_email ?? null;
+}

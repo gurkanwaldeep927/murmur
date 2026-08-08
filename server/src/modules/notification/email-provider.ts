@@ -17,6 +17,15 @@ import { logger } from "../../shared/logger.js";
 export interface EmailProvider {
   /** Resolves on confirmed delivery; rejects if delivery could not be confirmed. */
   sendVerification(to: string, token: string): Promise<void>;
+  /**
+   * A plain operational notice to a named recipient — T38's grievance-SLA alerts are the
+   * first caller. Separate from `sendVerification` rather than a generalisation of it,
+   * because the two have opposite content rules: a verification mail necessarily carries a
+   * secret to one student, while a notice must carry NO student's identity and no reported
+   * content at all (it goes to an operator's mailbox, which is a place things get forwarded
+   * from). Keeping them apart is what stops a future edit routing one through the other.
+   */
+  sendNotice(to: string, subject: string, body: string): Promise<void>;
 }
 
 /**
@@ -56,6 +65,13 @@ class ConsoleEmailProvider implements EmailProvider {
     // eslint-disable-next-line no-console
     console.log(`[email:console] verification token for ${to}: ${token}`);
   }
+  async sendNotice(to: string, subject: string, body: string): Promise<void> {
+    // Safe to print in a way the verification path is not: a notice carries no student
+    // identity and no reported content by contract (see the interface).
+    // eslint-disable-next-line no-console
+    console.log(`[email:console] notice to ${to}: ${subject}
+${body}`);
+  }
 }
 
 /**
@@ -76,6 +92,22 @@ class MemoryEmailProvider implements EmailProvider {
   lastToken(to: string): string | undefined {
     return this.lastByAddress.get(to.toLowerCase());
   }
+
+  /**
+   * Every notice sent, in order. Kept in full rather than last-only because T38's tests
+   * assert on the BODY — specifically that no reporter and no reported text appears in it.
+   * A "was something sent?" boolean would pass while leaking.
+   */
+  private readonly notices: { to: string; subject: string; body: string }[] = [];
+  async sendNotice(to: string, subject: string, body: string): Promise<void> {
+    this.notices.push({ to, subject, body });
+  }
+  sentNotices(): readonly { to: string; subject: string; body: string }[] {
+    return this.notices;
+  }
+  clearNotices(): void {
+    this.notices.length = 0;
+  }
 }
 
 /** Exposed so tests can read the captured OTP. Undefined unless EMAIL_PROVIDER=memory. */
@@ -90,7 +122,13 @@ export let memoryEmailProvider: MemoryEmailProvider | undefined;
 class UnconfiguredProvider implements EmailProvider {
   constructor(private readonly name: string) {}
   async sendVerification(): Promise<void> {
-    throw new Error(
+    throw this.unimplemented();
+  }
+  async sendNotice(): Promise<void> {
+    throw this.unimplemented();
+  }
+  private unimplemented(): Error {
+    return new Error(
       `EMAIL_PROVIDER='${this.name}' is not implemented yet. Configure a real adapter or use 'console' in dev.`,
     );
   }
@@ -125,6 +163,10 @@ class SmtpEmailProvider implements EmailProvider {
       subject: "Your Murmur verification code",
       text: `Your Murmur verification code is ${token}. It expires in ${config.verificationTokenTtlMinutes} minutes.`,
     });
+  }
+
+  async sendNotice(to: string, subject: string, body: string): Promise<void> {
+    await this.transporter.sendMail({ from: config.emailFrom, to, subject, text: body });
   }
 }
 
@@ -167,6 +209,28 @@ export class RetryingEmailProvider implements EmailProvider {
     }
     // Delivery unconfirmed after all retries — surface to caller so registration is BLOCKED.
     throw lastErr instanceof Error ? lastErr : new Error("verification email delivery unconfirmed");
+  }
+
+  /**
+   * Same retry shape, and the throw at the end matters as much here as it does above: T38
+   * records "the operator was alerted" in the audit log only after this resolves. Swallowing
+   * a failed send would write a compliance record saying someone was told, when nobody was.
+   */
+  async sendNotice(to: string, subject: string, body: string): Promise<void> {
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= this.maxAttempts; attempt++) {
+      try {
+        await this.inner.sendNotice(to, subject, body);
+        return;
+      } catch (err) {
+        lastErr = err;
+        // The subject is safe to log; the body is not logged even though it carries no
+        // identity by contract, because a log line is the wrong place to re-assert that.
+        logger.warn({ attempt, maxAttempts: this.maxAttempts, subject }, "notice delivery failed");
+        if (attempt < this.maxAttempts) await sleep(this.baseDelayMs * 2 ** (attempt - 1));
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("notice delivery unconfirmed");
   }
 }
 
