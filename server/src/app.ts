@@ -9,6 +9,7 @@ import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { sessionRouter } from "./modules/session/session.routes.js";
 import { contentRouter } from "./modules/content/content.routes.js";
 import { reputationRouter } from "./modules/reputation/reputation.routes.js";
+import { grievanceRouter } from "./modules/grievance/grievance.routes.js";
 import { pool } from "./db/pool.js";
 
 /**
@@ -72,6 +73,8 @@ export function createApp() {
   app.use(contentRouter);
   // M3 — reputation: A6 vote/accept (T22).
   app.use(reputationRouter);
+  // M5 — grievance: A8 report intake (T34). A9 resolve arrives with T35.
+  app.use(grievanceRouter);
 
   // 404 fallback.
   app.use((_req, _res, next) => next(errors.notFound("Route not found")));

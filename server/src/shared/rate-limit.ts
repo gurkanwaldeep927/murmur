@@ -137,6 +137,47 @@ export const eventsLimiter = new FixedWindowLimiter(
 );
 
 /**
+ * A8 report intake (T34). Bucketed by PROFILE, not by address — see `rateLimitByProfile`.
+ * `[ASSUMPTION]`: no upstream figure exists. Loose enough that a student reporting a bad
+ * thread is never stopped, tight enough that report-spam as a harassment tool is bounded.
+ */
+export const reportLimiter = new FixedWindowLimiter(
+  "grievance.reports",
+  config.rateLimitReportsPerHour,
+  60 * MINUTE,
+);
+
+/**
+ * Per-caller limiting for routes that run behind `requireSession`.
+ *
+ * Every limiter above buckets by address, because A1/A2/A12 have no authenticated caller to
+ * bucket by. An authenticated route does — and using the address there is actively wrong: a
+ * campus behind one NAT shares one address, so one abusive reporter would exhaust the budget
+ * for everyone on the same network. That is the "lock out the entire campus" failure already
+ * recorded against `TRUST_PROXY`, arriving by a second route.
+ *
+ * It does not weaken anonymity. The bucket key is an HMAC under `SALT`, which is regenerated
+ * every restart and never persisted, so this table cannot be read back into a list of who
+ * reported what — and an anonymous report's ROW still stores no reporter at all.
+ *
+ * Registered AFTER `requireSession` in the route chain, never before: without a profile there
+ * is nothing to bucket by, and silently falling back to the address would reintroduce the
+ * shared-bucket failure at the exact moment the middleware order was got wrong. It throws
+ * instead.
+ */
+export function rateLimitByProfile(limiter: FixedWindowLimiter, message?: string) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    const profileId = req.profile?.id;
+    if (!profileId) {
+      // A programming error (registered before requireSession), not user input.
+      throw new Error("rateLimitByProfile must run after requireSession");
+    }
+    if (limiter.check(profileId)) return next();
+    next(errors.rateLimited(message));
+  };
+}
+
+/**
  * Clear every process-wide bucket.
  *
  * Called from the integration harness between tests: supertest sends every request from
@@ -147,5 +188,7 @@ export const eventsLimiter = new FixedWindowLimiter(
  * instead of surprising a student.
  */
 export function resetRateLimiters(): void {
-  for (const limiter of [initiateLimiter, confirmLimiter, eventsLimiter]) limiter.reset();
+  for (const limiter of [initiateLimiter, confirmLimiter, eventsLimiter, reportLimiter]) {
+    limiter.reset();
+  }
 }

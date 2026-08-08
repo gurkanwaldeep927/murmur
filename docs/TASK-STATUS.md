@@ -1,6 +1,6 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-08**
+**Last updated: 2026-08-09**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 31 done · 1 half done · 40 not started · 5 waiting on something** *(= 77)*
+**Score so far: 32 done · 1 half done · 39 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -326,7 +326,7 @@ decide who is banned.
 | Task | In plain words | Status |
 |---|---|---|
 | T33 | Database tables for complaints and their audit trail | ✅ *(see below)* |
-| T34 | "Report this post" — creates a ticket with a legal deadline attached | ⬜ |
+| T34 | "Report this post" — creates a ticket with a legal deadline attached | ✅ *(see below)* |
 | T35 | The moderator's tools: take down, dismiss, or escalate — every action logged | ⬜ |
 | T36 | A way for a moderator to decide on posts the AI flagged but nobody reported | ⬜ |
 | T37 | Moderator-only access — students get a polite "not allowed" | ⬜ |
@@ -340,6 +340,81 @@ decide who is banned.
 | T70 | Full privacy audit — actually runs the data-deletion rules, not just reads them | ⬜ |
 | T71 | Check the app produces useful logs before launch | ⬜ |
 | T43 | *(Lawyer)* Confirm the legal deadlines and write the consent wording | 🔴 waiting on a lawyer |
+
+**About T34 (done 9 August):** "report this post" — the ticket, and the clock attached to it.
+
+**The thing this task was for turned out to be missing.** The job is *"work out the legal
+deadline"*, and the technical spec says the deadline depends on **what kind of complaint it is**:
+most things get 15 days, but a small set of serious ones — someone's private images posted
+without consent, someone impersonating them — get a matter of hours, because the law says so.
+The database built yesterday (T33) has **no field saying what kind of complaint it is.** Just a
+free-text box called "reason". So there was nothing to decide the deadline from.
+
+**Fixed by reading the design brief literally.** It says the reporter *"selects a reason"* — a
+selection is a fixed list, not a sentence. So the reason **is** the category: eight fixed
+choices, three of them on the fast clock. Nothing new was added to the database; the existing
+"reason" box is now restricted to those eight, **by the database itself**.
+
+Why restrict it in the database and not just in the code: if anything can write any reason, then
+a reason the deadline table has never heard of quietly gets the 15-day clock — on a complaint
+the law may give 24 hours. That failure is invisible. It looks like a perfectly normal ticket
+with a perfectly normal deadline, and it is simply the wrong deadline.
+
+**The second hole, and this one is the interesting one.** T33's achievement was that "this
+deadline was missed" is worked out by the database and cannot be set or unset by anyone. But it
+is worked out by comparing *when it was resolved* against *when it was due* — and **when it was
+due could still be edited.** So the flag could be defeated without ever being touched: move the
+deadline out a month, resolve late, and the record reads clean. The front door was locked and
+the back door was open. **The deadline is now frozen the moment the ticket is filed** — the
+database refuses any attempt to change it, and there is a test that tries.
+
+*The cost of that, stated:* a ticket filed under the wrong reason cannot have its deadline
+quietly corrected. If it needs re-categorising, that has to become a proper, logged operator
+action — not an invisible update. That is deliberate.
+
+**Every report is acknowledged the instant it's filed**, in the same single write that creates
+it — so the "acknowledge within 24 hours" rule can never be broken, because there is no way to
+create a ticket without acknowledging it. The audit trail records that acknowledgement as done
+*by the system*, never as a human having read the complaint; telling those two apart is the
+whole reason that log exists.
+
+> **This changes a later task, so it is written here rather than discovered there.** T38 is meant
+> to build "timers that chase the legal deadlines". Its acknowledgement timer now has nothing to
+> count down to. What it should do instead is check that no ticket exists *without* an
+> acknowledgement — a ticket that has one missing is a bug in this code, not a slow human. The
+> query for it is written and there is a test that deliberately breaks a ticket to prove the
+> query notices. **A timer that can never fire would otherwise be mistaken for compliance.**
+
+**Reporting the same thing twice adds to your existing report instead of opening a second one.**
+A second ticket would come with a second deadline and a second "was it late?" flag, and would sit
+open forever, making both the queue and the lateness statistics look worse than reality — for an
+event that told nobody anything new. The fact that you reported twice is written into the audit
+trail, where facts about a ticket belong.
+
+**Anonymity holds in the audit trail too, not just on the ticket.** This is the half that is easy
+to miss: an anonymous report whose *log* still names the reporter is anonymous on the screen only,
+and any later query undoes it. **The honest cost:** anonymous reports cannot be de-duplicated,
+because matching needs the reporter's identity — the very thing anonymity refuses to store. So
+repeated anonymous reports on the same post create separate tickets. Storing the reporter "just
+for de-duplication" would undo exactly what T33 built. What bounds it instead is the rate limit.
+
+**And that rate limit counts per person, not per device** — unlike every other limit in the app,
+which counts per device because those routes have no signed-in person to count. Reporting does.
+A whole campus shares one internet address, so counting reports per device would let one abusive
+reporter lock out everyone on the same network. That is the same "lock out the whole campus"
+failure already written down against `TRUST_PROXY`, arriving by a different road.
+
+**All the deadline numbers are guesses until a lawyer says otherwise (T43).** 24 hours to
+acknowledge, 24 hours to resolve the serious categories, 15 days for the rest. They live as three
+named values so the legal review is one edit — and changing them will **not** move tickets that
+already exist, because each ticket stores the deadline that was in force when it was filed, and
+that value is now frozen. That is what a compliance record has to do.
+
+**A gap found, not invented around:** there is **no way to read your own reports back.** The "My
+Reports" screen needs one and no task in the plan builds one — this task's spec is intake only.
+It is recorded rather than quietly added; its likely home is **T40**, the first task that cannot
+proceed without it. Same for usage statistics on reporting: that belongs to T53, in full, so the
+events get designed against all the reporting screens at once rather than one endpoint at a time.
 
 **About T33 (done 8 August):** the three tables the complaints process needs.
 
@@ -726,6 +801,20 @@ A test suite that can't run is worth less than one that runs and fails.
 ~~T22 — upvoting and accepting~~ — **done 8 August**, including the reconciliation query T21
 required of it. ~~T23 — ban checks everywhere~~ — **done 8 August**, and it closed a fail-open
 path in the ban lookup. ~~T24 — issuing a ban~~ — **done 8 August**, closing problem #7.
+~~T34 — report a post~~ — **done 9 August**, and it closed a way of hiding a missed legal
+deadline that T33 had left open.
+
+**The next piece of code work is T35** — the moderator's tools: take down, dismiss or escalate,
+every action logged. Its one dependency (T34) is now done. It is deliberately *not* being started
+in the same breath as T34, because it needs one decision T34 did not make: T35 is "operator-only",
+and **nothing in this app knows what an operator is yet** — that is T37, a small task with no
+blockers, and building the resolve endpoint before the role exists would mean writing a permission
+check against a permission that does not exist. T37 first, then T35.
+
+**And a caution that applies to both:** T37 changes the session gate, which is the exact surface
+T62 is waiting to inspect. That is why T37 has been left until now rather than picked up as easy
+work — the same rule that kept T20 (search) parked. **T62 is still blocked on one line from you**
+(see item 1 below), and it is now blocking more than it was.
 
 **Why Milestone 3 work started while T62 is still open.** T62 inspects who may read and write
 questions, answers and the feed. Building *those* areas before it runs would just make its job

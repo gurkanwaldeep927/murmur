@@ -59,7 +59,15 @@ async function seed(): Promise<void> {
   answerId = a.rows[0]!.id;
 }
 
-/** A report on the seeded question, `hours` from now as its deadline. */
+/**
+ * A report on the seeded question, `hours` from now as its deadline.
+ *
+ * The reasons below read `'harassment'` rather than the free text this file first used: T34's
+ * migration 010 pinned `reason` to a closed vocabulary, because the resolution SLA is
+ * segmented by category and the frozen schema has no category column, so the reason IS the
+ * category (decisions/a8-report-intake-slas.md §1). Fixtures updated rather than the
+ * constraint loosened — an arbitrary reason is exactly what the constraint exists to refuse.
+ */
 async function report(
   hours: number,
   extra: Record<string, unknown> = {},
@@ -67,7 +75,7 @@ async function report(
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO grievance_report (question_id, reason, reporter_profile_id, sla_deadline,
                                    is_anonymous, resolved_at)
-     VALUES ($1, 'abusive', $2, now() + ($3 || ' hours')::interval, $4, $5)
+     VALUES ($1, 'harassment', $2, now() + ($3 || ' hours')::interval, $4, $5)
      RETURNING id`,
     [
       questionId,
@@ -95,7 +103,7 @@ describe("grievance_report", () => {
   it("requires exactly one target — never both, never neither", async () => {
     const both = pool.query(
       `INSERT INTO grievance_report (question_id, answer_id, reason, sla_deadline)
-       VALUES ($1, $2, 'r', now())`,
+       VALUES ($1, $2, 'harassment', now())`,
       [questionId, answerId],
     );
     await expect(both).rejects.toMatchObject({
@@ -103,7 +111,7 @@ describe("grievance_report", () => {
     });
 
     const neither = pool.query(
-      `INSERT INTO grievance_report (reason, sla_deadline) VALUES ('r', now())`,
+      `INSERT INTO grievance_report (reason, sla_deadline) VALUES ('harassment', now())`,
     );
     await expect(neither).rejects.toMatchObject({
       constraint: "chk_grievance_report_one_target",
@@ -199,7 +207,7 @@ describe("duplicate handling", () => {
     const insert = () =>
       pool.query(
         `INSERT INTO grievance_report (question_id, reason, sla_deadline, idempotency_key)
-         VALUES ($1, 'r', now(), $2)`,
+         VALUES ($1, 'harassment', now(), $2)`,
         [questionId, key],
       );
     await insert();
