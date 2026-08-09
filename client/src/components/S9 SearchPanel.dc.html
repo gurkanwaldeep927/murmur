@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F6EDE4; }
+  a { color:#F26B4E; text-decoration:none; } a:hover { color:#D95538; }
+  @keyframes cardIn { 0%{ transform:translateY(16px); opacity:0;} 100%{ transform:translateY(0); opacity:1;} }
+  @keyframes popIn { 0%{ transform:scale(.6); opacity:0;} 70%{ transform:scale(1.08);} 100%{ transform:scale(1); opacity:1;} }
+  @keyframes shimmer { 0%{ background-position:-260px 0;} 100%{ background-position:260px 0;} }
+  @keyframes slideDown { from{ transform:translateY(-6px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  input::placeholder { color:#C4AB9E; }
+</style>
+</helmet>
+<div style="min-height:100vh; display:flex; justify-content:center; font-family:'Plus Jakarta Sans',sans-serif; background:#EFE3D8">
+  <div style="width:420px; max-width:100%; min-height:100vh; background:linear-gradient(180deg,#FFF8F1 0%,#FDEFE3 100%); display:flex; flex-direction:column">
+
+    <header style="position:sticky; top:0; z-index:5; background:rgba(255,248,241,.94); backdrop-filter:blur(8px); padding:16px 20px 12px; display:flex; flex-direction:column; gap:12px">
+      <h1 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:23px; color:#3D2C26">Search every batch's answers</h1>
+      <div style="display:flex; gap:10px; align-items:center; background:#FFFFFF; border:2px solid #F0DCD0; border-radius:16px; padding:12px 15px; transition:border-color .18s ease, box-shadow .18s ease" style-focus="border:2px solid #F26B4E">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none"><circle cx="11" cy="11" r="6" stroke="#B99C8D" stroke-width="2"></circle><path d="M16 16l4 4" stroke="#B99C8D" stroke-width="2" stroke-linecap="round"></path></svg>
+        <input value="{{ query }}" onChange="{{ onQuery }}" onKeyDown="{{ onKey }}" placeholder="stipends, cutoffs, that one professor…" style="flex:1; border:none; outline:none; background:transparent; font-family:'Plus Jakarta Sans',sans-serif; font-size:15px; color:#3D2C26">
+        <sc-if value="{{ hasQuery }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ clear }}" style="border:none; cursor:pointer; background:#F4E5D9; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none" style-hover="background:#EDD8C6">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#8A7168" stroke-width="2.6" stroke-linecap="round"></path></svg>
+          </button>
+        </sc-if>
+      </div>
+      <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:2px">
+        <sc-for list="{{ topicChips }}" as="t" hint-placeholder-count="6">
+          <button onClick="{{ t.pick }}" style="flex:none; border:2px solid {{ t.border }}; cursor:pointer; background:{{ t.bg }}; color:{{ t.color }}; font-family:'Plus Jakarta Sans',sans-serif; font-size:12.5px; font-weight:600; padding:6px 14px; border-radius:999px; transition:all .18s cubic-bezier(.34,1.56,.64,1)" style-active="transform:scale(.95)">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <span style="font-size:11.5px; font-weight:700; color:#C4AB9E; letter-spacing:.3px">BATCH</span>
+        <sc-for list="{{ batchChips }}" as="b" hint-placeholder-count="5">
+          <button onClick="{{ b.pick }}" style="border:2px solid {{ b.border }}; cursor:pointer; background:{{ b.bg }}; color:{{ b.color }}; font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; transition:all .18s cubic-bezier(.34,1.56,.64,1)" style-active="transform:scale(.95)">{{ b.label }}</button>
+        </sc-for>
+      </div>
+    </header>
+
+    <div style="padding:14px 20px 40px; display:flex; flex-direction:column; gap:14px; flex:1">
+      <sc-if value="{{ showIdle }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; padding:52px 24px 0">
+          <div style="width:64px; height:64px; border-radius:50%; background:#FDEDE4; display:flex; align-items:center; justify-content:center; font-size:28px">🔭</div>
+          <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:19px; color:#3D2C26">Someone probably already asked</h2>
+          <p style="margin:0; font-size:14px; line-height:1.6; color:#8A7168; max-width:280px">Years of seniors' answers, searchable — without anyone knowing what you're looking for.</p>
+          <a href="#" style="font-size:13.5px; font-weight:600; margin-top:2px">or browse by topic instead</a>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showLoading }}" hint-placeholder-val="{{ false }}">
+        <sc-for list="{{ skeletons }}" as="s" hint-placeholder-count="3">
+          <div style="background:#FFFFFF; border-radius:20px; padding:18px; box-shadow:0 6px 20px rgba(93,58,44,.06); display:flex; flex-direction:column; gap:10px">
+            <div style="width:55%; height:12px; border-radius:6px; background:linear-gradient(90deg,#F4E5D9 25%,#FBF1E9 50%,#F4E5D9 75%); background-size:260px 100%; animation:shimmer 1.4s linear infinite"></div>
+            <div style="width:92%; height:15px; border-radius:7px; background:linear-gradient(90deg,#F4E5D9 25%,#FBF1E9 50%,#F4E5D9 75%); background-size:260px 100%; animation:shimmer 1.4s linear infinite"></div>
+            <div style="width:70%; height:12px; border-radius:6px; background:linear-gradient(90deg,#F4E5D9 25%,#FBF1E9 50%,#F4E5D9 75%); background-size:260px 100%; animation:shimmer 1.4s linear infinite"></div>
+          </div>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{ showError }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; gap:8px; align-items:flex-start; background:#FBEDE7; border-radius:14px; padding:11px 14px; animation:slideDown .22s ease">
+          <span style="flex:none; width:16px; height:16px; margin-top:1px; border-radius:50%; background:#D96B57; color:#FFF8F1; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">!</span>
+          <span style="font-size:13.5px; line-height:1.5; color:#A8503E">That search got a bit tangled — try fewer symbols or a simpler phrase.</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showResults }}" hint-placeholder-val="{{ false }}">
+        <span style="font-size:13px; font-weight:600; color:#8A7168">{{ resultLabel }}</span>
+        <sc-for list="{{ results }}" as="q" hint-placeholder-count="2">
+          <div style="background:#FFFFFF; border-radius:20px; padding:18px; box-shadow:0 6px 20px rgba(93,58,44,.06); display:flex; flex-direction:column; gap:10px; cursor:pointer; animation:cardIn .4s cubic-bezier(.34,1.2,.64,1) both; animation-delay:{{ q.delay }}; transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease" style-hover="transform:translateY(-2px); box-shadow:0 10px 26px rgba(93,58,44,.1)">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+              <span style="width:26px; height:26px; border-radius:50%; background:#FDEDE4; display:flex; align-items:center; justify-content:center; font-size:13px">{{ q.avatar }}</span>
+              <span style="font-family:'Baloo 2',sans-serif; font-weight:600; font-size:13.5px; color:#3D2C26">{{ q.pseudonym }}</span>
+              <span style="background:#E7F1EA; color:#5D8E74; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px">{{ q.year_badge }}</span>
+              <span style="margin-left:auto; font-size:12px; color:#C4AB9E; font-weight:600">{{ q.published_at }}</span>
+            </div>
+            <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:17px; line-height:1.35; color:#3D2C26; text-wrap:pretty">{{ q.title }}</h2>
+            <div style="display:flex; gap:10px; align-items:center">
+              <span style="background:#FDEDE4; color:#C25B42; font-size:11.5px; font-weight:700; padding:4px 11px; border-radius:999px">{{ q.topic }}</span>
+              <span style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:#8A7168; font-weight:600">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v10H9l-5 4V6z" stroke="#8A7168" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                {{ q.answer_count }} answers
+              </span>
+            </div>
+          </div>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{ showNoMatches }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFFFFF; border-radius:22px; padding:40px 28px; box-shadow:0 8px 26px rgba(93,58,44,.07); display:flex; flex-direction:column; align-items:center; gap:13px; text-align:center; margin-top:8px; animation:popIn .4s cubic-bezier(.34,1.56,.64,1)">
+          <div style="width:64px; height:64px; border-radius:50%; background:#E7F1EA; display:flex; align-items:center; justify-content:center; font-size:28px">🏆</div>
+          <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:20px; color:#3D2C26">Nobody's asked this yet</h2>
+          <p style="margin:0; font-size:14px; line-height:1.6; color:#8A7168; text-wrap:pretty">You found a first. Ask it yourself — anonymously — and every junior after you gets the answer for free.</p>
+          <button onClick="{{ noop }}" style="margin-top:4px; border:none; cursor:pointer; border-radius:14px; padding:13px 28px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:15.5px; color:#FFF8F1; background:#F26B4E; box-shadow:0 6px 18px rgba(242,107,78,.32); transition:transform .18s cubic-bezier(.34,1.56,.64,1)" style-hover="background:#E85A3C; transform:translateY(-1px)">Be the first to ask</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 420, &quot;height&quot;: 860}, &quot;forceState&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;live&quot;, &quot;options&quot;: [&quot;live&quot;, &quot;loading&quot;, &quot;error&quot;, &quot;no_matches&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Preview&quot;}}">
+class Component extends DCLogic {
+  state = { query: "", topic: "All", batch: "All", phase: "idle" };
+  pool() {
+    return [
+      { pseudonym: "AmberLynx", avatar: "🐈", year_badge: "'25 batch", topic: "Internships", published_at: "yesterday", answer_count: 7,
+        title: "Off-campus summer internship vs the college-arranged one?", keywords: "internship stipend offcampus college startup" },
+      { pseudonym: "MistyHeron", avatar: "🐦", year_badge: "'26 batch", topic: "Placements", published_at: "2h ago", answer_count: 4,
+        title: "How brutal is the TCS Digital coding round, really?", keywords: "tcs coding round placement dsa" },
+      { pseudonym: "QuietFalcon", avatar: "🦅", year_badge: "'27 batch", topic: "Courses", published_at: "5h ago", answer_count: 2,
+        title: "Is the ML elective with Prof. treatable as a GPA booster?", keywords: "ml elective gpa course grading" },
+      { pseudonym: "SolarWren", avatar: "🌿", year_badge: "'23 batch", topic: "Placements", published_at: "3d ago", answer_count: 9,
+        title: "Do CGPA cutoffs for Goldman actually flex for strong projects?", keywords: "cgpa cutoff goldman placement projects stipend" }
+    ];
+  }
+  runSearch() {
+    const q = this.state.query.trim();
+    if (!q) return;
+    if (/[<>{}\\]/.test(q)) { this.setState({ phase: "error" }); return; }
+    this.setState({ phase: "loading" });
+    this._t = setTimeout(() => this.setState({ phase: "done" }), 900);
+  }
+  renderVals() {
+    const force = this.props.forceState ?? "live";
+    let phase = this.state.phase;
+    if (force !== "live") phase = force === "no_matches" ? "done" : force;
+    const q = this.state.query.trim().toLowerCase();
+    let results = this.pool().filter(item => {
+      const topicOk = this.state.topic === "All" || item.topic === this.state.topic;
+      const batchOk = this.state.batch === "All" || item.year_badge.includes(this.state.batch);
+      const qOk = !q || item.title.toLowerCase().includes(q) || item.keywords.includes(q);
+      return topicOk && batchOk && qOk;
+    }).map((r, i) => ({ ...r, delay: (i * 0.07) + "s" }));
+    if (force === "no_matches") results = [];
+    const done = phase === "done";
+    const chips = (list, key) => list.map(label => {
+      const on = this.state[key] === label;
+      return {
+        label,
+        pick: () => { this.setState({ [key]: label }); if (this.state.phase === "done") { /* re-filter live */ } },
+        bg: on ? "#F26B4E" : "#FFFFFF",
+        color: on ? "#FFF8F1" : "#8A7168",
+        border: on ? "#F26B4E" : "#F0DCD0"
+      };
+    });
+    return {
+      query: this.state.query,
+      hasQuery: !!this.state.query,
+      onQuery: (e) => this.setState({ query: e.target.value, phase: "idle" }),
+      onKey: (e) => { if (e.key === "Enter") this.runSearch(); },
+      clear: () => this.setState({ query: "", phase: "idle" }),
+      topicChips: chips(["All", "Placements", "Internships", "Professors", "Courses", "Advice"], "topic"),
+      batchChips: chips(["All", "'23", "'24", "'25", "'26"], "batch"),
+      skeletons: [1, 2, 3],
+      results,
+      resultLabel: results.length + (results.length === 1 ? " question found" : " questions found") + " · all batches",
+      showIdle: phase === "idle",
+      showLoading: phase === "loading",
+      showError: phase === "error",
+      showResults: done && results.length > 0,
+      showNoMatches: done && results.length === 0,
+      noop: () => {}
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>

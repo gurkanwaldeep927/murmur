@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 37 done · 0 half done · 35 not started · 5 waiting on something** *(= 77)*
+**Score so far: 38 done · 0 half done · 34 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -174,12 +174,69 @@ down as not done rather than quietly skipped.
 | T22 | Upvote and "this answered my question" — points are awarded by the server so nobody can cheat | ✅ *(see below)* |
 | T23 | Check bans everywhere — asking, answering, voting | ✅ *(see below)* |
 | T24 | Actually issue a ban, and make it survive someone deleting their account | ✅ *(see below)* |
-| T25 | *(Designer — copy job)* Search, topic list, profile screens | ⬜ |
+| T25 | ~~*(Designer — copy job)*~~ Search, topic list, profile screens — **it was mine, not yours** | ✅ *(see below)* |
 | T26 | Connect those three screens | ⬜ |
 | T52 | Record how people use search | ⬜ |
 | T57 | Test: delete account → try to rejoin with same email → refused | ⬜ |
 | T65 | Security expert attacks the ban system with tricks like `First.Last@` vs `first.last@` | ⬜ |
 | T66 | Speed check on search and points | ⬜ |
+
+**About T25 (done 9 August):** the search, topic-browse and profile screens are now in the
+repo — **and this task should never have been on your list.**
+
+**What actually happened: it was filed in the wrong lane.** This file has been telling you
+for days that T25 is *"yours, 15 minutes — pull three screens out of the design project"*.
+The working rules say something different, and they are right: Claude Design **creates**
+screens; **landing** them in the repo is a copy job and belongs to me. The screens were
+created back in July — all seventeen of them — so there was no design work left to do. I
+have access to the design project, the full ID is written down, and the three files came
+down in one go. **Nothing was blocked. It had simply been handed to the wrong person.**
+
+Worth checking whether **T39** (the five moderator/report screens, still marked "designer")
+is sitting in exactly the same mistake. On the face of it, it is.
+
+**Copying the files is not the work. The work is the list of places these designs disagree
+with the app that actually exists** — that list is in `client/src/components/README.md`, and
+it is what T26 reads before wiring anything. At T18 that same list caught four mismatches
+that would otherwise have been found one at a time, each costing a round trip to the
+designer. Twenty-five went in this time. Six are worth your attention:
+
+**The good surprise: two of the three screens can be wired up today.**
+
+- **The profile screen is fully powered already.** Nickname, batch badge, points, and
+  account state all come back from a call the app already makes on every open. When these
+  screens were drawn, points did not exist yet and would have had to be hidden. **T22 fixed
+  that on 8 August, so the points chip is real now.** The three account states the design
+  draws — active, paused, closed — are the exact three the database allows. Nothing to
+  translate.
+- **Topic browse is powered too.** The five topic names in the design are letter-for-letter
+  the five in the database, and asking the server for "questions in this topic" already
+  works. This screen does **not** need the search work (T20) that everything else is waiting
+  on.
+- **Search itself has nothing behind it.** Not "partly" — there is no search in the app at
+  all yet; what exists is "show me the recent ones". That is T20, and T20 is one of the
+  things parked behind T62. So of the three screens, one is genuinely waiting.
+
+**Three things that need a decision, and none of them is mine to make:**
+
+- **The profile screen tells a paused student "this clears automatically; nothing is
+  permanent." It does not clear automatically.** Nothing in the app ever pauses an account,
+  and nothing would un-pause one — deliberately, from T24: no automatic punishment until a
+  human moderator's desk exists in Milestone 5. A student reading that sentence would wait
+  for something that is never coming. **Same shape as the "usually takes a few minutes"
+  wording found at T19, and it gets the same treatment: a wording fix from Claude Design,
+  not from me.** I did not rewrite it; that is not my lane.
+- **The topic tiles each show a question count — "42 questions" — and there is no such
+  number anywhere.** The server sends topic names and nothing else. Either the server starts
+  counting, or the tiles stop claiming. **What must not happen is the app estimating it.** A
+  believable wrong number that nobody can check is the exact failure this project has
+  written down five times already.
+- **The profile screen lists "your questions and answers", and there is no way to ask for
+  them.** You can ask the server for a topic's questions; you cannot ask for your own. No
+  task in the plan builds it. This is the *same missing piece* found at T34 for "my
+  reports" — a screen the plan requires with no task feeding it. **Its likely home is T26.**
+  Written down rather than quietly built here, because inventing an endpoint inside a copy
+  job is how scope goes missing.
 
 **About T24 (done 8 August):** actually issuing a ban — **this closes problem #7.**
 
@@ -936,6 +993,42 @@ the pipe's.
 Caught within the same session by reading the actual output. **Fifth instance of the same
 lesson, and the cheapest one to repeat: check what the green tick is actually reporting on.**
 
+### 17. The one unlock line is actually five, and nobody had noticed (found 9 August)
+
+This file has been telling you for days that T62 needs **one line** — the text `08` in
+`.pipeline/unlock`. That is true for T62 and **wrong for everything after it.**
+
+Here is the rule the guard actually follows, read out of the code
+(`.claude/hooks/guardrail.py`, lines 45–66): a numbered document becomes **read-only the
+moment any higher-numbered one exists.** `docs/16-privacy.md` exists. So documents 01
+through 15 are *all* frozen right now, and every remaining quality gate is a task whose
+whole job is to write one of them:
+
+| Gate | The document it must write | The line it needs |
+|---|---|---|
+| T62, T65, T69 — the security reviews | `docs/08-security.md` | `08` |
+| T47 — run every test one last time | `docs/11-…` | `11` |
+| T66, T68 — the speed checks | `docs/12-performance.md` | `12` |
+| T71 — the "does it produce useful logs" check | `docs/13-…` | `13` |
+| T48 — **the launch decision** | `docs/15-production-readiness.md` | `15` |
+
+**What this costs you if it stays unwritten:** each of those gates would run, do its work,
+and then fail at the last step when it tries to save its report. You'd find out one gate at
+a time, over weeks, each time thinking it was a new problem. It is one problem.
+
+**The fix is one file with five entries**, space-separated, e.g. `08 11 12 13 15`. Do it
+once now rather than five times later. **It stays yours.** An agent that can unlock its own
+audit is not being audited.
+
+**A second, smaller thing found in the same read, and it points the other way.** The file
+does two different jobs, and it does them by two different rules. The freeze above reads the
+file's **contents**. But a separate guard — the one that stops a review agent from running
+arbitrary commands (line 102) — switches off merely because the file **exists**, whatever is
+in it. The file exists today and is empty. **So that second guard is already off while
+nothing is actually unlocked.** Not dangerous on its own, and not something to quietly
+"repair" — a guard's behaviour is your call, not mine. But you should know that creating an
+empty file was not a no-op.
+
 ### 12. Nothing was checking the phone app at all (found 2 August, T19)
 The robot checked the server. It never checked the **app the student actually touches** — not
 the spell-checker, not the style rules, nothing. So the four sign-up screens built back in
@@ -992,16 +1085,16 @@ A test suite that can't run is worth less than one that runs and fails.
 
 1. **T62** — the security gate. Milestone 2 can't close without it. The three access-control
    holes it would have tripped over (6b, 6c, 6d above) were cleared on 4 August, so it now has
-   a real chance of passing rather than just re-reporting what we knew. **It needs one line
-   from you first:** the file `.pipeline/unlock` exists but is empty, and it must contain the
-   text `08`. Until then the guardrail blocks the gate from writing its report. Claude Code
-   deliberately won't write that line itself — a guard an agent can lift for itself isn't a
-   guard.
+   a real chance of passing rather than just re-reporting what we knew. **It needs a few lines
+   from you first** — and it turns out to be more than the one line previously written here.
+   See problem #17 below: `.pipeline/unlock` exists but is empty, and it gates **every**
+   remaining quality gate, not only T62. Claude Code deliberately won't write those lines
+   itself — a guard an agent can lift for itself isn't a guard.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
-3. **T25** — *(yours, 15 min)* pull the search, topic-list and profile screens out of the design
-   project. It is a copy job, and it is the only thing standing between now and T26.
-   Then **T26** wires them up, and Milestone 3 is nearly done.
+3. ~~**T25** — pull the three screens out of the design project~~ — **done 9 August, and it
+   was never yours.** It was filed in the wrong lane; see "About T25" above. **T39** (the five
+   Milestone 5 screens) looks like the same mistake and will be checked next.
 4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 5. Then the rest of Milestone 3, plus fixing the remaining problems above.
 
