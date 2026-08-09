@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F6EDE4; }
+  a { color:#F26B4E; } a:hover { color:#D95538; }
+  @keyframes sheetUp { 0%{ transform:translateY(60px); opacity:0;} 100%{ transform:translateY(0); opacity:1;} }
+  @keyframes popIn { 0%{ transform:scale(.6); opacity:0;} 70%{ transform:scale(1.08);} 100%{ transform:scale(1); opacity:1;} }
+  @keyframes slideDown { from{ transform:translateY(-6px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  @keyframes dotPulse { 0%,80%,100%{ opacity:.25; transform:scale(.85);} 40%{ opacity:1; transform:scale(1);} }
+</style>
+</helmet>
+<div style="min-height:100vh; display:flex; justify-content:center; font-family:'Plus Jakarta Sans',sans-serif; background:rgba(61,44,38,.42)">
+  <div style="width:420px; max-width:100%; min-height:100vh; display:flex; flex-direction:column; justify-content:flex-end">
+
+    <sc-if value="{{ showForm }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#FFF8F1; border-radius:26px 26px 0 0; box-shadow:0 -12px 40px rgba(61,44,38,.3); padding:14px 22px 26px; display:flex; flex-direction:column; gap:16px; animation:sheetUp .35s cubic-bezier(.34,1.2,.64,1)">
+        <div style="width:44px; height:5px; border-radius:3px; background:#F0DCD0; align-self:center"></div>
+        <div style="display:flex; flex-direction:column; gap:5px">
+          <h1 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px; color:#3D2C26">Report this post</h1>
+          <p style="margin:0; font-size:13.5px; line-height:1.55; color:#8A7168">We're required to respond — and we will. This takes under a minute.</p>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <span style="font-size:12.5px; font-weight:700; color:#8A7168; letter-spacing:.3px">WHAT'S WRONG</span>
+          <sc-for list="{{ reasons }}" as="r" hint-placeholder-count="5">
+            <button onClick="{{ r.pick }}" style="border:2px solid {{ r.border }}; cursor:pointer; background:{{ r.bg }}; border-radius:15px; padding:13px 16px; display:flex; align-items:center; gap:11px; text-align:left; transition:all .18s cubic-bezier(.34,1.56,.64,1)" style-active="transform:scale(.98)">
+              <span style="flex:none; width:19px; height:19px; border-radius:50%; border:2px solid {{ r.radioBorder }}; background:{{ r.radioBg }}; display:flex; align-items:center; justify-content:center">
+                <sc-if value="{{ r.on }}" hint-placeholder-val="{{ false }}">
+                  <span style="width:8px; height:8px; border-radius:50%; background:#FFF8F1"></span>
+                </sc-if>
+              </span>
+              <span style="font-size:14px; font-weight:600; color:#3D2C26">{{ r.label }}</span>
+            </button>
+          </sc-for>
+          <sc-if value="{{ reasonError }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12.5px; color:#A8503E; animation:slideDown .2s ease">Pick what happened so it reaches the right review.</span>
+          </sc-if>
+        </div>
+
+        <button onClick="{{ toggleAnon }}" style="border:none; cursor:pointer; background:#FFFFFF; border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:12px; text-align:left; box-shadow:0 4px 14px rgba(93,58,44,.06)">
+          <span style="flex:none; width:42px; height:25px; border-radius:999px; background:{{ anonTrackBg }}; position:relative; transition:background .2s ease">
+            <span style="position:absolute; top:3px; left:{{ anonKnobLeft }}; width:19px; height:19px; border-radius:50%; background:#FFFFFF; box-shadow:0 2px 6px rgba(61,44,38,.25); transition:left .2s cubic-bezier(.34,1.56,.64,1)"></span>
+          </span>
+          <span style="display:flex; flex-direction:column; gap:1px">
+            <span style="font-size:14px; font-weight:600; color:#3D2C26">Report anonymously</span>
+            <span style="font-size:12px; line-height:1.5; color:#8A7168">{{ anonHint }}</span>
+          </span>
+        </button>
+
+        <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; gap:8px; align-items:flex-start; background:#FBEDE7; border-radius:14px; padding:11px 14px; animation:slideDown .22s ease">
+            <span style="flex:none; width:16px; height:16px; margin-top:1px; border-radius:50%; background:#D96B57; color:#FFF8F1; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center">!</span>
+            <span style="font-size:13.5px; line-height:1.5; color:#A8503E">{{ errorMsg }}</span>
+          </div>
+        </sc-if>
+
+        <button onClick="{{ submit }}" disabled="{{ isLoading }}" style="width:100%; border:none; cursor:pointer; border-radius:16px; padding:15px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:16.5px; color:#FFF8F1; background:#F26B4E; box-shadow:0 6px 18px rgba(242,107,78,.32); transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease; display:flex; align-items:center; justify-content:center; gap:8px" style-hover="background:#E85A3C; transform:translateY(-1px)" style-active="transform:translateY(1px) scale(.98)">
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <span style="display:flex; align-items:center; gap:7px">Sending
+              <span style="display:inline-flex; gap:4px">
+                <span style="width:5px; height:5px; border-radius:50%; background:#FFF8F1; animation:dotPulse 1.1s infinite"></span>
+                <span style="width:5px; height:5px; border-radius:50%; background:#FFF8F1; animation:dotPulse 1.1s .18s infinite"></span>
+                <span style="width:5px; height:5px; border-radius:50%; background:#FFF8F1; animation:dotPulse 1.1s .36s infinite"></span>
+              </span>
+            </span>
+          </sc-if>
+          <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">Submit report</sc-if>
+        </button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showSuccess }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#FFF8F1; border-radius:26px 26px 0 0; box-shadow:0 -12px 40px rgba(61,44,38,.3); padding:36px 26px 30px; display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; animation:sheetUp .35s cubic-bezier(.34,1.2,.64,1)">
+        <div style="width:62px; height:62px; border-radius:50%; background:#E7F1EA; display:flex; align-items:center; justify-content:center; animation:popIn .5s cubic-bezier(.34,1.56,.64,1)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#5D8E74" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 12l2 2 4-4.5" stroke="#5D8E74" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px; color:#3D2C26">We've got it — and we're on it</h2>
+        <div style="background:#FFFFFF; border-radius:16px; padding:14px 20px; display:flex; flex-direction:column; gap:6px; width:100%; box-sizing:border-box">
+          <div style="display:flex; justify-content:space-between; gap:12px">
+            <span style="font-size:13px; color:#8A7168">Ticket</span>
+            <span style="font-size:13px; font-weight:700; color:#3D2C26; font-family:'Baloo 2',sans-serif">GRV-2107</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:12px">
+            <span style="font-size:13px; color:#8A7168">We must respond by</span>
+            <span style="font-size:13px; font-weight:700; color:#4E7A62">tomorrow, 11:02 AM</span>
+          </div>
+        </div>
+        <p style="margin:0; font-size:13px; line-height:1.6; color:#8A7168; text-wrap:pretty">That deadline is a legal commitment, not a courtesy. Track it anytime in My Reports.</p>
+        <button onClick="{{ reset }}" style="margin-top:4px; border:none; cursor:pointer; border-radius:14px; padding:12px 26px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:15px; color:#8A7168; background:#F4EDE3" style-hover="background:#EDE2D2">Done</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showMerged }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#FFF8F1; border-radius:26px 26px 0 0; box-shadow:0 -12px 40px rgba(61,44,38,.3); padding:36px 26px 30px; display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; animation:sheetUp .35s cubic-bezier(.34,1.2,.64,1)">
+        <div style="width:62px; height:62px; border-radius:50%; background:#EFF4F3; display:flex; align-items:center; justify-content:center; font-size:26px; animation:popIn .5s cubic-bezier(.34,1.56,.64,1)">🤝</div>
+        <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px; color:#3D2C26">Already being reviewed</h2>
+        <p style="margin:0; font-size:14px; line-height:1.6; color:#8A7168; text-wrap:pretty">Someone else flagged this too — it's under review as ticket <strong style="color:#3D2C26; font-family:'Baloo 2',sans-serif">GRV-2093</strong>, and your report was added to it. More voices, more weight.</p>
+        <button onClick="{{ reset }}" style="margin-top:4px; border:none; cursor:pointer; border-radius:14px; padding:12px 26px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:15px; color:#8A7168; background:#F4EDE3" style-hover="background:#EDE2D2">Done</button>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 420, &quot;height&quot;: 820}, &quot;submitOutcome&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;success&quot;, &quot;options&quot;: [&quot;success&quot;, &quot;merged&quot;, &quot;error-gone&quot;, &quot;error-ratelimited&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  state = { reason: null, anonymous: true, phase: "idle", reasonError: false };
+  renderVals() {
+    const outcome = this.props.submitOutcome ?? "success";
+    const labels = ["Reveals someone's real identity", "Harassment or bullying", "Hate or threats", "Spam or advertising", "Something else serious"];
+    const phase = this.state.phase;
+    const isLoading = phase === "loading";
+    const reasons = labels.map(label => {
+      const on = this.state.reason === label;
+      return {
+        label, on,
+        pick: () => this.setState({ reason: label, reasonError: false }),
+        bg: on ? "#FDEDE4" : "#FFFFFF",
+        border: on ? "#F8C9B8" : "transparent",
+        radioBorder: on ? "#F26B4E" : "#E0CDBF",
+        radioBg: on ? "#F26B4E" : "transparent"
+      };
+    });
+    const errors = {
+      "error-gone": "That post was already taken down — someone got to it before you. Nothing more needed.",
+      "error-ratelimited": "You've sent a few reports in a row — give it a minute. Everything you've sent is safely in the queue."
+    };
+    return {
+      reasons,
+      reasonError: this.state.reasonError,
+      toggleAnon: () => this.setState(s => ({ anonymous: !s.anonymous })),
+      anonTrackBg: this.state.anonymous ? "#6FA287" : "#E0CDBF",
+      anonKnobLeft: this.state.anonymous ? "20px" : "3px",
+      anonHint: this.state.anonymous
+        ? "Not even the reviewer sees who reported. You won't get status updates."
+        : "Your pseudonym is attached so you can track it in My Reports. Never shown to the person reported.",
+      submit: () => {
+        if (isLoading) return;
+        if (!this.state.reason) { this.setState({ reasonError: true }); return; }
+        this.setState({ phase: "loading" });
+        this._t = setTimeout(() => this.setState({ phase: outcome }), 1000);
+      },
+      reset: () => this.setState({ phase: "idle", reason: null }),
+      isLoading,
+      notLoading: !isLoading,
+      hasError: phase.startsWith("error"),
+      errorMsg: errors[phase] || "",
+      showForm: phase !== "success" && phase !== "merged",
+      showSuccess: phase === "success",
+      showMerged: phase === "merged"
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>

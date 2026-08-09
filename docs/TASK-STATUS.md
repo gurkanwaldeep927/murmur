@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 38 done · 0 half done · 34 not started · 5 waiting on something** *(= 77)*
+**Score so far: 39 done · 0 half done · 33 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -551,7 +551,7 @@ comment saying why is deliberately blunt — so nobody removes it later as dupli
 | T36 | A way for a moderator to decide on posts the AI flagged but nobody reported | ⬜ |
 | T37 | Moderator-only access — students get a polite "not allowed" | ⬜ |
 | T38 | Timers that chase the legal deadlines and alert the moderator | ✅ *(see below)* |
-| T39 | *(Designer — copy job)* 5 screens: report, my reports, contact info, queue, resolve | ⬜ |
+| T39 | ~~*(Designer — copy job)*~~ 5 screens: report, my reports, contact info, queue, resolve — **also mine, not yours** | ✅ *(see below — one finding here has legal weight)* |
 | T40 | Connect the 3 student-facing ones | ⬜ |
 | T41 | Connect the 2 moderator ones | ⬜ |
 | T53 | Record report and moderation stats | ⬜ |
@@ -560,6 +560,71 @@ comment saying why is deliberately blunt — so nobody removes it later as dupli
 | T70 | Full privacy audit — actually runs the data-deletion rules, not just reads them | ⬜ |
 | T71 | Check the app produces useful logs before launch | ⬜ |
 | T43 | *(Lawyer)* Confirm the legal deadlines and write the consent wording | 🔴 waiting on a lawyer |
+
+**About T39 (done 9 August):** the five Milestone 5 screens — report, my reports, contact
+details, and the two moderator ones. **Same wrong lane as T25**, same fix: they were already
+drawn, and landing them is mine.
+
+**One finding here is more serious than anything T25 turned up, and it is worth your five
+minutes.**
+
+**The report form cannot report the two worst things that can happen to someone.**
+
+T34's whole achievement was that the legal deadline is decided by *what kind of complaint it
+is* — a small set of severe categories get **24 hours**, everything else gets **15 days**.
+The law names them. Three of the eight are on the fast clock: intimate images shared without
+consent, doctored sexual images, and someone impersonating you.
+
+The report screen offers **five** choices. **Two of those three are not among them.** A
+student reporting intimate images of themselves posted without consent has nothing to pick
+except *"Something else serious"* — which is the catch-all, and the catch-all is deliberately
+**not** expedited. So the most urgent complaint the platform can receive would quietly be
+given fifteen days instead of twenty-four hours.
+
+Nothing is broken in the code. T34 locked the categories into the database precisely so a
+deadline could never be wrong. **This defeats it from the other end: the category is correct,
+it just cannot be chosen.** It needs a fuller list on the screen — a Claude Design change, not
+something to patch in the wiring.
+
+**Two more problems in the same list, smaller but real.** "Hate or threats" is one button for
+two different legal categories, so the app cannot tell which one you meant. And *"Reveals
+someone's real identity"* — doxxing, the single harm this entire product exists to prevent —
+**matches no category at all.** Impersonation is pretending to *be* someone; this is unmasking
+them. That gap sits above the screens, with the legal review (T43), and is written down rather
+than invented around.
+
+**Then the contradiction a student would actually hit.** Reporting is set to **anonymous by
+default**. The toggle honestly warns that anonymous means no status updates — that is true and
+permanent, because an anonymous report deliberately stores nobody (T33). But the confirmation
+screen straight after says *"Track it anytime in My Reports."* On the default path, that is
+false. Either the default flips or the confirmation changes. **What must not happen is
+"fixing" it by quietly attaching the reporter to anonymous reports** — that is exactly what
+T33 built the anonymity to prevent.
+
+**The contact page invents a person.** It shows a named grievance officer with an email and a
+phone number. All three are the designer's placeholders. The *process description* underneath
+is correctly stamped PLACEHOLDER — the human being is not. A named person with contact details
+on a legally-required page reads as real. **Safer shape: the page refuses to show contact
+details it does not have**, rather than falling back to invented ones. The real details are
+**T42**, yours.
+
+**And that page has to work for someone who does not have an account** — the design says so
+and the law expects it, because a student refused at sign-up still needs to reach a human.
+Every complaint route today requires being signed in. Whoever builds that endpoint (T40) needs
+to know this before they build it the obvious way.
+
+**On the moderator screens, two things are worth knowing.** The queue's underlying table is
+already complete — nothing needs building in the database. But until the real AI checker is
+plugged in (**T14b**), every item in that queue arrives with **no AI verdict at all**, because
+nothing classified it; it got there by giving up after repeated failures. The console must say
+that plainly instead of showing an empty box that looks like a bug.
+
+And the resolution screen contains a trap that would have shipped silently: it warns the
+moderator *"you are about to resolve this late"*. If that warning is wired to the field it
+looks like it should use, **it would never once fire** — because that field only becomes true
+*after* something is resolved late. It has to compare the clock to the deadline instead.
+Sixth time this project has found a check that could never fail; it was caught before being
+built, which is the cheapest place to catch it.
 
 **About T38 (done 9 August):** the watchdog that chases the legal deadlines.
 
@@ -1093,8 +1158,13 @@ A test suite that can't run is worth less than one that runs and fails.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
 3. ~~**T25** — pull the three screens out of the design project~~ — **done 9 August, and it
-   was never yours.** It was filed in the wrong lane; see "About T25" above. **T39** (the five
-   Milestone 5 screens) looks like the same mistake and will be checked next.
+   was never yours.** It was filed in the wrong lane; see "About T25" above. ~~**T39**~~ —
+   **also done 9 August, and it was the same mistake.** Both are now landed. **T30 is the only
+   design-lane item left, and it is a genuine one** — its brief exists because the drawn
+   screen gets three things wrong, so it needs a real round with Claude Design, not a copy.
+   **New and needs you: the report form is missing two of the three legally-urgent
+   categories** — see "About T39" above. That one is a Claude Design change with a legal
+   consequence, and it is the highest-value design request outstanding.
 4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 5. Then the rest of Milestone 3, plus fixing the remaining problems above.
 
@@ -1137,7 +1207,9 @@ without exception, one of:
 - **behind T62** — T37, and through it T35, T36 and T41; plus T20 and all of Milestone 3 after it.
   These all change the code T62 is waiting to inspect;
 - **the phone app** — T28 and T31, which need the screens from T30 first;
-- **a designer** — T25, T30, T39. **T30's brief is now written and waiting**:
+- **a designer** — ~~T25~~, ~~T39~~ (both landed 9 August; they were mis-filed, not blocked),
+  leaving **T30**, plus the new report-category request from T39.
+  **T30's brief is now written and waiting**:
   `docs/design-prompts/T30-sync-status.md`. It carries three things the design would otherwise
   get wrong — a "waiting on something else" state the spec never anticipated, a `conflict` state
   the spec lists that **can never happen** (so please don't draw it), and a missing screen for
