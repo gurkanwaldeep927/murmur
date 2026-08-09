@@ -3,16 +3,22 @@
 Living checklist of every task in `docs/07-plan.md` that Claude Code cannot do, ordered by
 how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 
-**Last updated:** 2026-07-30 — **moderation end-loading** (fourth revision, `docs/07-plan.md`
-§1), on top of the same day's human-task end-loading (third revision). **T54 (the moderation
-vendor decision) is no longer blocking anything and has moved to Tier 4.** It used to be the
-single biggest lever here; it isn't any more, because T14 was split: the gateway (**T14a**) is
-provider-agnostic and I build it now, and only the provider binding (**T14b**, M6) needs your
-vendor choice. Six tasks that were queued behind you are now queued behind me instead.
+**Last updated:** 2026-08-09 — **the list was ten days and eleven tasks stale, and it was wrong
+in both directions.** It was asking you for work already finished, and it was missing the single
+highest-value thing you can do.
 
-Earlier that day, 5 tasks that gate nothing but the T48 launch checklist (**T42, T72–T75**)
-moved to Tier 4. The 7 remaining load-bearing tasks (T6, T9, T18, T25, T30, T39, T43) are
-unchanged. Previously updated 2026-07-24, after T12/T13 landed.
+**Two items came off it because they were never yours.** T25 and T39 — landing the search /
+topic / profile screens and the five Milestone 5 screens — sat here as "designer, 15 minutes"
+for days. Claude Design *creates* screens; *landing* them is a copy job and mine. All 17 screens
+have existed in the design project since July, so there was no design work outstanding. Both
+landed on 9 August. Nothing was blocked; the tasks were simply filed against the wrong person.
+
+**Three items went on that were not here at all:** the `.pipeline/unlock` file (the biggest
+lever in the project and it had never been written down here), rotating the database password
+(open since 7 August), and a new design round carrying a **legal** problem with the report form.
+
+Previously updated 2026-07-30 (moderation end-loading, fourth plan revision — that is what moved
+T54 out of the hot path by splitting T14a from T14b, and it still holds).
 
 ---
 
@@ -20,62 +26,86 @@ unchanged. Previously updated 2026-07-24, after T12/T13 landed.
 
 | # | Task | Blocks | Your time | When |
 |---|---|---|---|---|
-| 1 | **T18** — Claude Design round 2 | T19 | 15–60 min | **Now** |
-| 2 | **T49** — staging deploy | T11 (closes M1) | 1–2 hrs | **Now** |
-| 3 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 | Weeks (external) | **Start now, finishes later** |
-| 4 | **T25 / T30 / T39** — design rounds 3–5 | T26, T31, T40, T41 | 15–60 min each | At each milestone |
-| 5 | **T54** — moderation vendor | T14b, T64, T73 — all M6 | ~30 min | Anytime before M6 |
-| 6 | **T42** — grievance officer details | R7 AC3 — launch-blocking, **but only at T48/M6** | ~1 hr | Anytime before M6 |
-| 7 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Anytime before M6 |
+| 1 | **`.pipeline/unlock`** — five words in one file | **T62, and through it about half of what is left** — plus T47, T66, T68, T71, T48 | **1 min** | **Now — nothing else here comes close** |
+| 2 | **T49** — staging deploy | T11 (closes M1), and T19's look-at-it-on-a-screen check | 1–2 hrs | **Now** |
+| 3 | **Rotate the database password** | nothing — but it has been on a screen | ~10 min | **Now** |
+| 4 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 — and now the doxxing category | Weeks (external) | **Start now, finishes later** |
+| 5 | **Design round 6** — the report form's missing categories | T40, and a legal deadline being wrong | 15–30 min | **Soon — see why below** |
+| 6 | **T30** — design round 4 (sync status) | T31 | 15–60 min | At M4 |
+| 7 | **T54** — moderation vendor | T14b, T64, T73 — all M6 | ~30 min | Anytime before M6 |
+| 8 | **T42** — grievance officer details | R7 AC3 — launch-blocking, **but only at T48/M6** | ~1 hr | Anytime before M6 |
+| 9 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Anytime before M6 |
 
-*(T54 dropped from #1 to #5 on 2026-07-30 — the T14a/T14b split removed the dependency instead
-of deferring it. T42 and T72–T75 moved out of the hot path the same day. T25/T30/T39 stayed in
-the "at each milestone" tier because T26/T31/T40/T41 genuinely can't integrate without them.)*
+*(T54 dropped out of the hot path on 2026-07-30 — the T14a/T14b split removed the dependency
+rather than deferring it. T42 and T72–T75 moved out the same day. T18 was removed on 2026-08-09
+because it landed on 2 August and had been sitting at the top of this list ever since.)*
 
 **What this costs you to know:** until T54 + T14b land at M6, Murmur holds every question and
 answer for moderation and publishes nothing outside the test suite. That is R6's fail-closed
 posture working correctly, not a bug — but it does mean you won't see a post go live on
 staging until you pick a vendor. Running T54 early un-does that at any time. See **RR-21**.
 
-**I am not idle while you do these.** Now unblocked and being built: **T14a** (moderation
-gateway), **T15** (A3 create question), **T16** (A4 create answer), **T17** (A5 browse feed),
-**T56** (moderation NFR tests). Still queued: **T60** (security gate), **T61** (privacy gate).
+**And the honest version of "I am not idle while you do these" — I mostly am.** Item 1 is why.
+Everything left in the build either changes the code T62 is waiting to inspect (T20, T37, and
+through T37 the whole rest of Milestone 5), or is the phone app, or is on this list. That is not
+a complaint; it is the reason the one-minute item is at the top.
 
 ---
 
 # TIER 1 — do these now
 
-## 1. T18 — Claude Design round 2
+## 1. `.pipeline/unlock` — one file, five words, one minute
 
-**Why it blocks:** T19 integrates the M2 screens. Needed: **QuestionFeedCard, AskComposer,
-QuestionThread, AnswerComposer** (S5–S8).
+**This is the highest-value minute available to you anywhere in the project.** It unblocks
+**T62**, and T62 unblocks roughly half of what is left to build.
 
-Your build notes say **all 17 screens S1–S17 already exist** in the "Murmur email entry form"
-design project (owner: rishi). If that's still true this is a copy, not a design session.
+### What to do
 
-### Try in this order
+Open `.pipeline/unlock` — it already exists and is **empty** — and put this on one line:
 
-**Option A — fastest, zero design work (preferred)**
-Give me the **full project UUID**. Your notes only record `ecb9e3e6-…` (truncated), and that
-project does not currently appear in my accessible list — I can only see *FitKit Design System*
-and two projects named *Design System*. Send the full UUID and confirm it's shared with your
-account as a **design-system** project, and I'll pull S5–S8 myself.
+```
+08 11 12 13 15
+```
 
-**Option B — you export**
-1. Open the Murmur design project
-2. Export `S5`, `S6`, `S7`, `S8` as `.dc.html`
-3. Drop them in `client/src/components/` (that folder is Claude Design's — I only integrate)
-4. Tell me
+Save. That's it.
 
-**Option C — if the components aren't actually there**
-1. Open Claude Design
-2. Paste `docs/06-ui.md` **§2** (the design contract) first — this is what keeps the components
-   visually consistent with S1–S4
-3. Then paste the **§3.5–§3.8** prompts, one per component
-4. Save the results into `client/src/components/`
+### Why five numbers and not one
 
-### Send me
-Either the project UUID, or the four files in place.
+Earlier notes said this file needs the single word `08`. That is true for T62 and **wrong for
+everything after it**, and the difference was only found on 9 August by reading the guard's own
+code (`.claude/hooks/guardrail.py`, lines 45–66).
+
+The rule the guard actually follows: a numbered document becomes **read-only the moment any
+higher-numbered one exists**. `docs/16-privacy.md` exists. So documents 01 through 15 are all
+frozen right now — and every remaining quality gate is a task whose entire job is to write one
+of them:
+
+| Gate | Writes | Needs |
+|---|---|---|
+| T62, T65, T69 — the security reviews | `docs/08-security.md` | `08` |
+| T47 — run every test one last time | `docs/11-…` | `11` |
+| T66, T68 — the speed checks | `docs/12-performance.md` | `12` |
+| T71 — the "does it produce useful logs" check | `docs/13-…` | `13` |
+| T48 — **the launch decision** | `docs/15-production-readiness.md` | `15` |
+
+**If you write only `08`:** T62 runs and everything else hits the same wall later, one gate at a
+time, over weeks, each time looking like a fresh problem. It is one problem. Five words now
+costs the same as one.
+
+### Why I won't write it myself
+
+This file is what stops a review agent from lifting its own audit restrictions. **A guard an
+agent can lift for itself is not a guard.** The precedent was set when T60 refused to self-grant
+its own unlock. Asking you for one line is the entire mechanism working.
+
+### One thing you should know, because creating the empty file was not a no-op
+
+That file does two different jobs by two different rules. The document freeze above reads its
+**contents**. A separate guard — the one restricting what commands a review agent may run —
+switches off merely because the file **exists**, whatever is in it. It exists today and is
+empty, **so that second guard is already off while nothing is actually unlocked.** Not dangerous
+on its own, and not something for me to quietly "repair" — how your guards behave is your call.
+But you should know it, rather than find out later.
 
 ---
 
@@ -146,9 +176,29 @@ The staging API URL and client URL. Then I run T11 and M1 is closed.
 
 ---
 
+## 3. Rotate the database password
+
+**Why:** on 5 August the password appeared in terminal output on your own machine, in the middle
+of a dumped connection object. `.env` is not in git and never has been, so it never entered the
+repository or its history — it has only ever been on your screen.
+
+The code side is closed: the service pool was fixed on 7 August, and the last place with the
+same hole (`scripts/db-inventory.ts`) was fixed on 9 August. **Those stop new leaks; they cannot
+un-see the one that already happened.**
+
+### What to do
+1. Supabase dashboard → Project Settings → Database → reset the password.
+2. Update `DATABASE_URL` in your local `.env`.
+3. Update it wherever staging reads it, once T49 exists.
+
+**Do this before your next `npm run db:inventory` run**, not after — that script is the one most
+likely to be run right after a rotation.
+
+---
+
 # TIER 2 — start now, finishes later
 
-## 3. T43 — Legal review (IT Rules 2021 + DPDP) 🕐 long lead time
+## 4. T43 — Legal review (IT Rules 2021 + DPDP) 🕐 long lead time
 
 **Start this now even though it's M5.** Engaging counsel takes weeks, and it blocks five tasks
 (T34, T35, T42, T75, T70). It is the single longest-lead item in the project.
@@ -162,31 +212,74 @@ The staging API URL and client URL. Then I run T11 and M1 is closed.
    which *executes* retention enforcement rather than just reading policy.
 4. **Erasure vs ban legal basis** — a banned user asking for deletion cannot simply be deleted,
    or the ban is defeated. Counsel needs to bless keeping the ban hash after erasure.
+5. **⚠️ New, 9 August — there is no complaint category for doxxing.** The eight reasons a report
+   can carry cover harassment, hate, threats, spam, impersonation, two kinds of non-consensual
+   imagery, and a catch-all. **Not "someone revealed who I am"** — which is the single harm this
+   product exists to prevent. `impersonation` is a different thing: that is somebody pretending
+   to *be* you, not somebody unmasking you. Counsel needs to say whether this needs its own
+   category and **which clock it earns** — 24 hours or 15 days. Until then it falls into the
+   catch-all, on the slow clock. Full write-up: `docs/TASK-STATUS.md` problem #18.
 
 ### Send me
-The confirmed SLA numbers, the consent copy, and the retention period. I wire them in.
+The confirmed SLA numbers, the consent copy, the retention period, and the answer on doxxing.
+I wire them in.
 
 ---
 
 # TIER 3 — before their milestone (structural — keep doing these as scheduled)
 
-## 4. T25 / T30 / T39 — Claude Design rounds 3–5
+## 5. Design round 6 — the report form's missing categories ⚠️ **legal**
 
-Same shape as T18. If all 17 screens are already in the design project, these are copies.
+**Brief, ready to paste:** `docs/design-prompts/T39-round-6.md`.
+
+**Why it matters, in one paragraph.** The law gives a small set of complaint categories a
+**24-hour** deadline and everything else **15 days**. The app decides which clock a complaint
+gets from the category the reporter picks — that is the whole design, and it is locked in the
+database so a deadline can never be wrong. **The report screen offers five choices, and two of
+the three urgent categories are not among them.** A student reporting intimate images of
+themselves shared without consent has nothing to pick but "Something else serious", which is the
+catch-all, and the catch-all is deliberately *not* urgent. So the most time-critical complaint
+the platform can receive would quietly get fifteen days.
+
+Nothing is broken in the code. The category is correct — it just cannot be chosen. The fix is a
+fuller list on the screen.
+
+The brief also carries four smaller corrections found the same day: one button covering two
+different legal categories, an anonymity default that contradicts the confirmation screen right
+after it, a "someone else reported this" message describing something that never happens, and a
+made-up grievance officer with a made-up email on the page that legally must name a real one.
+
+### What to do
+Open Claude Design, paste `docs/design-prompts/T39-round-6.md`, and save the updated components
+back into the design project. I pull them down from there — that part is mine.
+
+**One thing the brief deliberately does not ask for, and you should know why.** The screen today
+has an option reading *"Reveals someone's real identity"* — doxxing, which is the exact harm this
+whole product exists to prevent. **It maps to no category the server accepts.** The brief asks
+for eight options, not nine, because a ninth would be refused the moment someone submitted it.
+That gap is real and it is **the lawyer's** (item 4 above), not the designer's — deciding whether
+doxxing earns the 24-hour clock or the 15-day one is a reading of the IT Rules.
+
+---
+
+## 6. T30 — Claude Design round 4 (sync status)
+
+**Brief, ready to paste:** `docs/design-prompts/T30-sync-status.md`. **Blocks T31.**
 
 | Task | Milestone | Prompts | Components |
 |---|---|---|---|
-| T25 | M3 | §3.9–§3.11 | SearchPanel, TopicBrowseList, ProfileCard |
 | T30 | M4 | §3.12 | SyncStatusList |
-| T39 | M5 | §3.13–§3.17 | ReportContentModal, MyReportsList, GrievanceContactPanel, EscalationQueueTable, GrievanceResolutionPanel |
+
+This one is a **real design round**, not a copy. The screen exists in the design project, but it
+was drawn before the offline queue was built and gets three things wrong — including drawing a
+state that can never happen. The brief says which, and why.
+
+**T25 and T39 used to be listed here and are gone** — they landed on 9 August. They were copy
+jobs, not design sessions, and copy jobs are mine: all 17 screens have existed since July. If a
+future round is genuinely just "pull the existing screen down", it should not appear on this
+list at all.
 
 Components go in `client/src/components/`; I integrate from `client/src/screens/`.
-
-**Why this stays here and doesn't move to the end:** T26/T31/T40/T41 (the M3–M5 UI
-integration tasks) cannot wire screens that don't exist yet. Per RR-18 you can actually run
-all of T25/T30/T39 *earlier* than shown — the moment T9 lands — since none of them depend on
-anything but T9. Deferring them later than their milestone would stall that milestone's UI
-integration, which is the opposite of what this revision is for.
 
 ---
 
@@ -201,7 +294,7 @@ others (it blocks no build task), but unlike the others it has a real cost to de
 content publishes until it lands, and vendor risk stays undiscovered. It's ~30 minutes. Doing
 it in any idle moment before M6 is strictly better than doing it at M6.
 
-## 5. T54 — AI-moderation vendor shortlist
+## 7. T54 — AI-moderation vendor shortlist
 
 **No longer blocking** (changed 2026-07-30, `docs/07-plan.md` fourth revision). It used to
 gate six tasks: T14 built the gateway *around* a chosen provider, and everything that
@@ -275,7 +368,7 @@ Vendor names for tier 1 + tier 2, the scorecard output, and the rate limits. The
 
 ---
 
-## 6. T42 — Grievance officer details (launch-blocking for R7 AC3)
+## 8. T42 — Grievance officer details (launch-blocking for R7 AC3)
 
 IT Rules require a **named, reachable grievance officer**. This is a real person with a real
 email and phone, published in-app on S15.
@@ -292,17 +385,21 @@ email and phone, published in-app on S15.
 Until this lands the app ships placeholder copy, which is fine for staging and **not** fine for
 launch.
 
-## 7. T72–T75 — Four runbooks
+## 9. T72–T75 — Four runbooks
 
 Each has `[HUMAN:` markers to fill. T48 (the final GO/NO-GO gate) checks that **no `[HUMAN:`
 markers remain** — they're launch-blocking in aggregate.
 
 | Task | File | Markers | Depends on |
 |---|---|---|---|
-| T72 | `runbooks/pepper-rotation.md` | 6 | — (do anytime) |
-| T73 | `runbooks/moderation-provider-outage.md` | 6 | **T54** |
-| T74 | `runbooks/takedown-sla-breach.md` | 5 | T35 |
-| T75 | `runbooks/dpdp-breach-notification.md` | 5 | **T43** (counsel) |
+| T72 | `runbooks/pepper-rotation.md` | 7 | — (do anytime) |
+| T73 | `runbooks/moderation-provider-outage.md` | 9 | **T54** |
+| T74 | `runbooks/takedown-sla-breach.md` | 6 | T35 |
+| T75 | `runbooks/dpdp-breach-notification.md` | 7 | **T43** (counsel) |
+
+*(Counts re-counted from the files on 2026-08-09. **All four were wrong** — the table had said
+6/6/5/5 against an actual 7/9/6/7. Small, but it is a table telling you how much work you have,
+so it should not be a guess. Recount them rather than trusting this line if the runbooks change.)*
 
 **What they ask for, concretely:**
 - **Everywhere:** owner name + last-reviewed date
@@ -330,16 +427,28 @@ running against staging. I inspect the responses for identity leakage. Needs T49
 
 ---
 
-## What I'll build meanwhile
+## What I'll build meanwhile — and the honest answer is "very little"
 
-Nothing above blocks any of my work now. In progress or unblocked:
+The list that used to sit here named T14a, T15, T16, T17, T56, T60 and T61. **All seven are
+done**, and had been for a week while this section went on claiming they were in progress.
 
-- **T14a** — moderation gateway, provider-agnostic. The A7 port, tiered routing,
-  `moderation_case` lifecycle, fail-closed hold-all default, retry/escalate worker.
-- **T15 / T16** — A3 create-question and A4 create-answer, both behind the gateway.
-- **T17** — A5 browse feed (published-questions query powering S5).
-- **T56** — moderation-coverage + outage-drill NFR tests.
-- **T60** — security-agent gate over A1/A2/T50/T12 (warn-only, was due at M1)
-- **T61** — privacy-agent gate: PII inventory + leakage baseline (warn-only, was due at M1)
+Here is the real picture on 9 August, at **39 of 77 done and nothing half-finished**:
 
-Neither gate has been run yet — `docs/gates/` holds only `taste-gate.json`.
+**Everything left is one of four things**, and only the first is mine:
+
+1. **Behind T62** — T20 (search), T37 (operator permissions), and through T37 the whole rest of
+   Milestone 5 (T35, T36, T41). All of them change the exact code T62 is waiting to inspect, so
+   building them first only makes its findings staler. **This is why item 1 is item 1.**
+2. **The phone app** — T28 and T31, which need T30's screen first.
+3. **A designer** — T30, and design round 6.
+4. **You** — everything else on this list.
+
+**What I did while writing this**, so "very little" is not an excuse: landed T25 and T39 (they
+were mis-filed here as yours), wrote the round-6 brief, and closed two recorded bugs — the last
+place that could print the database password, and a maintenance script that had silently stopped
+counting half the database's tables.
+
+`docs/gates/` now holds four gate files (`security-gate-M1.json`, `privacy-gate-m1.json`,
+`14-resilience-T63.gate.json`, `taste-gate.json`). **Do not trust their contents as a list of
+what is still open** — on 4 August a finding they listed as unfixed turned out to have been fixed
+days earlier. T62's run rebuilds an honest list, which is one more reason it is the top item.
