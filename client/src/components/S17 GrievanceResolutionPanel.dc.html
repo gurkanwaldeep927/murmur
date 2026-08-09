@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F2EFEA; }
+  a { color:#B4552D; } a:hover { color:#93411F; }
+  @keyframes rowIn { 0%{ transform:translateY(10px); opacity:0;} 100%{ transform:translateY(0); opacity:1;} }
+  @keyframes popIn { 0%{ transform:scale(.6); opacity:0;} 70%{ transform:scale(1.08);} 100%{ transform:scale(1); opacity:1;} }
+  textarea::placeholder { color:#B7AD9F; }
+  textarea { resize:vertical; }
+</style>
+</helmet>
+<div style="min-height:100vh; font-family:'Plus Jakarta Sans',sans-serif; background:#F2EFEA; color:#3A3532">
+  <header style="background:#FFFFFF; border-bottom:1px solid #E5DFD6; padding:16px 28px; display:flex; align-items:center; gap:14px">
+    <div style="width:30px; height:30px; border-radius:10px; background:#4E5A54; display:flex; align-items:center; justify-content:center">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12c2.5-5 5.5-5 8 0s5.5 5 8 0" stroke="#F2EFEA" stroke-width="2.4" stroke-linecap="round"></path></svg>
+    </div>
+    <div style="display:flex; flex-direction:column">
+      <span style="font-family:'Baloo 2',sans-serif; font-weight:600; font-size:17px; color:#3A3532">Murmur · Moderation console</span>
+      <span style="font-size:12px; color:#8C8378">Grievance resolution — ticket GRV-2093</span>
+    </div>
+    <span style="margin-left:auto; font-size:12.5px; font-weight:600; color:#8C8378">operator: gurkanwaldeep</span>
+  </header>
+
+  <main style="max-width:1080px; margin:0 auto; padding:26px 28px 60px; display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start">
+
+    <div style="background:#FFFFFF; border:1px solid #E5DFD6; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:16px; animation:rowIn .3s ease both">
+      <div style="display:flex; align-items:center; gap:10px">
+        <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:18px; color:#3A3532">Report detail</h2>
+        <span style="margin-left:auto; background:#EDEAE3; color:#6B655D; font-size:11.5px; font-weight:800; padding:4px 11px; border-radius:7px">GRV-2093</span>
+      </div>
+      <div style="display:grid; grid-template-columns:130px 1fr; gap:9px 12px; font-size:13.5px">
+        <span style="color:#A39A8D; font-weight:600">Reason</span><span style="font-weight:600">Reveals someone's real identity</span>
+        <span style="color:#A39A8D; font-weight:600">Reporter</span><span>pseudonymous (not anonymous)</span>
+        <span style="color:#A39A8D; font-weight:600">Received</span><span>today, 11:02 AM</span>
+        <span style="color:#A39A8D; font-weight:600">SLA deadline</span><span style="font-weight:700; color:{{ slaDetailColor }}">{{ slaDetailText }}</span>
+      </div>
+      <div style="border:1px solid #E5DFD6; border-radius:12px; padding:14px 16px; background:#FAF8F4; display:flex; flex-direction:column; gap:6px">
+        <span style="font-size:11px; font-weight:800; letter-spacing:.5px; color:#A39A8D">REPORTED CONTENT · answer</span>
+        <p style="margin:0; font-size:13.5px; line-height:1.6; color:#3A3532">"Pretty sure that's Rohan from the 3rd floor CS wing asking this lol — same guy who bombed the Amazon OA, right?"</p>
+        <span style="font-size:11.5px; color:#A39A8D; font-weight:600">posted 14h ago · currently published</span>
+      </div>
+      <sc-if value="{{ slaBreached }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; gap:9px; align-items:flex-start; background:#F4EBE4; border-radius:11px; padding:11px 14px; animation:popIn .25s ease">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:1px"><circle cx="12" cy="12" r="8.5" stroke="#96522F" stroke-width="1.8"></circle><path d="M12 8v4.5l3 2" stroke="#96522F" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          <span style="font-size:12.5px; line-height:1.55; color:#96522F; font-weight:600">Past SLA — resolving now will be logged as an SLA breach. Resolve anyway; the log entry is factual, not punitive.</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ showForm }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#FFFFFF; border:1px solid #E5DFD6; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:16px; animation:rowIn .35s ease .08s both">
+        <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:18px; color:#3A3532">Resolution</h2>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <sc-for list="{{ actions }}" as="a" hint-placeholder-count="3">
+            <button onClick="{{ a.pick }}" style="border:1.5px solid {{ a.border }}; cursor:pointer; background:{{ a.bg }}; border-radius:12px; padding:13px 16px; display:flex; align-items:center; gap:11px; text-align:left; transition:all .15s ease">
+              <span style="flex:none; width:18px; height:18px; border-radius:50%; border:2px solid {{ a.radioBorder }}; background:{{ a.radioBg }}; display:flex; align-items:center; justify-content:center">
+                <sc-if value="{{ a.on }}" hint-placeholder-val="{{ false }}">
+                  <span style="width:7px; height:7px; border-radius:50%; background:#FFFFFF"></span>
+                </sc-if>
+              </span>
+              <span style="display:flex; flex-direction:column; gap:1px">
+                <span style="font-size:14px; font-weight:700; color:#3A3532">{{ a.label }}</span>
+                <span style="font-size:12px; color:#8C8378">{{ a.sub }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px">
+          <span style="font-size:11.5px; font-weight:800; letter-spacing:.5px; color:#A39A8D">NOTES · REQUIRED, GOES TO THE AUDIT TRAIL</span>
+          <textarea value="{{ notes }}" onChange="{{ onNotes }}" rows="4" placeholder="What you saw, what rule applies, why this action. Written for a future auditor." style="border:1.5px solid #E5DFD6; border-radius:12px; padding:12px 14px; outline:none; background:#FAF8F4; font-family:'Plus Jakarta Sans',sans-serif; font-size:13.5px; line-height:1.6; color:#3A3532; transition:border-color .15s ease" style-focus="border:1.5px solid #8C8378"></textarea>
+          <sc-if value="{{ notesError }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12px; color:#96522F; font-weight:600">Notes are required — the audit trail depends on them.</span>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ confirming }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1.5px solid #DCC9BD; background:#F4EBE4; border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; animation:popIn .2s ease">
+            <span style="font-size:13.5px; font-weight:700; color:#96522F">Confirm takedown — this hides the content from everyone immediately.</span>
+            <div style="display:flex; gap:8px">
+              <button onClick="{{ confirmResolve }}" style="border:none; cursor:pointer; background:#96522F; color:#FBF6F1; font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; padding:9px 16px; border-radius:9px" style-hover="background:#7E4326">Yes, take it down</button>
+              <button onClick="{{ cancelConfirm }}" style="border:1.5px solid #DCC9BD; cursor:pointer; background:transparent; color:#8C8378; font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; padding:9px 16px; border-radius:9px" style-hover="background:#FAF8F4">Go back</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ notConfirming }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ resolve }}" style="border:none; cursor:pointer; background:#4E5A54; color:#F2EFEA; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:15.5px; padding:14px; border-radius:12px; transition:background .15s ease" style-hover="background:#3E4843">Resolve ticket</button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showDone }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#FFFFFF; border:1px solid #E5DFD6; border-radius:16px; padding:26px 22px; display:flex; flex-direction:column; gap:14px; animation:popIn .3s ease">
+        <div style="display:flex; align-items:center; gap:12px">
+          <div style="width:42px; height:42px; border-radius:50%; background:#EAF0EC; display:flex; align-items:center; justify-content:center; flex:none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#3E6B52" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:19px; color:#3A3532">Ticket resolved</h2>
+        </div>
+        <div style="display:grid; grid-template-columns:150px 1fr; gap:9px 12px; font-size:13.5px; border:1px solid #E5DFD6; border-radius:12px; padding:16px; background:#FAF8F4">
+          <span style="color:#A39A8D; font-weight:600">Status</span><span style="font-weight:700; color:#3E6B52">resolved</span>
+          <span style="color:#A39A8D; font-weight:600">Action</span><span style="font-weight:700">{{ doneAction }}</span>
+          <span style="color:#A39A8D; font-weight:600">Content status</span><span style="font-weight:600">{{ doneContentStatus }}</span>
+          <span style="color:#A39A8D; font-weight:600">Audit entry</span><span style="font-weight:600">written · gurkanwaldeep · just now</span>
+          <sc-if value="{{ doneBreachShown }}" hint-placeholder-val="{{ false }}">
+            <span style="color:#A39A8D; font-weight:600">SLA</span><span style="font-weight:700; color:#96522F">past SLA — logged</span>
+          </sc-if>
+        </div>
+        <p style="margin:0; font-size:12.5px; line-height:1.6; color:#8C8378">The reporter's My Reports view now shows this resolution. {{ doneReporterNote }}</p>
+        <button onClick="{{ reset }}" style="align-self:flex-start; border:1.5px solid #E5DFD6; cursor:pointer; background:transparent; color:#6B655D; font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700; padding:10px 18px; border-radius:9px" style-hover="background:#FAF8F4">Next ticket</button>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1120, &quot;height&quot;: 720}, &quot;slaBreached&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { action: null, notes: "", phase: "form", notesError: false, confirming: false };
+  renderVals() {
+    const breached = this.props.slaBreached ?? false;
+    const defs = [
+      { key: "takedown", label: "Take down", sub: "Content is hidden from everyone; author sees a supportive notice" },
+      { key: "dismiss", label: "Dismiss", sub: "No rule broken; content stays up; reporter is informed" },
+      { key: "escalate", label: "Escalate further", sub: "Needs legal or external review before a call is made" }
+    ];
+    const actions = defs.map(d => {
+      const on = this.state.action === d.key;
+      return {
+        ...d, on,
+        pick: () => this.setState({ action: d.key, confirming: false }),
+        bg: on ? "#EDEAE3" : "#FFFFFF",
+        border: on ? "#C9C0B2" : "#E5DFD6",
+        radioBorder: on ? "#4E5A54" : "#C9C0B2",
+        radioBg: on ? "#4E5A54" : "transparent"
+      };
+    });
+    const finish = () => this.setState({ phase: "done", confirming: false });
+    const resolve = () => {
+      if (!this.state.action) { this.setState({ notesError: false, confirming: false }); return; }
+      if (!this.state.notes.trim()) { this.setState({ notesError: true }); return; }
+      if (this.state.action === "takedown") { this.setState({ confirming: true, notesError: false }); return; }
+      finish();
+    };
+    const labels = { takedown: "takedown", dismiss: "dismiss", escalate: "escalate further" };
+    return {
+      actions,
+      notes: this.state.notes,
+      onNotes: (e) => this.setState({ notes: e.target.value, notesError: false }),
+      notesError: this.state.notesError,
+      resolve,
+      confirming: this.state.confirming,
+      notConfirming: !this.state.confirming,
+      confirmResolve: finish,
+      cancelConfirm: () => this.setState({ confirming: false }),
+      reset: () => this.setState({ phase: "form", action: null, notes: "", confirming: false }),
+      showForm: this.state.phase === "form",
+      showDone: this.state.phase === "done",
+      slaBreached: breached,
+      slaDetailColor: breached ? "#96522F" : "#3E6B52",
+      slaDetailText: breached ? "tomorrow, 11:02 AM — passed" : "tomorrow, 11:02 AM (in 22h)",
+      doneAction: labels[this.state.action] || "",
+      doneContentStatus: this.state.action === "takedown" ? "blocked — hidden everywhere it appeared" : "unchanged (published)",
+      doneBreachShown: breached,
+      doneReporterNote: breached ? "Whether breach detail is shown to reporters is OQ-13 — hidden by default." : ""
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F6EDE4; }
+  a { color:#F26B4E; text-decoration:none; } a:hover { color:#D95538; }
+  @keyframes cardIn { 0%{ transform:translateY(16px); opacity:0;} 100%{ transform:translateY(0); opacity:1;} }
+  @keyframes toastUp { 0%{ transform:translate(-50%,20px); opacity:0;} 100%{ transform:translate(-50%,0); opacity:1;} }
+</style>
+</helmet>
+<div style="min-height:100vh; display:flex; justify-content:center; font-family:'Plus Jakarta Sans',sans-serif; background:#EFE3D8">
+  <div style="width:420px; max-width:100%; min-height:100vh; background:linear-gradient(180deg,#FFF8F1 0%,#FDEFE3 100%); display:flex; flex-direction:column; position:relative">
+
+    <header style="padding:18px 20px 6px; display:flex; align-items:center; gap:12px">
+      <button style="border:none; background:transparent; cursor:pointer; width:34px; height:34px; border-radius:12px; display:flex; align-items:center; justify-content:center; transition:background .15s ease" style-hover="background:#F4E5D9">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 6l-6 6 6 6" stroke="#8A7168" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </button>
+      <h1 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:21px; color:#3D2C26">Safety &amp; who's responsible</h1>
+    </header>
+
+    <div style="padding:16px 20px 40px; display:flex; flex-direction:column; gap:16px; flex:1">
+      <p style="margin:0; font-size:14.5px; line-height:1.65; color:#5C4A42; text-wrap:pretty">A real, named person is legally responsible for this platform's safety. Not a form, not a bot — here's exactly how to reach them.</p>
+
+      <div style="background:#FFFFFF; border-radius:22px; padding:24px; box-shadow:0 8px 26px rgba(93,58,44,.08); display:flex; flex-direction:column; gap:16px; animation:cardIn .4s cubic-bezier(.34,1.2,.64,1) both">
+        <div style="display:flex; align-items:center; gap:13px">
+          <div style="width:52px; height:52px; border-radius:50%; background:#E7F1EA; display:flex; align-items:center; justify-content:center; flex:none">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8.5" r="3.4" stroke="#5D8E74" stroke-width="1.8"></circle><path d="M5 20c.8-3.4 3.6-5 7-5s6.2 1.6 7 5" stroke="#5D8E74" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:1px">
+            <span style="font-family:'Baloo 2',sans-serif; font-weight:700; font-size:19px; color:#3D2C26">{{ officerName }}</span>
+            <span style="font-size:12.5px; font-weight:600; color:#8A7168">Grievance Officer, Murmur</span>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:9px">
+          <button onClick="{{ copyEmail }}" style="border:2px solid #F0DCD0; cursor:pointer; background:#FFFCF9; border-radius:15px; padding:13px 16px; display:flex; align-items:center; gap:11px; text-align:left; transition:border-color .18s ease" style-hover="border-color:#F26B4E">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none"><path d="M4 7h16v11H4V7z" stroke="#F26B4E" stroke-width="1.8" stroke-linejoin="round"></path><path d="M4 7l8 6 8-6" stroke="#F26B4E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <span style="font-size:14.5px; font-weight:600; color:#3D2C26; flex:1">{{ contactEmail }}</span>
+            <span style="font-size:11.5px; font-weight:700; color:#C4AB9E">COPY</span>
+          </button>
+          <button onClick="{{ copyPhone }}" style="border:2px solid #F0DCD0; cursor:pointer; background:#FFFCF9; border-radius:15px; padding:13px 16px; display:flex; align-items:center; gap:11px; text-align:left; transition:border-color .18s ease" style-hover="border-color:#F26B4E">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none"><path d="M5 4h4l2 5-2.5 1.5c1 2.5 2.5 4 5 5L15 13l5 2v4c0 1-1 2-2 2C9.7 20.5 3.5 14.3 3 6c0-1 1-2 2-2z" stroke="#F26B4E" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+            <span style="font-size:14.5px; font-weight:600; color:#3D2C26; flex:1">{{ contactPhone }}</span>
+            <span style="font-size:11.5px; font-weight:700; color:#C4AB9E">COPY</span>
+          </button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:flex-start; background:#E7F1EA; border-radius:13px; padding:10px 13px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none; margin-top:2px"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#5D8E74" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+          <span style="font-size:12.5px; line-height:1.55; color:#4E7A62">You can write anonymously. Every message gets a response within the legal window — that's a commitment, not a courtesy.</span>
+        </div>
+      </div>
+
+      <div style="background:#FFFFFF; border-radius:22px; padding:24px; box-shadow:0 8px 26px rgba(93,58,44,.08); display:flex; flex-direction:column; gap:12px; animation:cardIn .45s cubic-bezier(.34,1.2,.64,1) .1s both">
+        <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:17px; color:#3D2C26">How a report moves</h2>
+        <p style="margin:0; font-size:13.5px; line-height:1.65; color:#5C4A42">{{ processSummary }}</p>
+        <div style="border:2px dashed #E8D5C4; border-radius:14px; padding:12px 15px; display:flex; gap:9px; align-items:flex-start; background:#FFFCF7">
+          <span style="flex:none; background:#F4E5D9; color:#9A8168; font-size:10px; font-weight:800; letter-spacing:.5px; padding:3px 8px; border-radius:6px; margin-top:1px">PLACEHOLDER</span>
+          <span style="font-size:12.5px; line-height:1.6; color:#9A8168">The formal IT Rules 2021 process wording goes here once legal copy is finalized — the text above is directional, not final.</span>
+        </div>
+        <button onClick="{{ noop }}" style="border:none; cursor:pointer; background:#FDEDE4; color:#C25B42; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:15px; padding:13px; border-radius:14px; transition:transform .18s cubic-bezier(.34,1.56,.64,1)" style-hover="background:#FBE2D4; transform:translateY(-1px)">Report something now</button>
+      </div>
+
+      <p style="margin:0; font-size:12px; line-height:1.6; color:#C4AB9E; text-align:center">This page works even without an account — anyone can reach the officer, including someone whose registration was refused.</p>
+    </div>
+
+    <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:20; background:#3D2C26; color:#FFF8F1; border-radius:999px; padding:11px 20px; font-size:13.5px; font-weight:600; white-space:nowrap; box-shadow:0 10px 28px rgba(61,44,38,.3); animation:toastUp .3s cubic-bezier(.34,1.56,.64,1)">{{ toastMsg }}</div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 420, &quot;height&quot;: 880}, &quot;officerName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;A. Deshmukh&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Contact&quot;}, &quot;contactEmail&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;grievance@murmur.app&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Contact&quot;}, &quot;contactPhone&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;+91 98xx-xx-2140&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Contact&quot;}}">
+class Component extends DCLogic {
+  state = { toast: null };
+  copy(text, label) {
+    try { navigator.clipboard.writeText(text); } catch (e) {}
+    clearTimeout(this._t);
+    this.setState({ toast: label + " copied" });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  renderVals() {
+    const email = this.props.contactEmail ?? "grievance@murmur.app";
+    const phone = this.props.contactPhone ?? "+91 98xx-xx-2140";
+    return {
+      officerName: this.props.officerName ?? "A. Deshmukh",
+      contactEmail: email,
+      contactPhone: phone,
+      processSummary: "Every report is acknowledged within 24 hours and resolved within the IT Rules 2021 window. You can report in-app from any post, or write to the grievance officer directly — anonymously if you prefer.",
+      copyEmail: () => this.copy(email, "Email"),
+      copyPhone: () => this.copy(phone, "Phone number"),
+      toastVisible: !!this.state.toast,
+      toastMsg: this.state.toast || "",
+      noop: () => {}
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>
