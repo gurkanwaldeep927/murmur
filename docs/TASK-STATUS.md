@@ -1275,7 +1275,13 @@ without exception, one of:
 
 - **behind T62** — T37, and through it T35, T36 and T41; plus T20 and all of Milestone 3 after it.
   These all change the code T62 is waiting to inspect;
-- **the phone app** — T28 and T31, which need the screens from T30 first;
+- ~~**the phone app** — T28 and T31, which need the screens from T30 first;~~ **Wrong, and it is
+  the third time the same mistake has been found today (9 August).** **T31** needs T30 — that is
+  in the plan. **T28 does not.** Its dependencies are T19 and T27, and both have been done since
+  9 August. T28 is the *phone's own machinery* — remembering a post written with no signal,
+  giving it an id, not sending it twice, saving drafts as you type. None of that is a screen.
+  The only screen it touches is the composer, which landed at T19. **T28 is buildable now and it
+  is mine.** See "the phone app, and what is actually blocking it" below;
 - **a designer** — ~~T25~~, ~~T39~~ (both landed 9 August; they were mis-filed, not blocked),
   leaving **T30**, plus the new report-category request from T39.
   **T30's brief is now written and waiting**:
@@ -1314,6 +1320,34 @@ reality nothing gets published at all until T14b. And there's no screen for "you
 refused", which the system can genuinely return. Both have been sent to Claude Design as
 `docs/design-prompts/T19-round-3.md`. Until they come back, those spots show the wording the
 server itself sends, which is at least true.
+
+## The phone app, and what is actually blocking it *(found 9 August)*
+
+Three tasks were sitting in the wrong place today. T25 and T39 were filed as the designer's when
+they were mine. **T28 was filed as blocked when it is not.** Same shape, third time — so the
+lesson is worth writing down rather than just the fix:
+
+> **"X needs Y" in a summary is not the same as "X depends on Y" in the plan.** Check the plan.
+
+Here is the real state of the offline feature:
+
+| Task | What it is | Blocked by |
+|---|---|---|
+| T27 | The tables the outbox needs | ✅ done |
+| T29 | The server receiving a queue a phone wrote offline | ✅ done |
+| T32 | The watchdog for posts that never finish | ✅ done |
+| **T28** | **The phone's own side: remember it, name it, don't send it twice, save drafts** | **nothing — buildable now** |
+| T30 | *(Designer)* The "sync status" screen | you — brief is written |
+| T31 | Showing that status on screen | T28 **and** T30 |
+
+**Why the confusion was easy to make.** T28 and T31 are both "the phone app", they are both in
+Milestone 4, and they sound like one job. They are not. T31 draws a list of what is in the
+queue; **T28 is the queue.** Only T31 needs a screen that does not exist yet.
+
+**One thing already written down for whoever builds it**, and it is in the server code rather
+than here because no response body can say it: when the server refuses a whole batch because the
+person is banned, **the phone must stop trying, not retry forever.** A queue that keeps
+retrying a refusal carries those posts for ever.
 
 **Meanwhile, whenever you can** — these are yours and they unblock things:
 - **T49** put the app on a server → unblocks T11 and closes Milestone 1
