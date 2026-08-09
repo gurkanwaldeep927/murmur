@@ -337,6 +337,20 @@ const cases: Case[] = [
            ORDER BY a.id`,
     values: [],
   },
+  // ---- db-inventory.ts ----
+  {
+    // The inventory script now derives its table list from the catalog instead of a
+    // hand-written array that had gone stale by six tables (TASK-STATUS problem #19).
+    // Planned here because it is the one statement in that script that decides what the
+    // script reports at all — if it returns nothing, the inventory prints an empty database.
+    name: "db-inventory: list public base tables",
+    sql: `SELECT table_name
+            FROM information_schema.tables
+           WHERE table_schema = 'public'
+             AND table_type = 'BASE TABLE'
+           ORDER BY table_name`,
+    values: [],
+  },
 ];
 
 async function main() {
