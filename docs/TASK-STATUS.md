@@ -586,6 +586,11 @@ deadline could never be wrong. **This defeats it from the other end: the categor
 it just cannot be chosen.** It needs a fuller list on the screen — a Claude Design change, not
 something to patch in the wiring.
 
+**The brief is written and waiting for you:** `docs/design-prompts/T39-round-6.md`. It carries
+all eight reasons with what each one legally covers and which clock it starts, plus the other
+four design corrections below. The eight values in it were diffed against the server's own list
+before it was committed rather than copied by eye — eight for eight.
+
 **Two more problems in the same list, smaller but real.** "Hate or threats" is one button for
 two different legal categories, so the app cannot tell which one you meant. And *"Reveals
 someone's real identity"* — doxxing, the single harm this entire product exists to prevent —
@@ -1094,6 +1099,32 @@ nothing is actually unlocked.** Not dangerous on its own, and not something to q
 "repair" — a guard's behaviour is your call, not mine. But you should know that creating an
 empty file was not a no-op.
 
+### 18. There is no way to report the one thing this product exists to prevent (found 9 August, T39 — **for the lawyer, T43**)
+
+Murmur's whole promise is that a student can ask a question **without anyone knowing it was
+them.** The way that promise gets broken is somebody posting *"that's Rohan from the third
+floor, obviously"* — unmasking a person. In plain terms: doxxing.
+
+**There is no complaint category for it.** The eight reasons a report can carry cover
+harassment, hate, threats, spam, impersonation, two kinds of non-consensual imagery, and a
+catch-all. **Not doxxing.** The closest one, `impersonation`, is a different thing entirely —
+that is somebody pretending to *be* you, not somebody revealing who you are.
+
+**Why it looked covered and wasn't.** The report screen has a choice reading *"Reveals
+someone's real identity"*, so at a glance the product appears to handle it. That choice maps to
+nothing the server accepts; it was drawn in July, before the categories existed.
+
+**What it costs:** the single harm most specific to this product either gets filed under
+"Something else serious" — the slow 15-day clock — or the reporter gives up. Either way the
+platform cannot count how often its core promise is being broken, because there is no category
+to count.
+
+**Why this is not being fixed here.** Adding a ninth reason means deciding **which legal clock
+it earns**, and that is a reading of the IT Rules, not a code change. Guessing 15 days could be
+wrong in the direction that matters. It goes to **T43** with the rest of the legal review.
+Adding the option to the screen first would produce a button the database refuses — a control
+that looks live and does nothing, which is the failure this project refuses to ship.
+
 ### 12. Nothing was checking the phone app at all (found 2 August, T19)
 The robot checked the server. It never checked the **app the student actually touches** — not
 the spell-checker, not the style rules, nothing. So the four sign-up screens built back in
@@ -1164,7 +1195,10 @@ A test suite that can't run is worth less than one that runs and fails.
    screen gets three things wrong, so it needs a real round with Claude Design, not a copy.
    **New and needs you: the report form is missing two of the three legally-urgent
    categories** — see "About T39" above. That one is a Claude Design change with a legal
-   consequence, and it is the highest-value design request outstanding.
+   consequence, and it is the highest-value design request outstanding. **Its brief is written
+   and ready to paste:** `docs/design-prompts/T39-round-6.md` — six corrections across S13,
+   S15 and the two console headers. **And one thing on it is the lawyer's, not the designer's:**
+   problem #18 below — there is no complaint category for doxxing at all.
 4. **T19b** — swap in the two cards Claude Design is redrawing (see below).
 5. Then the rest of Milestone 3, plus fixing the remaining problems above.
 
