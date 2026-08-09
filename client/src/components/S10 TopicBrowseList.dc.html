@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F6EDE4; }
+  a { color:#F26B4E; text-decoration:none; } a:hover { color:#D95538; }
+  @keyframes cardIn { 0%{ transform:translateY(16px); opacity:0;} 100%{ transform:translateY(0); opacity:1;} }
+  @keyframes popIn { 0%{ transform:scale(.6); opacity:0;} 70%{ transform:scale(1.08);} 100%{ transform:scale(1); opacity:1;} }
+</style>
+</helmet>
+<div style="min-height:100vh; display:flex; justify-content:center; font-family:'Plus Jakarta Sans',sans-serif; background:#EFE3D8">
+  <div style="width:420px; max-width:100%; min-height:100vh; background:linear-gradient(180deg,#FFF8F1 0%,#FDEFE3 100%); display:flex; flex-direction:column">
+
+    <header style="padding:18px 20px 6px; display:flex; flex-direction:column; gap:4px">
+      <h1 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:23px; color:#3D2C26">Wander by topic</h1>
+      <p style="margin:0; font-size:13.5px; color:#8A7168">Every door leads to years of honest answers.</p>
+    </header>
+
+    <sc-if value="{{ degraded }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:12px 20px 0; display:flex; gap:10px; align-items:center; background:#EFF4F3; border-radius:16px; padding:12px 16px; animation:popIn .3s ease">
+        <span style="font-size:18px">😴</span>
+        <span style="font-size:13px; line-height:1.5; color:#5F7F7C; font-weight:600">Search is resting for a bit — browse by topic meanwhile.</span>
+      </div>
+    </sc-if>
+
+    <div style="padding:16px 20px 40px; display:flex; flex-direction:column; gap:18px; flex:1">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+        <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="5">
+          <button onClick="{{ t.pick }}" style="border:2px solid {{ t.border }}; cursor:pointer; background:{{ t.bg }}; border-radius:20px; padding:18px 16px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; text-align:left; box-shadow:0 6px 20px rgba(93,58,44,.06); transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease; animation:cardIn .4s cubic-bezier(.34,1.2,.64,1) both; animation-delay:{{ t.delay }}" style-hover="transform:translateY(-3px); box-shadow:0 12px 28px rgba(93,58,44,.11)" style-active="transform:scale(.96)">
+            <span style="font-size:26px">{{ t.emoji }}</span>
+            <span style="font-family:'Baloo 2',sans-serif; font-weight:600; font-size:16px; color:{{ t.labelColor }}">{{ t.label }}</span>
+            <span style="font-size:12px; font-weight:600; color:{{ t.subColor }}">{{ t.count }} questions</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ showList }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <span style="font-family:'Baloo 2',sans-serif; font-weight:600; font-size:17px; color:#3D2C26">{{ listHeading }}</span>
+          <sc-for list="{{ questions }}" as="q" hint-placeholder-count="2">
+            <div style="background:#FFFFFF; border-radius:20px; padding:18px; box-shadow:0 6px 20px rgba(93,58,44,.06); display:flex; flex-direction:column; gap:9px; cursor:pointer; animation:cardIn .4s cubic-bezier(.34,1.2,.64,1) both; animation-delay:{{ q.delay }}; transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease" style-hover="transform:translateY(-2px); box-shadow:0 10px 26px rgba(93,58,44,.1)">
+              <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:16.5px; line-height:1.35; color:#3D2C26; text-wrap:pretty">{{ q.title }}</h2>
+              <div style="display:flex; gap:10px; align-items:center">
+                <span style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:#8A7168; font-weight:600">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v10H9l-5 4V6z" stroke="#8A7168" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                  {{ q.answer_count }} answers
+                </span>
+                <span style="font-size:12px; color:#C4AB9E; font-weight:600">{{ q.published_at }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showTopicEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFFFFF; border-radius:22px; padding:36px 26px; box-shadow:0 8px 26px rgba(93,58,44,.07); display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; animation:popIn .4s cubic-bezier(.34,1.56,.64,1)">
+          <div style="width:60px; height:60px; border-radius:50%; background:#FDEDE4; display:flex; align-items:center; justify-content:center; font-size:26px">🚪</div>
+          <h2 style="margin:0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:19px; color:#3D2C26">Quiet in here — for now</h2>
+          <p style="margin:0; font-size:14px; line-height:1.6; color:#8A7168">Nobody's asked about {{ selectedLabel }} yet. Open the door.</p>
+          <button onClick="{{ noop }}" style="margin-top:4px; border:none; cursor:pointer; border-radius:14px; padding:12px 26px; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:15px; color:#FFF8F1; background:#F26B4E; box-shadow:0 6px 18px rgba(242,107,78,.32); transition:transform .18s cubic-bezier(.34,1.56,.64,1)" style-hover="background:#E85A3C; transform:translateY(-1px)">Ask about {{ selectedLabel }}</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 420, &quot;height&quot;: 860}, &quot;searchDegraded&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { selected: null };
+  topics() {
+    return [
+      { slug: "placements", label: "Placements", emoji: "💼", count: 42 },
+      { slug: "internships", label: "Internships", emoji: "🧭", count: 28 },
+      { slug: "professors", label: "Professors", emoji: "📚", count: 19 },
+      { slug: "courses", label: "Courses", emoji: "✏️", count: 33 },
+      { slug: "advice", label: "Advice", emoji: "🌱", count: 51 }
+    ];
+  }
+  questionsFor(slug) {
+    const byTopic = {
+      placements: [
+        { title: "How brutal is the TCS Digital coding round, really?", answer_count: 4, published_at: "2h ago" },
+        { title: "Do CGPA cutoffs for Goldman actually flex for strong projects?", answer_count: 9, published_at: "3d ago" }
+      ],
+      internships: [
+        { title: "Off-campus summer internship vs the college-arranged one?", answer_count: 7, published_at: "yesterday" }
+      ],
+      courses: [
+        { title: "Is the ML elective with Prof. treatable as a GPA booster?", answer_count: 2, published_at: "5h ago" }
+      ],
+      advice: [
+        { title: "Feeling way behind my batch after 2nd year — is it recoverable?", answer_count: 12, published_at: "2d ago" }
+      ],
+      professors: []
+    };
+    return (byTopic[slug] || []).map((q, i) => ({ ...q, delay: (i * 0.07) + "s" }));
+  }
+  renderVals() {
+    const degraded = this.props.searchDegraded ?? false;
+    const selected = this.state.selected;
+    const tiles = this.topics().map((t, i) => {
+      const on = selected === t.slug;
+      return {
+        ...t,
+        delay: (i * 0.06) + "s",
+        pick: () => this.setState({ selected: on ? null : t.slug }),
+        bg: on ? "#F26B4E" : "#FFFFFF",
+        border: on ? "#F26B4E" : "transparent",
+        labelColor: on ? "#FFF8F1" : "#3D2C26",
+        subColor: on ? "rgba(255,248,241,.75)" : "#B99C8D"
+      };
+    });
+    const questions = selected ? this.questionsFor(selected) : [];
+    const selectedLabel = selected ? this.topics().find(t => t.slug === selected).label : "";
+    return {
+      degraded,
+      tiles,
+      questions,
+      selectedLabel,
+      listHeading: "Inside " + selectedLabel,
+      showList: !!selected && questions.length > 0,
+      showTopicEmpty: !!selected && questions.length === 0,
+      noop: () => {}
+    };
+  }
+}
+</script>
+</body>
+</html>
