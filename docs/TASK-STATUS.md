@@ -878,11 +878,20 @@ machine.
   actual text of the log line, not the object — the leak happens at the moment of writing,
   so only the written bytes prove anything.
 
-  **One place still has the same hole and was left alone on purpose:** `scripts/db-inventory.ts`,
-  a hand-run maintenance script, builds its own connection pool with no listener. It is not
-  the running product and nothing schedules it, so it can't take the server down — but if it
-  ever fails while you are watching, it can still print the password. Written down rather
-  than fixed in passing, because it belongs to a different file than the one this fix was for.
+  ~~**One place still has the same hole and was left alone on purpose:**~~
+  `scripts/db-inventory.ts` — **closed 9 August.** The hand-run inventory script built its own
+  connection pool with no listener, so if it ever failed while you were watching it could still
+  print the password. It now has the same listener, using the *same shared function* as the
+  server rather than a copy — a "keep these two in step" comment is the pattern that has failed
+  this project four times.
+
+  **The test was watched failing before it was trusted.** The listener was removed on purpose
+  and all three checks went red; then it was put back. An all-clear from a check nobody has
+  ever seen fail is not evidence — fourth time that has been applied here.
+
+  **Timing worth knowing:** this mattered more this week than last, because rotating the
+  password is still on your list, and the most likely moment to run that script is right after
+  a rotation — when what it could print is the *new* password.
 
 **Why this hid so long:** a healthy connection never triggers it, and the home network to a
 Sydney-hosted database is exactly the situation that does. It has probably been failing
@@ -1124,6 +1133,32 @@ it earns**, and that is a reading of the IT Rules, not a code change. Guessing 1
 wrong in the direction that matters. It goes to **T43** with the rest of the legal review.
 Adding the option to the screen first would produce a button the database refuses — a control
 that looks live and does nothing, which is the failure this project refuses to ship.
+
+### 19. The "is this database safe to wipe?" check had stopped counting half the database (found 9 August)
+
+There is a small script whose only job is to answer one question before you point the
+destructive test suites at a database: **how much is actually in here?** It prints a row count
+per table and a total. You read the total, and you decide whether that database is disposable.
+
+**It was counting eight tables. The database has fourteen.**
+
+The list was typed by hand back when there were eight, and every table added since — the
+**complaints**, the **ban records**, the **points ledger**, the **offline queue**, and the
+**half-written drafts a student never posted** — was simply not on it. Nothing errored. The
+script printed a clean, confident, wrong total.
+
+**And it was wrong in the worst direction.** The six it missed are, almost exactly, the six you
+would least want to destroy. A database full of real complaints could print a small number and
+read as empty — which is precisely the reading that would make someone say "fine, wipe it".
+
+Nobody was harmed: the destructive suites have their own separate guard (the database name must
+contain "test"), so this was the *second* line of defence, not the only one. But a second line
+of defence that quietly stopped working is worth exactly nothing, and you would not have known.
+
+**Fixed by removing the list.** The script now asks the database itself which tables exist. It
+cannot go stale again, because there is no longer anything to keep up to date. **Same lesson as
+the four before it** — a comment or a hand-kept list saying "remember to update this" has failed
+every single time it has been tried in this project.
 
 ### 12. Nothing was checking the phone app at all (found 2 August, T19)
 The robot checked the server. It never checked the **app the student actually touches** — not

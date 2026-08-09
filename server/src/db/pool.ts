@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import pg from "pg";
 import { config } from "../config/index.js";
 import { logger } from "../shared/logger.js";
+import { poolErrorFields } from "./pool-error-fields.js";
 
 /**
  * Single shared connection pool for the modular monolith. Modules never construct
@@ -45,30 +46,13 @@ export const pool = new pg.Pool({
 });
 
 /**
- * The fields of a pool error that are safe to log.
+ * The fields of a pool error that are safe to log — see `./pool-error-fields.ts` for why it
+ * lives in its own module and why it is hand-built rather than serialized.
  *
- * Exported so the test pins what the service actually emits rather than a copy of it —
- * same reasoning as `REDACT_PATHS` in shared/logger.ts.
- *
- * This returns a hand-built plain object instead of handing the error to pino's `err`
- * serializer, and that is the whole point. A pg error raised on a connection carries
- * references back to the client that raised it, and a pg `Client` holds
- * `connectionParameters` — including the password parsed out of `DATABASE_URL`. Any
- * reporter that walks the error's own properties therefore prints the database password in
- * clear text; that was observed in test output on 2026-08-05. Copying three scalars out is
- * the only shape that cannot regress into serializing the connection.
+ * Re-exported here so the test pins what the service actually emits rather than a copy of it
+ * — same reasoning as `REDACT_PATHS` in shared/logger.ts.
  */
-export function poolErrorFields(err: unknown): { message: string; code?: string } {
-  if (!(err instanceof Error)) return { message: String(err) };
-  // `code` is pg/libuv's error code (ECONNRESET, 57P01 admin shutdown, ...) — the field
-  // that makes the log line actionable. It is a string on pg errors, guarded because the
-  // type says `unknown` for a plain Error.
-  const code = (err as { code?: unknown }).code;
-  return {
-    message: err.message,
-    ...(typeof code === "string" ? { code } : {}),
-  };
-}
+export { poolErrorFields };
 
 /**
  * Idle-client failures must be observed, not crash the process.
