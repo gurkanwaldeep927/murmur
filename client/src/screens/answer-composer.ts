@@ -14,7 +14,14 @@ import type { ModerationStatus, QuestionView } from "../lib/content-view";
  * docs/design-prompts/T19-round-3.md gap 1.
  */
 
-export type AnswerPhase = "form" | "loading" | "published" | "pending" | "blocked";
+export type AnswerPhase = "form" | "loading" | "published" | "pending" | "blocked" | "queued";
+
+/**
+ * `queued` is T28's and is NOT a `ModerationStatus` — nothing has moderated an answer that
+ * never left the phone. Kept as its own kind rather than folded into `pending`, which would
+ * tell the student their answer is being checked when it is sitting in local storage.
+ */
+type OutcomeKind = ModerationStatus | "queued";
 
 export interface AnswerComposerProps {
   phase: AnswerPhase;
@@ -70,8 +77,8 @@ function sheetHTML(p: AnswerComposerProps): string {
   </div>`;
 }
 
-function outcomeHTML(status: ModerationStatus, message: string, pseudonym: string): string {
-  const icons: Record<ModerationStatus, string> = {
+function outcomeHTML(status: OutcomeKind, message: string, pseudonym: string): string {
+  const icons: Record<OutcomeKind, string> = {
     published: `<div style="width:60px; height:60px; border-radius:50%; background:#E7F1EA; display:flex; align-items:center; justify-content:center; font-size:26px; animation:popIn .5s cubic-bezier(.34,1.56,.64,1)">🎉</div>`,
     pending: `<div style="width:60px; height:60px; border-radius:50%; background:#EFF4F3; display:flex; align-items:center; justify-content:center; animation:popIn .5s cubic-bezier(.34,1.56,.64,1)">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#7BA3A0" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 12l2 2 4-4.5" stroke="#7BA3A0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
@@ -79,12 +86,19 @@ function outcomeHTML(status: ModerationStatus, message: string, pseudonym: strin
     blocked: `<div style="width:60px; height:60px; border-radius:50%; background:#EFF4F3; display:flex; align-items:center; justify-content:center; animation:popIn .5s cubic-bezier(.34,1.56,.64,1)">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#7BA3A0" stroke-width="1.8" stroke-linejoin="round"></path></svg>
     </div>`,
+    // T28: the shield again, deliberately the same shape as pending — the difference the
+    // student needs is in the words, not the icon. Proper art is T30's (gap 4).
+    queued: `<div style="width:60px; height:60px; border-radius:50%; background:#EFF4F3; display:flex; align-items:center; justify-content:center; animation:popIn .5s cubic-bezier(.34,1.56,.64,1)">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6l7-3z" stroke="#7BA3A0" stroke-width="1.8" stroke-linejoin="round"></path><path d="M12 8v4.5l3 1.8" stroke="#7BA3A0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </div>`,
   };
-  const headings: Record<ModerationStatus, string> = {
+  const headings: Record<OutcomeKind, string> = {
     // Designer's headings, verbatim. "blocked" is gap 2 — no card was drawn for it.
     published: "Posted — someone exhales tonight",
     pending: "Posted — one quick check first",
     blocked: "Not published",
+    // T28 interim — it says "saved", not "posted", because it has not been posted.
+    queued: "Saved — waiting for signal",
   };
   // The designer's published card credits the pseudonym; the server's message does not.
   const paragraph =
@@ -98,9 +112,9 @@ function outcomeHTML(status: ModerationStatus, message: string, pseudonym: strin
   </div>`;
 }
 
-/** Narrows the phase to a terminal moderation outcome, or null while still composing. */
-function outcomeOf(phase: AnswerPhase): ModerationStatus | null {
-  return phase === "published" || phase === "pending" || phase === "blocked" ? phase : null;
+/** Narrows the phase to a terminal outcome card, or null while still composing. */
+function outcomeOf(phase: AnswerPhase): OutcomeKind | null {
+  return phase === "form" || phase === "loading" ? null : phase;
 }
 
 export function renderAnswerComposer(p: AnswerComposerProps): HTMLElement {

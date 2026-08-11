@@ -1,6 +1,6 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-09**
+**Last updated: 2026-08-11**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
@@ -12,7 +12,7 @@ this file is the human-readable one.
 browser. **This file remains the source of truth**, and a real status change is still an edit
 here, in the same turn as the work.
 
-**Score so far: 39 done · 0 half done · 33 not started · 5 waiting on something** *(= 77)*
+**Score so far: 40 done · 0 half done · 32 not started · 5 waiting on something** *(= 77)*
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -409,7 +409,7 @@ decide who is banned.
 | Task | In plain words | Status |
 |---|---|---|
 | T27 | Database tables for the offline outbox and saved drafts | ✅ *(see below)* |
-| T28 | Save posts on the phone when offline, send them later | ⬜ |
+| T28 | Save posts on the phone when offline, send them later | ✅ *(see below)* |
 | T29 | Receive those saved posts, handle duplicates, check them for safety before publishing | ✅ *(see below)* |
 | T30 | *(Designer)* The "sync status" screen — **brief written, ready for you** | ⬜ |
 | T31 | Show the honest status of each post: waiting → sending → checking → live / blocked | ⬜ |
@@ -417,6 +417,109 @@ decide who is banned.
 | T58 | Test proving no offline post is ever silently lost | ⬜ |
 | T68 | Speed test: what if everyone comes back online at once | ⬜ |
 | T67 | Kill the server mid-save, then restore from backup. **Needs a database we're allowed to destroy and rebuild** | 🔴 waiting |
+
+**About T28 (done 11 August):** the phone's own offline queue — writing with no signal, and
+sending it later.
+
+This is the half of offline mode that lives on the phone. T29 built the server side on
+9 August; this is what feeds it.
+
+**The one thing worth understanding, because everything else follows from it.** When you tap
+"Ask" and the request fails, there are two completely different reasons, and treating them the
+same loses posts:
+
+- **The server answered and said no** — bad topic, rate limit, banned. Retrying that forever is
+  how a queue becomes a landfill. It is shown as an error, exactly as before.
+- **Nobody answered** — no signal, the request timed out, the connection died. **Nobody knows
+  whether it worked**, including us. That, and only that, goes into the queue.
+
+**The detail that decides whether you get one post or two.** A request that timed out may well
+have been written by the server before the line dropped. So when the post falls back to the
+queue it carries **the same idempotency key** the failed attempt used — the key that lets the
+server recognise "this is the same post again" instead of creating a second copy. A fresh key
+there would post the same question twice, under the student's own name, with nothing tying the
+two together and no error anywhere. This is the single most load-bearing line in the task, and
+there is a test that fails if the key is regenerated.
+
+**A post can be destroyed by nothing but batch arithmetic, and that is now prevented.**
+Write a question offline, then write an answer to it. The answer can only point at its question
+by the id the phone invented. T29 is strict about this on purpose: an id the server has never
+seen is *permanent* refusal, because nothing later can supply it. So if the batch cap happened
+to cut between the two — or the phone's clock had drifted and made the answer look older — the
+answer would arrive alone and be **thrown away for ever**. The queue now refuses to send a
+child without its parent. And once the question does land, the answer's payload is rewritten to
+the real server id, so it no longer depends on the server still holding a queue row at all.
+
+**Two students on one phone do not share a queue**, and this is the one that would have been
+worst. The queue is filed under the profile id, not the device. A shared queue would let the
+second person's session flush the first person's posts — and the server attributes every synced
+post to whoever is signed in at that moment, so those posts would go **live under the wrong
+student's pseudonym**. In a product whose entire promise is that a post cannot be traced back
+to a person, publishing one as somebody else is the worst thing that can happen, and it would
+have looked exactly like the app working. Drafts are filed the same way, for a gentler version
+of the same reason: a half-written thought is more private than a published post, because the
+student never chose to show it to anyone.
+
+**A ban ends the queue instead of being retried for ever.** T29 wrote down an obligation it
+could not enforce: a banned account's whole batch is refused at the door with a `403`, and *"a
+phone that retries on 403 would carry those posts forever"*. No response body can say that, so
+it is now a rule in the client, with tests. **A dead session does the opposite** — it leaves the
+queue untouched, because the posts belong to the profile, not to the login, and the same student
+signing back in must find them still there.
+
+**Autosave saves over itself rather than piling up.** T27 found that the frozen schema's two
+halves disagreed: the table list allowed unlimited drafts, the index list allowed one. The index
+list was right, and the local store reproduces both of its rules — one question draft per
+student, one answer draft per question. Without that, "save as you type" leaves a draft every
+few seconds and reopening the composer faces a pile of them. Nothing would error; the store just
+grows.
+
+**When the device won't let us save, it says so.** Storage can be full or switched off. The
+session code is allowed to shrug at that — a session that doesn't persist is annoying. **An
+outbox that doesn't persist loses the post**, so the failure is reported and the student gets a
+different, honest sentence asking them not to close the app, instead of a reassuring one that
+is untrue.
+
+**Three things deliberately not built, each with its cost:**
+
+- **No timed retry.** The queue drains when the browser says a network appeared, and that is
+  all. There is no "try again in 30 seconds" loop, because a backoff schedule nobody has
+  specified is a number invented on the spot — and the same batch re-sent during an outage is
+  every phone hammering the server at its worst moment. *The cost:* a phone that comes back
+  online without firing that event waits until the app is next opened. There is a test that the
+  runner does not re-send a batch nothing came back from.
+- **No sync-status screen.** That is S12, and its design is **T30, still yours**. Until it
+  exists, a queued post is visible only on the card shown right after you write it. The queue
+  itself is complete and tested, so T31 wires a screen onto something already known to work.
+- **No "syncing" state on disk.** The database has one and nothing anywhere writes it — T32
+  watches for it precisely because a state nothing writes is one nobody would notice being set
+  by mistake. A phone that died mid-send with "sending" saved would own exactly that bug: not
+  finished, not retryable, invisible. In-flight is held in memory only, and dies with the app.
+
+**Every guard here was watched failing before it was trusted.** The parent rule, the ban rule
+and the per-profile filing were each removed on purpose and the tests went red; then they were
+put back. An all-clear from a check nobody has ever seen fail is not evidence — fifth time that
+has been applied in this project.
+
+**Three gaps found while building it, written down rather than invented around:**
+
+1. **`content_draft` is a table nothing can reach.** T27 created it; there is no endpoint for it
+   anywhere, in the technical spec or the code, and **no task in the plan builds one**. It
+   changes nothing today, because a draft store that needs the network is not a draft store —
+   local is right either way. What is genuinely missing is the *server* half: the reason that
+   table carries a "newest wins" timestamp is cross-device drafts, and **starting a question on
+   a laptop will not continue it on a phone**. Nobody owns that.
+2. **Offline posts are invisible to the usage statistics.** The "a question was submitted"
+   marker fires on the online path only, so from 11 August the funnel undercounts by however
+   many posts are written offline. No event was added here on purpose: **there is no M4
+   instrumentation task in the plan at all** (T51 covered M2, T52 covers M3, T53 covers M5), and
+   inventing one event for one composer designs the metric one endpoint at a time — the exact
+   mistake T34 wrote down and handed to T53. It needs a home.
+3. **The sync result does not say whether a synced post was published or held.** A10 answers
+   with the server id and nothing about moderation, so once a queued post lands the phone knows
+   it arrived and cannot tell whether it went live or into the review queue. **T31 needs that
+   distinction to draw its "checking" state honestly** — it will need a second read, or A10
+   needs to carry the moderation status. Better found now than while wiring the screen.
 
 **About T32 (done 9 August):** the watchdog for offline posts that never finish.
 

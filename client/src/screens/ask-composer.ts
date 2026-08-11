@@ -20,9 +20,15 @@ import type { ModerationStatus, TopicRef } from "../lib/content-view";
  *    than invent replacement copy, the paragraph renders the SERVER's own message. The
  *    heading, layout and everything else are the designer's, verbatim. Claude Design
  *    round 3 supplies the proper card — docs/design-prompts/T19-round-3.md gap 1.
+ *
+ * The `queued` phase is T28's and has NO designer source at all: these screens were drawn
+ * before the offline queue existed. It reuses the shield card's exact scaffolding with an
+ * interim heading and the message from `lib/content-errors.ts`, on the same precedent as
+ * the blocked card below (gap 2). The proper card belongs to the T30 sync round —
+ * docs/design-prompts/T30-sync-status.md gap 4.
  */
 
-export type AskPhase = "form" | "loading" | "published" | "pending" | "blocked";
+export type AskPhase = "form" | "loading" | "published" | "pending" | "blocked" | "queued";
 
 export interface AskComposerProps {
   phase: AskPhase;
@@ -117,7 +123,7 @@ function formHTML(p: AskComposerProps): string {
  * The three terminal cards. Structure, heading and button styling are the designer's;
  * the paragraph is the server's own message — see the note at the top of this file.
  */
-function outcomeHTML(status: ModerationStatus, message: string): string {
+function outcomeHTML(status: OutcomeKind, message: string): string {
   const card = (icon: string, heading: string, cta: string, ctaClass: string, ctaStyle: string) =>
     `<div style="flex:1; display:flex; align-items:center; justify-content:center; padding:24px">
       <div style="background:#FFFFFF; border-radius:26px; padding:40px 30px; box-shadow:0 12px 38px rgba(93,58,44,.1); display:flex; flex-direction:column; align-items:center; gap:13px; text-align:center; max-width:340px; animation:popIn .4s cubic-bezier(.34,1.56,.64,1)">
@@ -139,6 +145,18 @@ function outcomeHTML(status: ModerationStatus, message: string): string {
       "View your question",
       "mur-btn-primary",
       "color:#FFF8F1; background:#F26B4E; box-shadow:0 6px 18px rgba(242,107,78,.32)",
+    );
+  }
+  if (status === "queued") {
+    // T28. Same shield card, different words, and the words are the point: the post has
+    // not been "asked" and nothing is "checking" it — it is on this phone. The CTA goes
+    // back to the feed rather than to a thread, because there is no thread to open.
+    return card(
+      shieldIcon,
+      "Saved — waiting for signal",
+      "Back to the feed",
+      "mur-btn-soft",
+      "color:#4E7A62; background:#E7F1EA",
     );
   }
   if (status === "pending") {
@@ -166,9 +184,16 @@ function outcomeHTML(status: ModerationStatus, message: string): string {
   );
 }
 
-/** Narrows the phase to a terminal moderation outcome, or null while still composing. */
-function outcomeOf(phase: AskPhase): ModerationStatus | null {
-  return phase === "published" || phase === "pending" || phase === "blocked" ? phase : null;
+/**
+ * The card phases. `queued` is NOT a `ModerationStatus` and is deliberately not folded
+ * into one: nothing has moderated a post that never left the phone, and giving it a
+ * moderation value would be a claim the app cannot support.
+ */
+type OutcomeKind = ModerationStatus | "queued";
+
+/** Narrows the phase to a terminal outcome card, or null while still composing. */
+function outcomeOf(phase: AskPhase): OutcomeKind | null {
+  return phase === "form" || phase === "loading" ? null : phase;
 }
 
 export function renderAskComposer(p: AskComposerProps): HTMLElement {

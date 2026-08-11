@@ -11,6 +11,8 @@ import type {
   SubmissionResult,
   TopicRef,
 } from "./lib/content-view";
+import type { OutboxWireItem, SyncItemResult } from "./lib/outbox";
+import type { SendResult } from "./sync";
 
 const API_BASE = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE ?? "";
 
@@ -248,6 +250,41 @@ export function newIdempotencyKey(): string {
   bytes[8] = (bytes[8]! & 0x3f) | 0x80; // variant 10
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// --- A10: batch sync of the offline outbox (T28 client half; T29 server half) ---
+
+/**
+ * The `sendBatch` the T28 runner takes, implemented against the real endpoint.
+ *
+ * The runner deliberately cannot see `ApiCallError` (see the header of `sync.ts`), so the
+ * three outcomes it acts on are classified HERE, next to the error class that carries them:
+ *
+ *  - `403 account_banned` → `banned`. A10 refuses a banned caller's whole batch by the
+ *    session gate, so there are no per-item results; the runner takes the queue terminal.
+ *    Only this specific code, not any 403 — a different 403 must not silently destroy a
+ *    student's queued posts.
+ *  - `401` → `session_lost`. `handle()` has already dropped the stored session; the queue is
+ *    left alone.
+ *  - anything else, including a thrown `fetch` (offline, DNS, timeout) → `unreachable`.
+ *
+ * A 400 lands in `unreachable` on purpose. A whole-batch 400 means the batch was malformed,
+ * which is a bug in this client rather than a verdict on the posts — and treating a bug as
+ * a refusal would delete real content on the strength of it.
+ */
+export async function sendSyncBatch(items: OutboxWireItem[]): Promise<SendResult> {
+  try {
+    const { results } = await post<{ results: SyncItemResult[] }>("/sync/batch", { items });
+    return { ok: true, results };
+  } catch (err) {
+    if (err instanceof ApiCallError) {
+      if (err.status === 403 && err.apiError.code === "account_banned") {
+        return { ok: false, reason: "banned" };
+      }
+      if (err.status === 401) return { ok: false, reason: "session_lost" };
+    }
+    return { ok: false, reason: "unreachable" };
+  }
 }
 
 // --- A12: fire-and-forget analytics ---

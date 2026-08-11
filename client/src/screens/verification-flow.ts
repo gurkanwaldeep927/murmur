@@ -36,6 +36,13 @@ interface FlowState {
   s4Outcome: OutcomeKind;
   pseudonym?: string;
   yearBadge?: string;
+  /**
+   * The profile id, carried since T28 because the shell keys the offline outbox and the
+   * draft store by it. Not defaulted to `""` anywhere: an empty key would put every
+   * profile that ever lost its id into one shared bucket, and a shared outbox publishes
+   * one student's post under another's pseudonym (see `outbox-store.ts`).
+   */
+  profileId?: string;
 }
 
 export function mountVerificationFlow(mount: HTMLElement): void {
@@ -155,7 +162,11 @@ export function mountVerificationFlow(mount: HTMLElement): void {
               // user through a badge, a celebration and an instant bounce back to S1 with
               // no explanation, which is precisely the bug the missing /session proxy
               // entry caused.
-              if (exchangeFailed) {
+              // A missing profile id is treated exactly like a failed exchange (T28). The
+              // shell keys the outbox and the drafts by it, and a blank key is a bucket
+              // every id-less profile would share — so this refuses to mount rather than
+              // mount something that could publish one student's post as another's.
+              if (exchangeFailed || !state.profileId) {
                 state.screen = "s3";
                 state.s3Phase = "error";
                 draw();
@@ -164,6 +175,7 @@ export function mountVerificationFlow(mount: HTMLElement): void {
               mountAppShell(
                 mount,
                 {
+                  id: state.profileId,
                   pseudonym: state.pseudonym ?? "",
                   year_badge: state.yearBadge ?? "",
                 },
@@ -278,6 +290,7 @@ export function mountVerificationFlow(mount: HTMLElement): void {
           state.s4Outcome = "success";
           state.pseudonym = res.profile.pseudonym;
           state.yearBadge = res.profile.year_badge;
+          state.profileId = res.profile.id;
           draw();
         }, 800);
         return;
