@@ -26,7 +26,10 @@ async function boot(): Promise<void> {
   // stored session is trusted optimistically and only *confirmed* over the network.
   const stored = loadSession();
 
-  const signedIn = (profile: { pseudonym: string; year_badge: string }) => {
+  // `id` is required since T28: the offline outbox and the draft store are keyed by it, so
+  // one phone's two students cannot end up sharing a queue (see outbox-store.ts). Both call
+  // sites already hand over a full PublicProfile, so nothing new has to be fetched.
+  const signedIn = (profile: { id: string; pseudonym: string; year_badge: string }) => {
     // T51 — keeps a long-lived installed PWA visible to WAU, which `session.resumed`
     // alone cannot do since it only fires on boot. Started only for a signed-in user:
     // an unattributed ping tells the metric nothing.

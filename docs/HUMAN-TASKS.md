@@ -3,7 +3,12 @@
 Living checklist of every task in `docs/07-plan.md` that Claude Code cannot do, ordered by
 how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 
-**Last updated:** 2026-08-09 — **the list was ten days and eleven tasks stale, and it was wrong
+**Last updated:** 2026-08-11 — T28 (the phone's offline queue) landed, which is the last thing
+in the build that was neither behind `.pipeline/unlock` nor waiting on you. **Item 1 is now the
+only thing standing between the project and roughly half of what is left.** One correction went
+in too: this file claimed the repo had no git remote, and it has had one for some time.
+
+Previously updated 2026-08-09 — **the list was ten days and eleven tasks stale, and it was wrong
 in both directions.** It was asking you for work already finished, and it was missing the single
 highest-value thing you can do.
 
@@ -114,17 +119,14 @@ But you should know it, rather than find out later.
 **Why it blocks:** T11 (the tracer demo on a real phone with a real email) is the **last M1
 task**. Closing it takes M1 from 73% to done.
 
-Good news: **Supabase already covers the database half.** What's missing is hosting — and the
-repo currently has **no git remote and no deploy config at all**.
+Good news: **Supabase already covers the database half, and step (a) below is already done** —
+this file said "no git remote" until 11 August and that had stopped being true; `origin` points
+at `github.com/gurkanwaldeep927/murmur` and the task branches are pushed. What is actually
+missing is **hosting**, and there is still no deploy config.
 
 ### Steps
 
-**a. Push to GitHub (~10 min)**
-```bash
-gh repo create murmur --private --source=. --remote=origin
-git push -u origin main
-```
-(or create the repo in the browser and `git remote add origin <url>`)
+**a. ~~Push to GitHub~~ — done.** The remote exists and CI runs on every push.
 
 **b. Deploy the API (~30 min)** — Render is the least-friction option; Railway or Fly work too.
 1. New **Web Service** → connect the repo
@@ -439,9 +441,16 @@ Here is the real picture on 9 August, at **39 of 77 done and nothing half-finish
 1. **Behind T62** — T20 (search), T37 (operator permissions), and through T37 the whole rest of
    Milestone 5 (T35, T36, T41). All of them change the exact code T62 is waiting to inspect, so
    building them first only makes its findings staler. **This is why item 1 is item 1.**
-2. **The phone app** — T28 and T31, which need T30's screen first.
-3. **A designer** — T30, and design round 6.
+2. **The phone app** — ~~T28 and~~ T31, which needs T30's screen first. **T28 landed on
+   11 August.** It never needed T30: that was a fourth mis-filing, corrected on 9 August. T31
+   draws the screen; T28 was the machinery under it, and the machinery is now in and tested.
+3. **A designer** — T30 (now carrying a fourth gap, added by T28: the composers have no card for
+   "this never left the phone"), and design round 6.
 4. **You** — everything else on this list.
+
+**As of 11 August, category 1 is the entire remaining build.** There is no longer a Claude Code
+task outside it that does not depend on you or on a designer. That is not a complaint — it is
+the reason a one-minute file edit sits at the top of this list.
 
 **What I did while writing this**, so "very little" is not an excuse: landed T25 and T39 (they
 were mis-filed here as yours), wrote the round-6 brief, and closed two recorded bugs — the last

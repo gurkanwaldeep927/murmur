@@ -129,7 +129,42 @@ and should not read like the first.
 
 ---
 
+## Gap 4 — ⚠️ **added 2026-08-11, after T28 landed: the composer has no queued card**
+
+**Please draw one more thing than the original brief asked for**, and it is not part of S12.
+
+S6 (AskComposer) and S8 (AnswerComposer) were drawn before the offline queue existed. They
+each have three outcome cards — published, held for review, and (added in round 3) blocked —
+and **no card for "this never left the phone"**. T28 now needs one, because as of 2026-08-11
+a student on a train genuinely reaches that state.
+
+**What T28 shipped in the meantime, so you know what you are replacing.** The `queued` phase
+reuses S6/S8's existing shield card scaffolding with an interim heading — *"Saved — waiting
+for signal"* — and an interim paragraph living in `client/src/lib/content-errors.ts`
+(`QUEUED_OFFLINE_MESSAGE`). Same precedent as round 3's gap 2: ship something true rather
+than something pretty, and record the gap here.
+
+**The two rules the replacement copy has to keep**, both of which the interim already obeys:
+
+1. **It has not been posted.** The pending card says *"Asked — just one quick check"*, which
+   would be false: nothing has been asked and nothing is checking anything. The word has to be
+   closer to *saved* than to *sent*.
+2. **No time estimate, and no "in a few minutes".** This is the same rule as the section
+   above, and here it is stronger than anywhere else: nothing retries on a schedule. The queue
+   drains when the browser reports a network, and **a phone that never comes back never
+   sends**. Any duration in this copy is a promise the code cannot keep.
+
+**And there is a second, unhappier variant to draw.** When the device refuses to persist the
+queue — storage full, or blocked, which is a real state on a low-end phone — the post is held
+in memory only and **closing the app loses it**. T28 detects this and shows a different
+sentence (`QUEUED_UNSAVED_MESSAGE`) rather than the reassuring one. It is the one card in the
+product that has to ask a student not to close the app, and that deserves proper words.
+
+---
+
 ## What lands after this
 
-`SyncStatusList` from this round is wired up in **T31**. The client-side queue itself is **T28**.
-Neither invents copy; both use what this round produces.
+`SyncStatusList` from this round is wired up in **T31**. The client-side queue itself is
+**T28, which landed on 2026-08-11** — the model, the persistence, the flush runner and the
+composer fallback are all in and tested. Neither invents copy; both use what this round
+produces, and gap 4 above is the one place T28 had to ship an interim string.

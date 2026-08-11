@@ -48,6 +48,37 @@ export function answerErrorCopy(code: string, serverMessage?: string): string {
 }
 
 /**
+ * S6/S8's queued-offline card (T28).
+ *
+ * **Interim copy, and marked as such deliberately.** Every other string in this module is
+ * the designer's, lifted from a `.dc.html` error branch. This one has no designer source:
+ * the `.dc.html` composers were drawn before the offline queue existed and have no
+ * queued state at all, and the sync screen that will own this language is T30, still
+ * unwritten. The gap is recorded in `docs/design-prompts/T30-sync-status.md`.
+ *
+ * The precedent for shipping a sentence anyway is the `default:` branch above, and the rule
+ * it follows is the one that matters here: it may be plainer than the designer's, but it
+ * must not be *false*. Reusing S6's real pending card would have said "Asked — just one
+ * quick check" about a post that never left the phone, and this project has written down
+ * five times what a believable wrong message costs.
+ *
+ * It also does not promise WHEN. Nothing retries on a schedule — the queue drains when the
+ * browser says the network is back (`sync.ts`), and a phone that never comes back never
+ * sends. Saying "in a few minutes" would be the same lie in a smaller font.
+ */
+export const QUEUED_OFFLINE_MESSAGE =
+  "No signal right now, so this is saved on this device. It sends itself the moment you're back online — nothing is lost.";
+
+/**
+ * The same thing, when the device could not even persist it. Storage was full or blocked,
+ * so the post is held in memory for this run only and closing the app loses it. Told
+ * plainly rather than shown the reassuring version, because the reassuring version is
+ * untrue here — see `local-store.ts` on why a failed write is reported and not swallowed.
+ */
+export const QUEUED_UNSAVED_MESSAGE =
+  "No signal right now, and this device wouldn't let the app save it either. It'll send when you're back online, but don't close the app before then.";
+
+/**
  * True when an error means the caller's session is gone and the app must return to S1.
  * `api.ts`'s `handle()` has already cleared local storage by the time this is asked; this
  * is only about which screen to mount next.
