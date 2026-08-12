@@ -137,6 +137,30 @@ export const eventsLimiter = new FixedWindowLimiter(
 );
 
 /**
+ * `POST /session/exchange` (SEC-023, found by the T62 gate).
+ *
+ * This route runs BEFORE `requireSession` by definition — a bootstrap token is the
+ * credential it accepts — so it was the last credential-handling endpoint in the app with
+ * no ceiling at all. Bucketed by address like the other two pre-session routes, because
+ * there is no authenticated caller here to bucket by.
+ *
+ * What the budget is actually for, since a forged bootstrap token is not the threat: the
+ * signature is HMAC-SHA256 and is not guessable, so this does not exist to stop brute
+ * force. It exists because every allowed call does a database read (`findProfileById`) on
+ * an unauthenticated path, which makes an unbounded route a free amplifier against
+ * Postgres — the same shape as A12, which is why the ceiling is the same order.
+ *
+ * Looser than initiate (10/hr): a real student exchanges once per sign-in, but a flaky
+ * connection retrying a failed exchange must not lock them out of their own account, and
+ * unlike initiate an allowed call here costs no outbound email.
+ */
+export const exchangeLimiter = new FixedWindowLimiter(
+  "session.exchange",
+  config.rateLimitExchangePerHour,
+  60 * MINUTE,
+);
+
+/**
  * A8 report intake (T34). Bucketed by PROFILE, not by address — see `rateLimitByProfile`.
  * `[ASSUMPTION]`: no upstream figure exists. Loose enough that a student reporting a bad
  * thread is never stopped, tight enough that report-spam as a harassment tool is bounded.
@@ -188,7 +212,13 @@ export function rateLimitByProfile(limiter: FixedWindowLimiter, message?: string
  * instead of surprising a student.
  */
 export function resetRateLimiters(): void {
-  for (const limiter of [initiateLimiter, confirmLimiter, eventsLimiter, reportLimiter]) {
+  for (const limiter of [
+    initiateLimiter,
+    confirmLimiter,
+    eventsLimiter,
+    reportLimiter,
+    exchangeLimiter,
+  ]) {
     limiter.reset();
   }
 }

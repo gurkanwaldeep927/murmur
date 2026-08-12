@@ -3,7 +3,11 @@
 Living checklist of every task in `docs/07-plan.md` that Claude Code cannot do, ordered by
 how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 
-**Last updated:** 2026-08-13 — **T62, the Milestone 2 security gate, has now run, and it
+**Last updated:** 2026-08-13 (second pass — T62's gate work was landed on `main`, and the code
+half of its fix-list closed; see the end of "Status at a glance". **Items 2, 3 and 4 below are
+unchanged and still the only things blocking M2.**)
+
+**T62, the Milestone 2 security gate, has now run, and it
 failed.** You unblocked it on 11 August by writing `.pipeline/unlock`; the review ran two days
 later. **Every one of the 17 routes passed the access-control review — there is nothing wrong
 with the code.** All three blocking findings are settings in your `.env`, and they are now
@@ -66,6 +70,27 @@ reason has changed.** It is no longer that T62 cannot run. It has run. It is tha
 something different from what failed — so the comparison is lost. That rules out T20 and T37,
 and through T37 the whole rest of Milestone 5. What is left is the phone app, or this list.
 Items 2 and 3 are minutes of your time and they move the whole thing.
+
+**What I did with the rest of 13 August, and what it did *not* achieve.** T62's own fix-list
+was the one thing that is neither blocked by the gate nor waiting on you — closing a finding a
+gate named is the intended answer to it, not a reshaping of it. Six of the eleven smaller
+findings are now closed, verified, and green on CI: the sign-in route's missing rate limit, a
+code comment that claimed a security property the code never had, the guard that stopped the
+test suites wiping your **live** database (it was checking the database's *name* and not which
+machine it was on), an admin script that put live student email addresses into your shell
+history, seven unpinned CI helpers that their owners could have swapped under us, and a quarter
+of the vulnerable dependencies. Plus one hole found beside them: **the phone app's dependency
+list had never been security-scanned by anything, ever** — and it is the half carrying the worst
+advisories.
+
+**Be clear that this does not move item 2, 3 or 4, and does not unblock M2.** The gate passes
+only at zero high findings; all three highs are your `.env`. What it buys is that the re-run
+after you fix them reports a short list rather than a long one. Two findings were left
+deliberately open because closing them would have meant guessing — the browser content-security
+policy needs T49's real API address (writing the version that works locally would silently break
+every screen in production while looking finished), and the last open route's three suggested
+fixes are respectively yours, the lawyer's, and a trade nobody has decided. Both are written up
+with the blocker named in `docs/08-security.md` §12.
 
 ---
 
