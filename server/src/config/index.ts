@@ -239,6 +239,10 @@ export const config = {
   // T34 — A8 report intake. Bucketed per PROFILE rather than per address (the route is
   // authenticated, and one campus NAT is one address); see shared/rate-limit.ts.
   rateLimitReportsPerHour: intOpt("RATE_LIMIT_REPORTS_PER_HOUR", 10),
+  // SEC-023 (T62) — POST /session/exchange. Pre-session by definition, so bucketed by
+  // address. Higher than initiate because an allowed call here sends no email; it is a
+  // ceiling on unauthenticated database reads, not on OTP guessing.
+  rateLimitExchangePerHour: intOpt("RATE_LIMIT_EXCHANGE_PER_HOUR", 60),
   trustProxy: optional("TRUST_PROXY", ""),
 
   /**

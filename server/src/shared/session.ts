@@ -9,9 +9,35 @@ import { config } from "../config/index.js";
  * Summary of what this module implements:
  *
  *   - Stateless signed tokens; no session table (the schema is frozen at 14 tables).
- *   - Two types: `bootstrap` (15 min, A2's response, exchangeable once for a session)
- *     and `session` (30 days, sliding). `typ` is signed and checked at every use site,
- *     so a bootstrap token is never accepted as a session token.
+ *   - Two types: `bootstrap` (15 min, A2's response, exchanged for a session) and
+ *     `session` (30 days, sliding). `typ` is signed and checked at every use site, so a
+ *     bootstrap token is never accepted as a session token.
+ *
+ * ## What "exchangeable ONCE" would mean, and why this is not it (SEC-015, T62)
+ *
+ * This comment used to say a bootstrap token was "exchangeable once". It is not, and the
+ * wording mattered more than it looks: single-use is a property a reader would rely on
+ * when reasoning about A2's response, and nothing in this module or in
+ * `session.routes.ts` enforces it. There is no `jti`, no used-token set, and no state
+ * anywhere — that is the direct consequence of the stateless choice above. So the same
+ * bootstrap token can be presented to `POST /session/exchange` any number of times inside
+ * its 15-minute window, and each presentation mints a fresh 30-day session token.
+ *
+ * **The cost, stated plainly:** whoever holds a bootstrap token holds it for 15 minutes,
+ * not for one use. If one leaks (a shared screen, a URL in a log, a copied link), revoking
+ * it is not possible — the only bounds are the TTL above and the per-device ceiling on the
+ * exchange route (SEC-023). Its blast radius is one account, and A2 already sent the code
+ * to that account's own mailbox, which is why this is rated low rather than higher.
+ *
+ * **Why single-use was not built here.** It needs server-side state that outlives a
+ * request, which is exactly the thing `decisions/oq-14-session-mechanism.md` §1 rules out
+ * (no session table, no second datastore at v1 scale). An in-process set would also be a
+ * lie at more than one instance: the token would be single-use per instance and replayable
+ * across them, which is worse than an honest 15-minute window because it looks enforced.
+ * If a shared store ever arrives, this is the first thing that should use it.
+ *
+ * The rule this follows: a comment does not get to claim a property the code lacks. That
+ * has cost this project real time more than once.
  *   - Dedicated versioned signing key (`v<n>:secret`), NOT the email-hash pepper that
  *     M1 borrowed — see the decision's §5.
  *   - Revocation is not this module's job: it is the live `pseudonymous_profile.status`

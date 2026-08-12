@@ -44,8 +44,13 @@ jobs:
       CAMPUS_EMAIL_DOMAINS: nitj.ac.in
       EMAIL_PROVIDER: memory
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # SEC-022 (T62) — every `uses:` is pinned to a full commit SHA, not a tag. A tag is a
+      # mutable pointer the action's owner can move at any time, so `@v4` means "whatever
+      # that account publishes next", and these actions run with a GITHUB_TOKEN in a job
+      # that also holds the CI secrets. A SHA cannot be moved. The version in the trailing
+      # comment is what the SHA was when it was pinned; dependabot bumps both together.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -84,10 +89,18 @@ jobs:
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
       # gitleaks is BLOCKING from the first run (no warn-only period) per cadence.md §1.
-      - uses: gitleaks/gitleaks-action@v2
+      # Pinned per SEC-022 — and this is the job where a moved tag would matter most: it
+      # reads the full history with a GITHUB_TOKEN, which is exactly what an attacker who
+      # could move the tag would want.
+      #
+      # OQ-SEC-04 (T62, non-blocking, still open): whether this action scans FULL history
+      # or only the pushed commit range is unconfirmed. `fetch-depth: 0` gives it the whole
+      # history to read, but that is the input, not proof of what it does with it. T62's
+      # local run could not settle it because gitleaks is not installed on that machine.
+      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -95,17 +108,24 @@ jobs:
     runs-on: ubuntu-latest
     container: returntocorp/semgrep
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: semgrep ci --config auto
         continue-on-error: true # SAST advisory in Layer 1; blocking gate is the M1 security-agent run (T60)
 
   sca:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: "22" }
       - run: npm i -g @google/osv-scanner || npx --yes osv-scanner --version || true
+      # Both lockfiles, not just the root one. T60 scanned only the root and T62 recorded
+      # that the client tree had never been through SCA at all — the client is where `vite`
+      # lives, which is the tree carrying the high-severity advisories. One `--lockfile` flag
+      # per tree, because the client has its own dependency graph and its own lockfile.
       - name: OSV scan (per lockfile)
-        run: npx --yes osv-scanner scan --lockfile=package-lock.json
+        run: |
+          npx --yes osv-scanner scan \
+            --lockfile=package-lock.json \
+            --lockfile=client/package-lock.json
         continue-on-error: true # SCA advisory in Layer 1; escalates via the security-agent milestone gate

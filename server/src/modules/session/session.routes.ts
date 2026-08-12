@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../../db/pool.js";
 import { errors } from "../../shared/error-envelope.js";
+import { exchangeLimiter, rateLimit } from "../../shared/rate-limit.js";
 import { callerOf, requireSession } from "../../shared/require-session.js";
 import { bearerFrom, issueSessionToken, verifyToken } from "../../shared/session.js";
 import { emit } from "../analytics/analytics.service.js";
@@ -25,8 +26,16 @@ export const sessionRouter = Router();
  * session token cannot be replayed here and a bootstrap token cannot be used anywhere
  * else. The profile is re-read (not trusted from the token) so a user banned in the
  * 15 minutes between A2 and the exchange never gets a session credential.
+ *
+ * Rate-limited per device (SEC-023, T62). This route runs before `requireSession` by
+ * definition, so there is no profile to bucket by — the address is the only key
+ * available, which is why `TRUST_PROXY` being unset weakens this one too.
+ *
+ * The limiter is NOT here to stop bootstrap-token guessing; the signature makes that
+ * infeasible. It is here because every allowed call does an unauthenticated database
+ * read, and an unbounded route that reads Postgres for free is an amplifier.
  */
-sessionRouter.post("/session/exchange", async (req, res, next) => {
+sessionRouter.post("/session/exchange", rateLimit(exchangeLimiter), async (req, res, next) => {
   const raw = bearerFrom(req.header("authorization")) ?? (req.body as { token?: unknown })?.token;
   if (typeof raw !== "string" || raw === "") {
     return next(errors.sessionRequired("Verification is required before signing in."));
