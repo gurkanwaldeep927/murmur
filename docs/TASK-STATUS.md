@@ -168,7 +168,7 @@ report is in `docs/08-security.md`, and the machine-readable record is
 ### The rest of T62's list — done the same night (13 August), and it does **not** unblock M2
 
 The gate found fourteen things. Three are the highs above and they are yours. **The other
-eleven were the smaller ones, and six of those were mine — so they are done.** Full write-up:
+eleven were the smaller ones, and seven of those were mine — so they are done.** Full write-up:
 `docs/08-security.md` §12, added *after* the report rather than edited into it, for a reason
 worth knowing: a gate report that gets quietly rewritten can no longer be compared against its
 own re-run. On 4 August a gate file claimed something was unfixed that had been fixed days
@@ -221,14 +221,29 @@ when you fix those three, the re-run finds a short list instead of a long one.
   downloads was pinned to a label like `v4` — and a label is a pointer its owner can move
   whenever they like, to anything. Those helpers run with access to the project's own
   credentials. All seven are now pinned to an exact, unmovable version.
-- **A quarter of the known-vulnerable dependencies are gone, and the rest turned out to be a
-  bigger job than the note claimed.** The report said "update two packages when convenient". It
-  is not that: everything left needs jumping the test framework across two whole versions and
-  the build tool across three — that is replacing them, not updating them. Doing that in the
-  same change as security fixes means a broken test suite could not be blamed on either one.
-  **The scary word is worth defusing:** one of them is labelled *critical*, and it genuinely is
-  — but every single one is a **development** tool that is not part of what students would ever
-  run. Both shipping trees report clean. That is why the gate rated it medium, and it still is.
+- **Every known-vulnerable dependency is now gone — both halves, including the *critical* one.**
+  This took two goes, and the two-goes part is the lesson. The report said "update two packages
+  when convenient". It was not that: what remained needed jumping the **test framework across two
+  whole versions and the build tool across three** — replacing them, not updating them. I did the
+  easy three-quarters first and stopped, on purpose: if you bump the thing that *runs* your tests
+  in the same change as you edit security code, and the tests go red, **you cannot tell which one
+  did it.** So the security work went in and turned green on its own first. Then a second branch
+  containing nothing but two version numbers had exactly one possible cause of failure — and it
+  went green too. **Both dependency lists now report zero problems, at every severity.**
+
+  **The scary word is worth defusing rather than celebrating.** One was labelled *critical* and
+  genuinely was — but every one of them is a **development** tool: things that build and test the
+  app on my machine, never anything a student's phone downloads. Both shipping lists were already
+  clean before I started. That is why the gate rated it medium, and closing it does not
+  retroactively make it worse than that.
+
+  **What could not be known without trying, and now is known:** nothing else had to change. No
+  test file and no source file was edited — which matters, because a dependency bump that quietly
+  rewrites your assertions is how a test suite stops testing what it used to. And the one runtime
+  path a build cannot check was checked by hand: the development server starts, and its
+  forwarding-to-the-API still *engages* instead of silently serving the wrong thing — the exact
+  bug from 2 August, where a missing entry served a web page to something expecting data and the
+  error surfaced miles from the cause.
 - **And a hole found beside it, in the checker itself.** The dependency scan had only ever looked
   at the server's list. The phone app's list — which is where the worst of these actually live —
   **had never been scanned at all, by anything.** It is scanned now.

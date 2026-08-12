@@ -540,7 +540,7 @@ touches them. This is the medium/low tail — the part in Claude Code's lane.
 | **SEC-017** | low | **closed** | The destructive-test guard's route 1 now requires a loopback host **as well as** a `test`-shaped database name. 6 tests in `tests/unit/test-db-guard.test.ts`. |
 | **SEC-016** | low | **closed** | `admin-delete-identity.ts` reads the address from stdin instead of `argv`, and identifies the account by `email_hash` prefix instead of echoing the address. |
 | **SEC-015** | low | **closed as documented** | The comment claiming a bootstrap token is "exchangeable once" is corrected — it never was. |
-| **SEC-012** | medium | **partly closed** | 4 root + 2 client advisories closed non-breakingly; the rest need semver-major bumps. |
+| **SEC-012** | medium | **closed** | Two passes. First the non-breaking half; then `vitest` 2 → 4 and `vite` 5 → 8 on branch `chore/sec-012-major-devdep-bumps`. **Both trees now report `found 0 vulnerabilities`.** |
 | **SEC-013** | medium | **open, deliberately not guessed** | Blocked on T49. See below. |
 | **SEC-009** | medium | **open** | Its three parts have three different owners. See below. |
 
@@ -586,13 +586,38 @@ and postcss. **Everything remaining resolves only through a semver-major bump: `
 (two majors) in the root tree, `vite` 5 → 8 (three majors) in the client.** That is a
 test-framework and build-tool replacement, not an update.
 
-Deliberately not done here. A red suite after bumping the test framework *and* editing
-security-relevant code cannot be attributed to either, and CI green is the only authoritative
-signal this project has for database-backed work.
+**Done in a second pass, immediately after — and the deferral reason is worth keeping, because it
+expired rather than being overruled.** The reason for not doing it in the same change was
+*attribution*: bumping the test framework while also editing security-relevant code means a red
+suite cannot be blamed on either. Once the fix-list above was merged and green on `main`, a branch
+containing nothing but two version numbers had exactly one possible cause of failure. So it was
+done then, on `chore/sec-012-major-devdep-bumps`:
 
-The `critical` label is real and does not reach a user: every remaining advisory is on a
-devDependency, and both `--omit=dev` trees return 0 vulnerabilities of every severity. That is why
-T62 rated it medium, and the rating still holds.
+- root `vitest` `^2.0.5` → `^4.1.10` (two majors) — closes the `critical`-labelled vitest
+  advisory plus `@vitest/mocker`, `esbuild`, `vite`, `vite-node`
+- client `vite` `^5.4.10` → `^8.2.1` (three majors) — closes `vite` (high) and `esbuild`
+
+**Both trees now report `found 0 vulnerabilities`, at every severity, dev included.**
+
+**Nothing else needed changing, and that is the part that could not be known without trying.**
+`vitest.config.ts` uses only options that survived both majors (`environment`, `include`,
+`testTimeout`, `hookTimeout`, `setupFiles`, `fileParallelism`); the suite's entire `vi.*` surface
+is `resetModules` / `fn` / `spyOn` / `mock` / `useFakeTimers` / `advanceTimersByTime` /
+`useRealTimers` / `restoreAllMocks`, all still present in v4; and `client/vite.config.ts` uses
+`publicDir`, `build.outDir`/`emptyOutDir`, `server.port` and `server.proxy`, unchanged in v8.
+**No test file and no source file was edited** — worth stating, because a dependency bump that
+quietly rewrites assertions is how a suite stops testing what it used to.
+
+Verified rather than inferred: 226 unit tests green across 28 files under vitest 4; typecheck,
+typecheck:client and lint clean; `sql:check` 39/39; the client production build succeeds on vite 8
+(29 modules, 86.69 kB); and the vite 8 **dev server** boots with its API proxy still *engaging*
+rather than falling through — `/health` returns 502 with no API running, which is precisely the
+distinction the config comment records from the 2026-08-02 incident, where a missing proxy prefix
+served HTML to a JSON parser. CI green on the pushed branch, all four jobs, `build-test` included.
+
+**The `critical` label never reached a user, and that is why the rating was right.** Every
+advisory here was on a devDependency; both `--omit=dev` trees already returned zero. T62 rated it
+medium on exactly that reasoning, and closing it does not retro-justify a higher rating.
 
 **Found and closed alongside it:** the CI `sca` job only ever scanned the root lockfile. T62
 recorded that the client tree had never been through SCA at all — and the client is the tree

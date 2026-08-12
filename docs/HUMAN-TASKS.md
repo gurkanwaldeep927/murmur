@@ -78,9 +78,11 @@ findings are now closed, verified, and green on CI: the sign-in route's missing 
 code comment that claimed a security property the code never had, the guard that stopped the
 test suites wiping your **live** database (it was checking the database's *name* and not which
 machine it was on), an admin script that put live student email addresses into your shell
-history, seven unpinned CI helpers that their owners could have swapped under us, and a quarter
-of the vulnerable dependencies. Plus one hole found beside them: **the phone app's dependency
-list had never been security-scanned by anything, ever** — and it is the half carrying the worst
+history, seven unpinned CI helpers that their owners could have swapped under us, and — in a
+second pass, once the first was green so a broken test suite could only have one cause —
+**every remaining vulnerable dependency, including the one labelled `critical`. Both lists now
+report zero, at every severity.** Plus one hole found beside them: **the phone app's dependency
+list had never been security-scanned by anything, ever** — and it was the half carrying the worst
 advisories.
 
 **Be clear that this does not move item 2, 3 or 4, and does not unblock M2.** The gate passes
