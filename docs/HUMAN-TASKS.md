@@ -3,10 +3,17 @@
 Living checklist of every task in `docs/07-plan.md` that Claude Code cannot do, ordered by
 how much it unblocks. Companion to `docs/BUILD-NOTES.md` (the build log).
 
-**Last updated:** 2026-08-11 — T28 (the phone's offline queue) landed, which is the last thing
-in the build that was neither behind `.pipeline/unlock` nor waiting on you. **Item 1 is now the
-only thing standing between the project and roughly half of what is left.** One correction went
-in too: this file claimed the repo had no git remote, and it has had one for some time.
+**Last updated:** 2026-08-13 — **T62, the Milestone 2 security gate, has now run, and it
+failed.** You unblocked it on 11 August by writing `.pipeline/unlock`; the review ran two days
+later. **Every one of the 17 routes passed the access-control review — there is nothing wrong
+with the code.** All three blocking findings are settings in your `.env`, and they are now
+items 2, 3 and 4 below. Two are a few minutes each. The third cannot be fixed by editing at
+all; it is a decision only you can make, and nothing on T62 closes until you make it.
+
+Previously updated 2026-08-11 — T28 (the phone's offline queue) landed, which was the last
+thing in the build that was neither behind `.pipeline/unlock` nor waiting on you. One
+correction went in too: this file claimed the repo had no git remote, and it has had one for
+some time.
 
 Previously updated 2026-08-09 — **the list was ten days and eleven tasks stale, and it was wrong
 in both directions.** It was asking you for work already finished, and it was missing the single
@@ -31,15 +38,18 @@ T54 out of the hot path by splitting T14a from T14b, and it still holds).
 
 | # | Task | Blocks | Your time | When |
 |---|---|---|---|---|
-| 1 | **`.pipeline/unlock`** — five words in one file | **T62, and through it about half of what is left** — plus T47, T66, T68, T71, T48 | **1 min** | **Now — nothing else here comes close** |
-| 2 | **T49** — staging deploy | T11 (closes M1), and T19's look-at-it-on-a-screen check | 1–2 hrs | **Now** |
-| 3 | **Rotate the database password** | nothing — but it has been on a screen | ~10 min | **Now** |
-| 4 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 — and now the doxxing category | Weeks (external) | **Start now, finishes later** |
-| 5 | **Design round 6** — the report form's missing categories | T40, and a legal deadline being wrong | 15–30 min | **Soon — see why below** |
-| 6 | **T30** — design round 4 (sync status) | T31 | 15–60 min | At M4 |
-| 7 | **T54** — moderation vendor | T14b, T64, T73 — all M6 | ~30 min | Anytime before M6 |
-| 8 | **T42** — grievance officer details | R7 AC3 — launch-blocking, **but only at T48/M6** | ~1 hr | Anytime before M6 |
-| 9 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Anytime before M6 |
+| 1 | ~~**`.pipeline/unlock`**~~ — **done 2026-08-11**, and this file had the list wrong | T62 and everything behind it — now unblocked | — | ✅ |
+| 2 | **`.env`: `EMAIL_PROVIDER` + `NODE_ENV`** — live emails and login codes are printing to the screen | T62, and through it M2 | **~2 min** | **Now — highest value here** |
+| 3 | **`.env`: `DATABASE_SSL` + the Supabase CA file** — the DB connection is encrypted but unverified | T62, and through it M2 | **~10 min** | **Now** |
+| 4 | **Decide what happens to the old email fingerprints** (`EMAIL_HASH_PEPPER_RETIRED`) | T62 — and it cannot be fixed by editing, only decided | ~20 min thinking | **Now — nothing can proceed without it** |
+| 5 | **T49** — staging deploy | T11 (closes M1), and T19's look-at-it-on-a-screen check | 1–2 hrs | **Now** |
+| 6 | **Rotate the database password** | nothing — but it has been on a screen | ~10 min | **Now** |
+| 7 | **T43** — legal review (IT Rules + DPDP) | T34, T35, T42, T75, T70 — and now the doxxing category | Weeks (external) | **Start now, finishes later** |
+| 8 | **Design round 6** — the report form's missing categories | T40, and a legal deadline being wrong | 15–30 min | **Soon — see why below** |
+| 9 | **T30** — design round 4 (sync status) | T31 | 15–60 min | At M4 |
+| 10 | **T54** — moderation vendor | T14b, T64, T73 — all M6 | ~30 min | Anytime before M6 |
+| 11 | **T42** — grievance officer details | R7 AC3 — launch-blocking, **but only at T48/M6** | ~1 hr | Anytime before M6 |
+| 12 | **T72–T75** — four runbooks | T48 GO/NO-GO | ~30 min each | Anytime before M6 |
 
 *(T54 dropped out of the hot path on 2026-07-30 — the T14a/T14b split removed the dependency
 rather than deferring it. T42 and T72–T75 moved out the same day. T18 was removed on 2026-08-09
@@ -50,71 +60,180 @@ answer for moderation and publishes nothing outside the test suite. That is R6's
 posture working correctly, not a bug — but it does mean you won't see a post go live on
 staging until you pick a vendor. Running T54 early un-does that at any time. See **RR-21**.
 
-**And the honest version of "I am not idle while you do these" — I mostly am.** Item 1 is why.
-Everything left in the build either changes the code T62 is waiting to inspect (T20, T37, and
-through T37 the whole rest of Milestone 5), or is the phone app, or is on this list. That is not
-a complaint; it is the reason the one-minute item is at the top.
+**And the honest version of "I am not idle while you do these" — I mostly still am, and the
+reason has changed.** It is no longer that T62 cannot run. It has run. It is that T62 has not
+*passed*, and until it does, reshaping the code it inspects means the re-run examines
+something different from what failed — so the comparison is lost. That rules out T20 and T37,
+and through T37 the whole rest of Milestone 5. What is left is the phone app, or this list.
+Items 2 and 3 are minutes of your time and they move the whole thing.
 
 ---
 
 # TIER 1 — do these now
 
-## 1. `.pipeline/unlock` — one file, five words, one minute
+## 1. ~~`.pipeline/unlock`~~ — ✅ **written by you on 2026-08-11**
 
-**This is the highest-value minute available to you anywhere in the project.** It unblocks
-**T62**, and T62 unblocks roughly half of what is left to build.
+The file now reads `08 09 10 11 12 13`. **T62 is unblocked, and with it everything that was
+parked behind it.**
 
-### What to do
+### This section had the list wrong, in two ways, and both are worth recording
 
-Open `.pipeline/unlock` — it already exists and is **empty** — and put this on one line:
+Re-derived from the guard's own code (`.claude/hooks/guardrail.py`) on 11 August, rather than
+from what this file previously asserted.
 
-```
-08 11 12 13 15
-```
+**1. The stated reason was wrong.** This section said *"`docs/16-privacy.md` exists, so
+documents 01 through 15 are all frozen."* The guard's freeze scan globs `docs/0[1-9]-*.md` and
+`docs/1[0-5]-*.md` (lines 61–62) — **`16-privacy.md` matches neither, so the guard never sees
+it.** What is actually doing the freezing is `docs/14-resilience.md`.
 
-Save. That's it.
+**2. Two numbers were missing.** The old instruction was `08 11 12 13 15`:
 
-### Why five numbers and not one
-
-Earlier notes said this file needs the single word `08`. That is true for T62 and **wrong for
-everything after it**, and the difference was only found on 9 August by reading the guard's own
-code (`.claude/hooks/guardrail.py`, lines 45–66).
-
-The rule the guard actually follows: a numbered document becomes **read-only the moment any
-higher-numbered one exists**. `docs/16-privacy.md` exists. So documents 01 through 15 are all
-frozen right now — and every remaining quality gate is a task whose entire job is to write one
-of them:
-
-| Gate | Writes | Needs |
+| Prefix | Old list | Actually needed |
 |---|---|---|
-| T62, T65, T69 — the security reviews | `docs/08-security.md` | `08` |
-| T47 — run every test one last time | `docs/11-…` | `11` |
-| T66, T68 — the speed checks | `docs/12-performance.md` | `12` |
-| T71 — the "does it produce useful logs" check | `docs/13-…` | `13` |
-| T48 — **the launch decision** | `docs/15-production-readiness.md` | `15` |
+| `08` | ✅ | yes — the security reviews (T62, T65, T69) write `docs/08-security.md` |
+| `09` | ❌ **absent** | **yes** — the AI-security gate (T64) writes `docs/09-*` |
+| `10` | ❌ **absent** | **yes** — the test-writer stage writes `docs/10-tests.md` |
+| `11` | ✅ | yes — T47 |
+| `12` | ✅ | yes — the speed checks (T66, T68) |
+| `13` | ✅ | yes — the logging check (T71) |
+| `15` | ✅ | **no** — 15 can never be frozen, because no globbed document can outnumber it. Same for 14. |
 
-**If you write only `08`:** T62 runs and everything else hits the same wall later, one gate at a
-time, over weeks, each time looking like a fresh problem. It is one problem. Five words now
-costs the same as one.
+Writing the old list would have unblocked T62 and then hit the same wall twice more — at T64 and
+at the test-authoring stage — weeks apart, each looking like a fresh problem. **It is one
+problem.** That is the third time in this project a table telling you how much work you have
+turned out to be a guess rather than a reading; it is recorded here rather than quietly fixed.
 
-### Why I won't write it myself
+### Why I did not write it myself
 
 This file is what stops a review agent from lifting its own audit restrictions. **A guard an
 agent can lift for itself is not a guard.** The precedent was set when T60 refused to self-grant
-its own unlock. Asking you for one line is the entire mechanism working.
+its own unlock.
 
-### One thing you should know, because creating the empty file was not a no-op
+### The second job this file does, which is still worth knowing
 
-That file does two different jobs by two different rules. The document freeze above reads its
-**contents**. A separate guard — the one restricting what commands a review agent may run —
-switches off merely because the file **exists**, whatever is in it. It exists today and is
-empty, **so that second guard is already off while nothing is actually unlocked.** Not dangerous
-on its own, and not something for me to quietly "repair" — how your guards behave is your call.
-But you should know it, rather than find out later.
+It drives two different guards by two different rules. The document freeze above reads its
+**contents**. A separate denylist — the one restricting what commands a review agent may run
+(`git reset --hard`, `curl | sh`, `npm publish`, `terraform destroy`) — switches off merely
+because the file **exists**, whatever is in it (line 102). It has existed since 2 August, so
+**that denylist has been off since then**, including while the file was empty and nothing was
+actually unlocked. Not dangerous on its own, and not something for me to quietly "repair" — how
+your guards behave is your call.
+
+**What unlock never affects:** the always-on list — `rm -rf`, force-push, `DROP`/`TRUNCATE`,
+deleting a stage doc. Those stay blocked regardless, which is why a force-push was refused on
+11 August even with this file present.
 
 ---
 
-## 2. T49 — Staging deployment
+## 2. `.env` — stop printing live emails and login codes ⚠️ **~2 minutes**
+
+**Found by T62 on 2026-08-13 (finding SEC-021). This is the cheapest fix on the whole list
+and it closes the worst of the three.**
+
+Your `.env` has both of these:
+
+```
+NODE_ENV=development
+EMAIL_PROVIDER=console
+```
+
+The console email provider writes **the student's raw email address and their live one-time
+login code** to standard output — `server/src/modules/notification/email-provider.ts:66`. It
+is allowed to run *only* because `NODE_ENV` says `development`. Meanwhile `DATABASE_URL`
+points at the live Supabase database holding real accounts.
+
+So the single environment that touches real student data is the one configured to have the
+guards switched off. The guard itself is not broken — it is doing exactly what it was told.
+
+**Why `NODE_ENV` is the more important half.** T60 fixed several problems by making the app
+*refuse to boot* on a bad configuration. Every one of those refusals is keyed on `NODE_ENV`.
+Leaving it at `development` against a live database disarms all of them at once.
+
+### What to do
+
+Either point this environment at a throwaway database, **or** set `EMAIL_PROVIDER` to
+something that does not print (`memory`) and move `NODE_ENV` off `development`. If you set
+`NODE_ENV=production`, expect the app to start refusing things — that is the guard working,
+and each refusal message names its own fix.
+
+---
+
+## 3. `.env` — verify the database server, don't just encrypt the traffic ⚠️ **~10 minutes**
+
+**Found by T62 on 2026-08-13 (finding SEC-002).**
+
+Your `.env` has:
+
+```
+DATABASE_SSL=require
+DATABASE_SSL_CA=
+```
+
+`require` means *scramble the traffic, but accept whatever certificate the other end presents*
+(`server/src/db/pool.ts:28` maps it to `rejectUnauthorized: false`). It stops someone
+passively sniffing the wire. It does **not** stop someone sitting in the middle presenting
+their own certificate — and if that happens they get the database password and every row.
+
+**The part worth knowing: the code already defaults to the safe setting.** For any non-local
+host it derives `verify-full` on its own. Your `.env` line is explicitly overriding that safe
+default with a weaker one. Deleting the line is a legitimate fix.
+
+### What to do
+
+1. Supabase dashboard → Database Settings → SSL Configuration → download `prod-ca-2021.crt`.
+2. Put it in `server/certs/`.
+3. Set `DATABASE_SSL_CA` to that path, and either set `DATABASE_SSL=verify-full` or delete the
+   `DATABASE_SSL` line entirely.
+
+**Why the certificate must come from the dashboard and not from the connection itself:**
+trusting a root certificate handed to you by the very server you are trying to verify is
+circular — someone in the middle would simply hand you *their* root, and you would pin it.
+That reasoning is written into `server/src/config/index.ts` so it does not get lost.
+
+---
+
+## 4. Decide: what happens to the old email fingerprints ⚠️ **a decision, not an edit**
+
+**Found by T62 on 2026-08-13 (finding SEC-019, blocking open question OQ-SEC-02).**
+
+**First, the good news: the real key rotation worked.** `EMAIL_HASH_PEPPER_ACTIVE` is a
+genuine `v2:` secret with no placeholder in it. Problem #2 in `TASK-STATUS.md` is properly
+closed.
+
+**What is still wrong:** `EMAIL_HASH_PEPPER_RETIRED` still holds
+`v1:change-me-in-every-real-environment` — byte-for-byte identical to line 41 of
+`.env.example`, which **is committed to this repository**. Every `identity_account` row whose
+fingerprint is still stored under version `v1` was computed with a secret that anyone reading
+this project can see.
+
+**What that lets someone do:** not read the addresses back — the fingerprint is one-way. But
+it lets them *test a guess*. Take a plausible campus address, compute its fingerprint with the
+published secret, and see whether it is in the table. On a campus where addresses follow a
+predictable pattern, that is a working membership oracle against the one thing this whole
+product promises to hide.
+
+It is rated **high** rather than **critical** only because migration 008 removed anonymous
+database access, so an attacker now needs database credentials rather than a public request.
+
+### Why you cannot just fix this one
+
+The fingerprints **cannot be recomputed** under the new secret. They are one-way, and the raw
+addresses were deliberately never kept. There is no path from the stored value back to
+something you could re-hash. So the options are only these two:
+
+| Option | What it costs |
+|---|---|
+| **Delete or quarantine every `v1$` row** | Destroys real student accounts. Those people cannot sign in and cannot recover — there is nothing left to match them against. |
+| **Accept it, in writing, with your name on it** | The oracle stays until those accounts age out naturally. Honest, recorded, and reversible later; but it is a real accepted risk, not a fixed one. |
+
+**This is deliberately not an agent's decision.** Either choice destroys something — accounts,
+or a security property — and both are yours to weigh. Nothing on T62 can close until you pick
+one, and the choice should be written down where the next reviewer will find it
+(`decisions/`), not just done.
+
+---
+
+## 5. T49 — Staging deployment
 
 **Why it blocks:** T11 (the tracer demo on a real phone with a real email) is the **last M1
 task**. Closing it takes M1 from 73% to done.
@@ -178,7 +297,7 @@ The staging API URL and client URL. Then I run T11 and M1 is closed.
 
 ---
 
-## 3. Rotate the database password
+## 6. Rotate the database password
 
 **Why:** on 5 August the password appeared in terminal output on your own machine, in the middle
 of a dumped connection object. `.env` is not in git and never has been, so it never entered the
@@ -200,7 +319,7 @@ likely to be run right after a rotation.
 
 # TIER 2 — start now, finishes later
 
-## 4. T43 — Legal review (IT Rules 2021 + DPDP) 🕐 long lead time
+## 7. T43 — Legal review (IT Rules 2021 + DPDP) 🕐 long lead time
 
 **Start this now even though it's M5.** Engaging counsel takes weeks, and it blocks five tasks
 (T34, T35, T42, T75, T70). It is the single longest-lead item in the project.
@@ -230,7 +349,7 @@ I wire them in.
 
 # TIER 3 — before their milestone (structural — keep doing these as scheduled)
 
-## 5. Design round 6 — the report form's missing categories ⚠️ **legal**
+## 8. Design round 6 — the report form's missing categories ⚠️ **legal**
 
 **Brief, ready to paste:** `docs/design-prompts/T39-round-6.md`.
 
@@ -264,7 +383,7 @@ doxxing earns the 24-hour clock or the 15-day one is a reading of the IT Rules.
 
 ---
 
-## 6. T30 — Claude Design round 4 (sync status)
+## 9. T30 — Claude Design round 4 (sync status)
 
 **Brief, ready to paste:** `docs/design-prompts/T30-sync-status.md`. **Blocks T31.**
 
@@ -296,7 +415,7 @@ others (it blocks no build task), but unlike the others it has a real cost to de
 content publishes until it lands, and vendor risk stays undiscovered. It's ~30 minutes. Doing
 it in any idle moment before M6 is strictly better than doing it at M6.
 
-## 7. T54 — AI-moderation vendor shortlist
+## 10. T54 — AI-moderation vendor shortlist
 
 **No longer blocking** (changed 2026-07-30, `docs/07-plan.md` fourth revision). It used to
 gate six tasks: T14 built the gateway *around* a chosen provider, and everything that
@@ -370,7 +489,7 @@ Vendor names for tier 1 + tier 2, the scorecard output, and the rate limits. The
 
 ---
 
-## 8. T42 — Grievance officer details (launch-blocking for R7 AC3)
+## 11. T42 — Grievance officer details (launch-blocking for R7 AC3)
 
 IT Rules require a **named, reachable grievance officer**. This is a real person with a real
 email and phone, published in-app on S15.
@@ -387,7 +506,7 @@ email and phone, published in-app on S15.
 Until this lands the app ships placeholder copy, which is fine for staging and **not** fine for
 launch.
 
-## 9. T72–T75 — Four runbooks
+## 12. T72–T75 — Four runbooks
 
 Each has `[HUMAN:` markers to fill. T48 (the final GO/NO-GO gate) checks that **no `[HUMAN:`
 markers remain** — they're launch-blocking in aggregate.

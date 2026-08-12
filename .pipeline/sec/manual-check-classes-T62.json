@@ -1,0 +1,26 @@
+{
+  "secrets_outside_git_history": {
+    "result": "pass",
+    "detail": "No .env has ever been committed on any ref (git log --all --diff-filter=A over '*.env', '.env', 'server/.env', 'client/.env' returns nothing). The live EMAIL_HASH_PEPPER_ACTIVE, SESSION_SIGNING_KEY and the DATABASE_URL password were each searched across all history with git log --all -S and appear in zero commits, and in zero tracked worktree files. .gitignore:3-4 covers .env and .env.local. The tracked detect-secrets hits are all fixtures or the documented sample: .env.example:12, ci.yml:33/:40, .claude/agents/security-agent.md:32, and ten tests/unit/*.test.ts 'Basic Auth Credentials' hits which are Bearer-token literals in test setup. The one real placeholder-derived exposure is tracked separately as SEC-019."
+  },
+  "authz_not_just_authn": {
+    "result": "pass",
+    "detail": "All 18 registered routes enumerated from server/src/app.ts and the seven routers it mounts, and each examined on three separate questions (session? ownership? attribution?). Full table in docs/08-security.md. Every state-changing route that touches a row belonging to someone else enforces ownership rather than mere authentication: accept is restricted to the question author (reputation.service.ts:146), self-vote is blocked in the service (reputation.service.ts:94, :149) AND by a database trigger (003_reputation.up.sql:110-124), idempotency-key replay across users is refused (content.service.ts:108-111, :135-137), reads are viewer-scoped in SQL (content.repo.ts:127, :217, :236), and sync scopes every item to the session's ownerProfileId (sync.service.ts:246, :263, :277-278, :292). No route lets the caller influence whose identity a write is attributed to. The one unauthenticated write, POST /events, is recorded as SEC-009."
+  },
+  "storage_db_rules": {
+    "result": "pass",
+    "detail": "Specifically re-verified the concern that migration 008 only sweeps tables existing when it ran. It does not leave the later tables uncovered: 003_reputation.up.sql:141- 142 hardens ban_record and reputation_event, 004_offline_queue.up.sql:130 hardens sync_queue_item and content_draft, and 005_grievance.up.sql:125 hardens grievance_report, grievance_audit_log and grievance_officer_contact - each with ENABLE ROW LEVEL SECURITY plus a role-guarded REVOKE ALL for anon and authenticated. 008 itself sweeps pg_tables (008:55-59), revokes the standing grants (008:70-72) and revokes the Supabase DEFAULT privileges that were re-issuing them (008:76-81). All 14 tables created across migrations 001-006 are covered; 007, 009 and 010 create no tables. Deliberate ENABLE-without-FORCE is documented at 008:20-37. [ASSUMPTION] verified against migration SOURCE only - this run did not query the live database to confirm the migrations are applied there."
+  },
+  "webhook_signature_verification": {
+    "result": "not applicable",
+    "detail": "No webhook surface exists. A case-insensitive grep across server/src for webhook, x-hub-signature, stripe, razorpay and signature returns no handler; there is no payment or messaging integration in the TRD. Nothing to verify."
+  },
+  "rate_limiting_on_auth_paths": {
+    "result": "finding",
+    "detail": "A1 initiate and A2 confirm both carry limiters (identity.routes.ts:22, :42) backed by FixedWindowLimiter with a swept, HMAC-keyed bucket table (rate-limit.ts:46-85), and A2 additionally burns a per-token guess budget (identity.service.ts:188, :199 against config.verificationMaxConfirmAttempts) - T60's SEC-004 is closed. The gap is POST /session/exchange, which mints the 30-day credential and has no limiter: SEC-023. config.trustProxy being unset also weakens every address-keyed limiter behind a proxy, noted inside SEC-009."
+  },
+  "input_validation_at_trust_boundaries": {
+    "result": "pass",
+    "detail": "Every request body and route parameter is zod-parsed before use: content.routes.ts:83-90/:116-119/:122/:147-151/:178, analytics.routes.ts:33-42, reputation.routes.ts:31, grievance.routes.ts:26-38, sync.routes.ts:30-32, session.routes.ts:30-33, identity.routes.ts:15-17/:35-38. zod objects strip unknown keys by default, which is the second reason a client-supplied author field cannot reach a service call. Body size is capped at 256kb (app.ts:54) and sync batches at MAX_BATCH_ITEMS (sync.routes.ts:31)."
+  }
+}
