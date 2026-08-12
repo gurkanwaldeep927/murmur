@@ -1,6 +1,6 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-11**
+**Last updated: 2026-08-13**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
@@ -84,7 +84,86 @@ before it goes public, so the space stays safe.
 | T63 | Reliability expert tries to break the safety checker | ✅ |
 | T19 | Connect those 4 screens to the real system | ✅ *(one bit left — see below)* |
 | T51 | Finish recording usage stats for this section | ✅ *(see below)* |
-| **T62** | **Security expert checks who's allowed to read/write what. Must pass before this milestone can close** ← **next job** | ⬜ |
+| **T62** | **Security expert checks who's allowed to read/write what. Must pass before this milestone can close** | ⬜ **ran 13 Aug — failed on 3 things, all yours (see below)** |
+
+**About T62 (ran 13 August — result: FAIL, and the reason is worth reading):** the security
+review of *who is allowed to read and write what*. This one is **blocking**: Milestone 2
+cannot close until it passes.
+
+**The code passed. Your `.env` file did not.** That distinction is the whole result.
+
+All **17** routes the server exposes were examined — every one, none skipped — against three
+separate questions:
+
+*(The report and the gate file say **18**, and both numbers are right: the table has 18 rows
+because the 18th is the "no such route" fallback, which is not an endpoint anyone can call.
+17 is the number of real endpoints. Written down here because two different counts of the
+same thing look like one of them is a mistake.)*
+
+The three questions: is it behind a login, does it check that the *thing* belongs to you, and
+can a caller make the server write a post under somebody else's name. **The answer to the
+third question is no, everywhere, on two independent grounds:** the author is always taken
+from the verified session and never from the request body, *and* the request schemas throw
+away any extra field a caller invents. The strongest check found anywhere in the codebase is
+on "accept this answer" — only the person who *asked* may accept, and it is checked before
+the already-accepted case, so a stranger cannot even learn whether a question is resolved.
+
+**Zero critical. Three high — and all three are settings in `.env`, not code.** Nothing needs
+to be programmed to fix them. Two are ten-minute jobs; one is a decision only you can make.
+
+**1. The database connection is encrypted but the server is never checked.** `.env` sets
+`DATABASE_SSL=require`, which explicitly overrides the safe default the code would otherwise
+pick. "Require" means *scramble the traffic but accept whatever certificate shows up* — so
+someone positioned between you and Supabase can present their own certificate, and get the
+database password and every row in it. **Fix:** download `prod-ca-2021.crt` from the Supabase
+dashboard into `server/certs/`, point `DATABASE_SSL_CA` at it, and set
+`DATABASE_SSL=verify-full` — or simply delete the `DATABASE_SSL` line, because the code's own
+default for a remote host is already `verify-full`. About ten minutes.
+
+**2. Live student emails and their login codes are being printed to the screen.** `.env` has
+`EMAIL_PROVIDER=console` and `NODE_ENV=development`. The console provider prints the raw
+email address and the live one-time code to standard output, and it is *allowed* to run only
+because `NODE_ENV` says development — while `DATABASE_URL` points at the real Supabase
+database holding real accounts. So the one environment touching live data is the one
+configured to have every guard switched off. **Fix:** two variables.
+
+**3. Old email fingerprints were computed with a secret that is published in this repo.**
+The *active* scrambling key was genuinely rotated — that part of problem #2 is properly
+closed. But `EMAIL_HASH_PEPPER_RETIRED` still holds the placeholder
+`v1:change-me-in-every-real-environment`, byte-for-byte the same as line 41 of the tracked
+`.env.example`. Every `identity_account` row still stored under the old version was
+fingerprinted with a secret anyone reading this project can see, which turns those rows into
+a way to *test* whether a given student ever signed up. It is high rather than critical only
+because migration 008 removed anonymous database access, so it now takes database credentials
+rather than a public request.
+
+**And this one cannot simply be fixed.** The fingerprints are one-way and the raw addresses
+were never kept, so they **cannot be re-computed** under the new key. The two real options
+are: delete or quarantine every old-version row — which destroys real student accounts — or
+accept the risk in writing with your name on it. That is not a decision an agent may make,
+so it is recorded as blocking and waiting on you.
+
+**What the review confirmed is genuinely fixed** from the first security run (T60): the
+scrambling key rotation, the login-code brute-force limit, the log redaction that stops the
+database password reaching the logs, rate limiting on the sign-up path, the response security
+headers, and the CI pipeline — the last one verified by reading the actual run's result on
+this exact commit, not by trusting a note.
+
+**One earlier finding was re-rated downward, deliberately.** T60 recorded that "record a usage
+event" accepted a caller-supplied identity. **That is no longer true** — the field is now
+refused outright and the actor is derived from a verified token. What remains is that the
+route needs no login at all, which the product spec actually requires. Rated medium, and the
+reasoning is written down rather than the old severity being copied forward.
+
+**One thing the review could not settle:** whether the row-level database protections are
+actually *switched on* in the live database. The migrations that enable them are correct and
+were read line by line, but nobody queried the live database to confirm they were applied.
+Written down rather than assumed either way.
+
+**What this costs you right now, plainly:** Milestone 2 stays open. Nothing about the app's
+own logic is blocking it — the three fixes are two `.env` edits and one decision. The full
+report is in `docs/08-security.md`, and the machine-readable record is
+`docs/gates/security-gate-M2.json`.
 
 **About T45 (done 9 August):** proving the sign-up funnel is actually recorded — **and finding
 that one of the six numbers the product promises was quietly wrong.**
@@ -1317,13 +1396,25 @@ A test suite that can't run is worth less than one that runs and fails.
 
 # What to do next
 
-1. **T62** — the security gate. Milestone 2 can't close without it. The three access-control
-   holes it would have tripped over (6b, 6c, 6d above) were cleared on 4 August, so it now has
-   a real chance of passing rather than just re-reporting what we knew. **It needs a few lines
-   from you first** — and it turns out to be more than the one line previously written here.
-   See problem #17 below: `.pipeline/unlock` exists but is empty, and it gates **every**
-   remaining quality gate, not only T62. Claude Code deliberately won't write those lines
-   itself — a guard an agent can lift for itself isn't a guard.
+1. **T62 — it has now run, and it failed on three things that are all yours.** You wrote
+   `.pipeline/unlock` on 11 August, which unblocked it; the gate ran on 13 August. **Zero
+   problems in the code — every one of the 17 routes passed the access-control review.** The
+   three failures are all settings in `.env`. Full explanation under "About T62" above; the
+   short version:
+   - **`DATABASE_SSL=require` → change it to `verify-full` (or just delete the line).** You
+     also need `prod-ca-2021.crt` from the Supabase dashboard in `server/certs/`, pointed at
+     by `DATABASE_SSL_CA`. **~10 minutes.** Right now the database connection is scrambled but
+     the server on the other end is never actually checked.
+   - **`EMAIL_PROVIDER=console` + `NODE_ENV=development` while pointing at the live
+     database.** Live student emails and their login codes get printed to the screen. **Two
+     variables.**
+   - **`EMAIL_HASH_PEPPER_RETIRED` is still the published placeholder — and this one is a
+     decision, not an edit.** The affected fingerprints cannot be re-computed, so the choice is
+     delete/quarantine those rows (destroys real accounts) or accept it in writing with your
+     name on it. **Nothing else can proceed on this one until you choose.**
+
+   After the first two are done, T62 gets re-run. It only counts as passed when the re-run
+   says so — not because the fixes look right.
 2. ~~**The missing database-connection listener**~~ — **done 7 August** (problem #4 above).
    Still yours and still open: **rotate the database password**, since it has been on screen.
 3. ~~**T25** — pull the three screens out of the design project~~ — **done 9 August, and it
@@ -1355,10 +1446,11 @@ moderator screens) are all "operator-only", and there is no such thing as an ope
 is **T37**, a small task with no blockers.
 
 **And T37 is the one thing that cannot be built in front of T62.** It changes the session gate —
-the exact code T62 is waiting to inspect. Every task built so far has been chosen to stay out of
-T62's way (new tables, new endpoints, a background job); T37 cannot be. **So T62 is now the real
-bottleneck, and it is waiting on one line from you** (item 1 below). Milestone 5 can go no further
-in the meantime.
+the exact code T62 inspects. Every task built so far has been chosen to stay out of T62's way
+(new tables, new endpoints, a background job); T37 cannot be. **T62 has now run, but it has not
+passed**, so this still holds: reshaping the session gate before the re-run means the gate
+inspects different code than the one that failed, and the comparison is lost. T37 waits for a
+green T62, and Milestone 5 waits with it.
 
 ~~T27 — the offline-outbox and draft tables~~ — **done 9 August**, and it caught a contradiction
 between the design document's two halves.

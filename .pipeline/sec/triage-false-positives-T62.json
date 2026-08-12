@@ -1,0 +1,18 @@
+[
+  {
+    "id": "FP-1",
+    "finding": "javascript.node-crypto.security.gcm-no-tag-length.gcm-no-tag-length",
+    "location": "server/src/shared/email-encryption.ts:45",
+    "native_severity": "ERROR (would normalize to high)",
+    "why_false_positive": "The rule warns that a caller-influenced short auth tag could be accepted. Here the tag is not caller-influenced in length: it is a fixed-offset 16-byte slice, blob.subarray(12, 28), taken at email-encryption.ts:43 from a layout this module itself wrote at :36 ([12-byte IV][16-byte tag][ciphertext]). A truncated tag cannot be presented because the offsets are constants, so setAuthTag at :46 always receives exactly 16 bytes.",
+    "provenance": "semgrep@1.172.0:javascript.node-crypto.security.gcm-no-tag-length; triage by file:line read per security-audit skill step 4"
+  },
+  {
+    "id": "FP-2",
+    "finding": "javascript.express.security.injection.raw-html-format.raw-html-format (x2)",
+    "location": "client/src/screens/question-feed.ts:62; client/src/screens/question-thread.ts:175",
+    "native_severity": "WARNING (would normalize to medium)",
+    "why_false_positive": "Both sites interpolate user-generated content into markup, but every interpolation passes through esc() from client/src/screens/dom.ts:21-27, which replaces &, <, > and \". Checked the surrounding template at question-feed.ts:52-71 and question-thread.ts:165-177: every author, title, body, topic and badge value is wrapped in esc(), and each one lands either in a text node or inside a DOUBLE-quoted attribute - so esc() not covering the single quote does not open an attribute break here. If any future interpolation is placed in a single-quoted attribute this becomes real, so the gap in esc() is noted rather than dismissed.",
+    "provenance": "semgrep@1.172.0:javascript.express.security.injection.raw-html-format; triage by file:line read per security-audit skill step 4"
+  }
+]
