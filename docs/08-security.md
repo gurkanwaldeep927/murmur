@@ -517,3 +517,118 @@ pin) but held at low for the residual `db.includes("test")` branch at
 > `.claude/schemas/handoff-security.schema.json`. `counts` there was recomputed from the
 > findings array and matches exactly: `{critical: 0, high: 3, medium: 6, low: 4}`, plus 1
 > `info` finding which the schema's `counts` object does not carry.
+
+---
+
+## 12. Post-run remediation — added 2026-08-13, after the run
+
+**This section exists so the report above does not become a lie.** Everything in §1–§11 records
+what was true at commit `80b1b57` and must not be edited: a gate report whose findings get
+quietly rewritten cannot be compared against its own re-run. But this repository has already been
+burned the other way — on 2026-08-04 a gate file listed a finding as unfixed that had been fixed
+days earlier, and a session was spent re-diagnosing it. So fixes are recorded here, dated, with
+the branch that carries them, and §1–§11 are left exactly as the run wrote them.
+
+Fixed on branch `sec/t62-fixlist-code-half`. **None of this changes the gate verdict**: the
+verdict is `critical == 0 && high == 0`, all three highs are `.env` values, and nothing below
+touches them. This is the medium/low tail — the part in Claude Code's lane.
+
+| Finding | Severity | State | What changed |
+|---|---|---|---|
+| **SEC-023** | low | **closed** | `POST /session/exchange` now runs behind `rateLimit(exchangeLimiter)`, bucketed by address like A1/A2. New `RATE_LIMIT_EXCHANGE_PER_HOUR` (default 60). 5 tests in `tests/unit/session-exchange-rate-limit.test.ts`. |
+| **SEC-022** | medium | **closed** | All 7 `uses:` in `ci.yml` pinned to full commit SHAs, version in a trailing comment. |
+| **SEC-017** | low | **closed** | The destructive-test guard's route 1 now requires a loopback host **as well as** a `test`-shaped database name. 6 tests in `tests/unit/test-db-guard.test.ts`. |
+| **SEC-016** | low | **closed** | `admin-delete-identity.ts` reads the address from stdin instead of `argv`, and identifies the account by `email_hash` prefix instead of echoing the address. |
+| **SEC-015** | low | **closed as documented** | The comment claiming a bootstrap token is "exchangeable once" is corrected — it never was. |
+| **SEC-012** | medium | **partly closed** | 4 root + 2 client advisories closed non-breakingly; the rest need semver-major bumps. |
+| **SEC-013** | medium | **open, deliberately not guessed** | Blocked on T49. See below. |
+| **SEC-009** | medium | **open** | Its three parts have three different owners. See below. |
+
+### SEC-023 — what the limiter is and is not for
+
+Worth stating because the obvious reading is wrong. It does **not** exist to stop bootstrap-token
+guessing: the signature is HMAC-SHA256 and guessing it is infeasible, so a ceiling was never what
+stood between an attacker and a forged token. It exists because every allowed call performs an
+unauthenticated database read (`findProfileById`), and an unbounded route that reads Postgres for
+free is an amplifier — the same reasoning that gave A12 a ceiling.
+
+The budget is deliberately looser than initiate's 10/hr. An allowed call sends no email, and a
+student on a flaky connection retrying a failed exchange must not be locked out of their own
+account. `TRUST_PROXY` being unset weakens this limiter exactly as it weakens the other three.
+
+**Watched failing before it was trusted.** The middleware was removed on purpose and 4 of the 5
+tests went red; then it was put back. An all-clear from a check nobody has seen fail is not
+evidence — sixth application of that rule in this project.
+
+### SEC-015 — the comment was the finding, so the comment is the fix
+
+The module header said a bootstrap token was *"exchangeable once for a session"*. It is not, and
+nothing ever made it so: there is no `jti`, no used-token set, no state anywhere. The same
+bootstrap token can be presented to the exchange any number of times inside its 15-minute window,
+and each presentation mints a fresh 30-day session token.
+
+The fix hint offered two options — build single-use, or correct the comment. Correcting it was
+chosen, and the reasoning now lives in `server/src/shared/session.ts` rather than only here:
+single-use needs server-side state outliving a request, which
+`decisions/oq-14-session-mechanism.md` §1 explicitly rules out. An in-process set would be *worse*
+than the honest window, because at more than one instance the token would be single-use per
+instance and replayable across them — enforced-looking and not enforced.
+
+**The residual, stated:** whoever holds a bootstrap token holds it for 15 minutes, not for one
+use, and it cannot be revoked. Bounded by the TTL and now by SEC-023's ceiling. Blast radius is
+one account, whose own mailbox already received the code, which is why it stays low.
+
+### SEC-012 — the fix hint understates it, and the scope is now measured
+
+The hint reads *"npm update vitest vite in both trees at the next convenient point"*. That is not
+what closing it takes. `npm audit fix` without `--force` closed brace-expansion, js-yaml, nanoid
+and postcss. **Everything remaining resolves only through a semver-major bump: `vitest` 2 → 4
+(two majors) in the root tree, `vite` 5 → 8 (three majors) in the client.** That is a
+test-framework and build-tool replacement, not an update.
+
+Deliberately not done here. A red suite after bumping the test framework *and* editing
+security-relevant code cannot be attributed to either, and CI green is the only authoritative
+signal this project has for database-backed work.
+
+The `critical` label is real and does not reach a user: every remaining advisory is on a
+devDependency, and both `--omit=dev` trees return 0 vulnerabilities of every severity. That is why
+T62 rated it medium, and the rating still holds.
+
+**Found and closed alongside it:** the CI `sca` job only ever scanned the root lockfile. T62
+recorded that the client tree had never been through SCA at all — and the client is the tree
+carrying the `vite` advisories. `ci.yml` now scans both lockfiles.
+
+### SEC-013 — not fixed, because fixing it here would mean guessing
+
+The finding asks for a CSP header from whatever fronts `client/index.html` in production, plus a
+matching `<meta>` tag for dev. **The first half has no answer yet: nothing fronts it. There is no
+deploy config, because that is T49, a human task.**
+
+Adding only the dev `<meta>` tag was considered and rejected. In production the client talks to
+the API on a *different origin* (`VITE_API_BASE`), whose host nobody knows yet. A policy written
+today would have to guess that host or use `connect-src 'self'` — and `connect-src 'self'`
+**breaks every API call the client makes**. A CSP that works in dev and silently breaks production
+is worse than no CSP, because it looks done.
+
+Open, with its blocker named: **SEC-013 needs T49's API host before it can be written.**
+
+### SEC-009 — one third is human, one third is a decision nobody has made
+
+The fix hint has three parts belonging to three different owners:
+
+1. **`TRUST_PROXY` set to match the deployment** — an `.env`/deployment value that cannot even be
+   chosen until T49 exists, because the correct value is the number of proxy hops in front of the
+   app. Human, blocked on T49.
+2. **A retention/rollup job for `analytics_event`** — the table is append-only and nothing ever
+   deletes from it (PRV-1). How long analytics data may be kept is a **retention question the
+   lawyer answers at T43**, and the privacy gate (T70) is the stage that *executes* retention
+   rather than reading it. Inventing a window here means picking a number no document sets and
+   wiring it into a job that then deletes real data.
+3. **`actorFrom()` dropping attribution for a banned or missing profile** — the hint says
+   "consider", and considering it yields a trade rather than a fix. It means loading the live
+   profile on the app's only unauthenticated route: a database read added to the highest-volume
+   write the server has. That is the same cost SEC-023 exists to bound, arriving from the other
+   direction, and nothing upstream decides whether it is worth it.
+
+The route remains unauthenticated by documented design (PRD R8), so what is left is residual risk
+on an accepted design — exactly how the run rated it after re-assessing it downward.

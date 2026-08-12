@@ -165,6 +165,95 @@ own logic is blocking it — the three fixes are two `.env` edits and one decisi
 report is in `docs/08-security.md`, and the machine-readable record is
 `docs/gates/security-gate-M2.json`.
 
+### The rest of T62's list — done the same night (13 August), and it does **not** unblock M2
+
+The gate found fourteen things. Three are the highs above and they are yours. **The other
+eleven were the smaller ones, and six of those were mine — so they are done.** Full write-up:
+`docs/08-security.md` §12, added *after* the report rather than edited into it, for a reason
+worth knowing: a gate report that gets quietly rewritten can no longer be compared against its
+own re-run. On 4 August a gate file claimed something was unfixed that had been fixed days
+earlier, and a session went on re-diagnosing it. So the original stands and the fixes sit
+underneath it, dated.
+
+**Be clear about what this bought: nothing, as far as the gate is concerned.** The gate passes
+only when there are zero critical and zero high findings. All three highs are `.env` values.
+Nothing below touches them, so **M2 is exactly as blocked as it was.** What it does buy is that
+when you fix those three, the re-run finds a short list instead of a long one.
+
+**What actually changed:**
+
+- **The one credential route with no limit at all now has one.** Signing in — swapping the
+  short-lived token from the email code for a real 30-day session — could be called as many
+  times a second as anyone liked. Worth understanding *why* that mattered, because the obvious
+  answer is wrong: it was **not** that someone could guess the token. That token is signed, and
+  guessing the signature is not realistically possible. It was that **every attempt makes the
+  server ask the database a question**, and a route anyone can call for free that makes the
+  database work is a way to knock the app over. It is now capped per device, like the two
+  sign-up routes. The cap is deliberately looser than theirs, because an attempt here costs no
+  email and **a student on a bad connection retrying must not get locked out of their own
+  account.**
+- **A comment was telling a lie, and the lie was the fix.** The code said the sign-in token was
+  *"exchangeable once"*. It never was — nothing anywhere marked it used, so the same token works
+  repeatedly for its full 15 minutes. Building real single-use was rejected on purpose: it needs
+  the app to remember things between requests, which is exactly what the session design ruled
+  out, and a half-version would be *worse* — single-use on one server and replayable across two,
+  which looks enforced and is not. **So the comment now says what is true, with the cost written
+  next to it:** whoever gets hold of that token has 15 minutes, not one use, and it cannot be
+  cancelled. That is bounded by the new cap above, and the damage is one account whose own inbox
+  already had the code. Seventh time a comment in this project claimed something the code did
+  not do.
+- **The guard protecting your real database got a second condition, and this is the one I would
+  read twice.** The test suites wipe every row in every table. What stopped them doing that to
+  your live data was that the database's *name* had to contain the word "test" — a spelling
+  check, with no check of *which machine*. So any database anywhere named `something_test` was
+  fair game. That was not theoretical: your `DATABASE_URL` points at the real Supabase database
+  with real accounts in it. It now also has to be a database on this machine. **The cost:** if
+  you ever run the suites against a remote test database, you now have to name it explicitly in
+  a variable — the error message prints the exact line to paste.
+- **Live student email addresses were being typed into the terminal.** The admin
+  delete-an-account script took the address as a command-line argument and printed it back three
+  times. Neither of those is the database, and that is the point: a command-line argument sits in
+  your shell history **after** the account it names has been deleted, and is visible to every
+  other program running at the time. Deleting the row and leaving the address in your history is
+  not a deletion. It now reads the address from a pipe and identifies the account by its
+  fingerprint instead of echoing it.
+- **The robot that checks our work could have been swapped under us.** Each helper the checker
+  downloads was pinned to a label like `v4` — and a label is a pointer its owner can move
+  whenever they like, to anything. Those helpers run with access to the project's own
+  credentials. All seven are now pinned to an exact, unmovable version.
+- **A quarter of the known-vulnerable dependencies are gone, and the rest turned out to be a
+  bigger job than the note claimed.** The report said "update two packages when convenient". It
+  is not that: everything left needs jumping the test framework across two whole versions and
+  the build tool across three — that is replacing them, not updating them. Doing that in the
+  same change as security fixes means a broken test suite could not be blamed on either one.
+  **The scary word is worth defusing:** one of them is labelled *critical*, and it genuinely is
+  — but every single one is a **development** tool that is not part of what students would ever
+  run. Both shipping trees report clean. That is why the gate rated it medium, and it still is.
+- **And a hole found beside it, in the checker itself.** The dependency scan had only ever looked
+  at the server's list. The phone app's list — which is where the worst of these actually live —
+  **had never been scanned at all, by anything.** It is scanned now.
+
+**Two I deliberately did not touch, and the reason is the same in both cases: doing them would
+have meant guessing.**
+
+- **The browser-level protection (a "content security policy") cannot be written yet.** It is a
+  rule telling the browser which servers the app may talk to. The app talks to its own API — and
+  **nobody knows that address yet, because the app is not hosted anywhere. That is T49, yours.**
+  I could have added the version that works on my machine, and it would have *silently broken
+  every screen* in the real one, while looking finished. Left open with the reason attached.
+- **The last unauthenticated route has three suggested fixes and not one of them is mine.** One
+  is a setting that cannot be chosen until T49 exists. One needs a decision on **how long usage
+  data may legally be kept — a lawyer's answer (T43)**, and inventing a number would mean
+  wiring a job that deletes real data on a guess. The third is a genuine trade with no right
+  answer written down anywhere: it would add a database lookup to the busiest write in the app.
+
+**Verified, not assumed:** typecheck on both halves clean, lint zero errors, all 39 SQL
+statements plan cleanly, **226 unit tests green across 28 files**, and the full pipeline green on
+CI — read from the run's own result, including the database-backed tests that cannot be trusted
+on this laptop. **And every new guard was watched failing first:** each was deliberately broken,
+6 tests went red, then it was put back. An all-clear from a check nobody has ever seen fail is
+not evidence — sixth time that has been applied here.
+
 **About T45 (done 9 August):** proving the sign-up funnel is actually recorded — **and finding
 that one of the six numbers the product promises was quietly wrong.**
 
