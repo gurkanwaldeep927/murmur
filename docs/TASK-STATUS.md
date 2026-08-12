@@ -93,7 +93,14 @@ cannot close until it passes.
 **The code passed. Your `.env` file did not.** That distinction is the whole result.
 
 All **17** routes the server exposes were examined — every one, none skipped — against three
-separate questions: is it behind a login, does it check that the *thing* belongs to you, and
+separate questions:
+
+*(The report and the gate file say **18**, and both numbers are right: the table has 18 rows
+because the 18th is the "no such route" fallback, which is not an endpoint anyone can call.
+17 is the number of real endpoints. Written down here because two different counts of the
+same thing look like one of them is a mistake.)*
+
+The three questions: is it behind a login, does it check that the *thing* belongs to you, and
 can a caller make the server write a post under somebody else's name. **The answer to the
 third question is no, everywhere, on two independent grounds:** the author is always taken
 from the verified session and never from the request body, *and* the request schemas throw
