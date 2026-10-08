@@ -106,23 +106,28 @@ export function createSyncRunner(deps: SyncRunnerDeps): SyncRunner {
 
         const sent = await deps.sendBatch(batch.map(toWire));
 
+        // Composing does not stop while a request is in flight. Fold the reply into
+        // the current queue, otherwise replacing the pre-request snapshot silently
+        // discards every post added during the await (OFFLINE-LOSS-1).
+        const current = deps.store.read();
+
         if (!sent.ok) {
           if (sent.reason === "banned") {
-            const rejected = rejectAll(items, LOCAL_ACCOUNT_BANNED);
+            const rejected = rejectAll(current, LOCAL_ACCOUNT_BANNED);
             deps.store.replace(rejected.items);
             return {
               outcome: "banned",
-              rejected: items.length - sendableCount(rejected.items),
+              rejected: sendableCount(current) - sendableCount(rejected.items),
             };
           }
-          const remaining = sendableCount(items);
+          const remaining = sendableCount(current);
           return sent.reason === "session_lost"
             ? { outcome: "session_lost", remaining }
             : { outcome: "unreachable", remaining };
         }
 
         anySent = true;
-        const applied = applyResults(items, sent.results);
+        const applied = applyResults(current, sent.results);
         const written = deps.store.replace(applied.items);
         persisted = persisted && written.persisted;
 
@@ -130,7 +135,7 @@ export function createSyncRunner(deps: SyncRunnerDeps): SyncRunner {
         // this, a batch that comes back entirely `pending` — an outage, a rate limit —
         // would be re-sent up to `maxRounds` times in one flush, turning a server that is
         // already struggling into one being hammered by every phone at once.
-        if (sendableCount(written.items) >= sendableCount(items)) {
+        if (sendableCount(written.items) >= sendableCount(current)) {
           return { outcome: "done", remaining: sendableCount(written.items), persisted };
         }
       }

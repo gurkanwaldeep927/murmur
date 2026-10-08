@@ -1,6 +1,6 @@
 # Murmur — Task Status in Plain English
 
-**Last updated: 2026-08-13**
+**Last updated: 2026-10-08**
 
 A simple map of all 77 tasks: what each one actually *means*, whether it's finished, and
 what went wrong along the way. No jargon. The formal version lives in `docs/07-plan.md`;
@@ -13,6 +13,13 @@ browser. **This file remains the source of truth**, and a real status change is 
 here, in the same turn as the work.
 
 **Score so far: 40 done · 0 half done · 32 not started · 5 waiting on something** *(= 77)*
+
+**8 October engineering update:** the 77-task score is unchanged. A focused T28 repair
+fixes posts lost during an in-flight sync, stale storage after a quota failure, the blank
+first offline reload, and offline compose access after reopening. Independent unit
+verification passed **269 tests**, and local integration/NFR verification passed **219**.
+See `docs/PROGRESS-2026-10-08.md` for the evidence and remaining gates. These repairs do
+not close T62 or a new milestone; pushed-branch CI and the merge remain unverified.
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -1498,7 +1505,38 @@ A test suite that can't run is worth less than one that runs and fails.
 
 ---
 
-# What to do next
+# What to do next — current as of 8 October 2026
+
+1. **Review the T28 reliability repair on `fix/t28-offline-data-loss`.** It preserves
+   posts added during sync, keeps the newest state when storage is full, caches the
+   actual app bundles, and keeps the existing composer reachable when a feed read
+   fails. Previously fetched topic slugs survive a reload; only public slug/label
+   reference data is retained. No new visual design was authored.
+2. **T62 still blocks search and operator authorization work.** The isolated cloud
+   database contains no live students and cannot resolve the three historical live
+   deployment findings. Trusted database TLS, a real production email configuration,
+   and a human decision on old placeholder-key fingerprints remain required. Do not
+   change T20 or T37 until the security gate is independently green or human-waived.
+3. **Verify branch CI before merging.** All local tests and builds passed, but the
+   GitHub Actions API returned `Forbidden` in this environment. A successful native
+   Git read does not establish API access. Do not report remote CI or a merge as done.
+4. **Keep the human/design tracks explicit:** T49 staging deployment, T54 moderation
+   vendor choice, T30 corrected sync-status design, T19/T39 returned design corrections,
+   T42 officer details, T43 legal/retention decisions, and T72–T75 runbooks. The existing
+   design briefs remain the inputs; do not invent legal numbers, vendor choices, or
+   human approvals to make a task appear unblocked.
+
+The cloud machine now has a local disposable PostgreSQL database; historical laptop
+latency notes below do not describe it. Run tests with `DOTENV_CONFIG_PATH=/dev/null`
+and an explicit loopback `murmur_test` URL so the development `.env` cannot repopulate
+variables that guard tests intentionally remove. Use the saved startup instructions
+to restart services after a restored environment; processes do not survive snapshots.
+
+The August notes below are retained as history. Their statements that T28 is still
+buildable or that a missing unlock alone resolves T62 are superseded by this section.
+Never create an unlock or waiver on behalf of the human.
+
+## Historical next-step notes (August 2026)
 
 1. **T62 — it has now run, and it failed on three things that are all yours.** You wrote
    `.pipeline/unlock` on 11 August, which unblocked it; the gate ran on 13 August. **Zero

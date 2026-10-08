@@ -79,6 +79,91 @@ const allSynced = (batch: OutboxWireItem[]): SendResult => ({
   })),
 });
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+describe("regression OFFLINE-LOSS-1: edits while a flush is in flight", () => {
+  it("regression_OFFLINE-LOSS-1_late_answer_is_sent_after_parent_with_server_reference", async () => {
+    const parent = item();
+    const answer = newOutboxItem({ entityType: "answer", payload: { parentClientLocalId: parent.clientLocalId, body: "late answer" } }, nextId, new Date("2026-08-11T10:00:00.000Z"));
+    const response = deferred<SendResult>();
+    const h = harness({ queue: [parent], reply: (batch, call) => call === 1 ? response.promise : allSynced(batch) });
+    const flush = h.runner.flush();
+    h.store.enqueue(answer);
+    response.resolve(allSynced(h.sent[0]!));
+    expect(await flush).toEqual({ outcome: "done", remaining: 0, persisted: true });
+    expect(h.sent).toHaveLength(2);
+    expect(h.sent[1]).toEqual([expect.objectContaining({
+      clientLocalId: answer.clientLocalId,
+      entityType: "answer",
+      payload: { questionId: "server-0", body: "late answer" },
+    })]);
+    expect(h.store.read()).toHaveLength(2);
+    expect(h.store.read().every((post) => post.status === "synced")).toBe(true);
+  });
+  it("regression_OFFLINE-LOSS-1_preserves_and_drains_a_late_enqueue_even_when_sendable_count_is_unchanged", async () => {
+    const original = item();
+    const late = item("2026-08-11T10:00:00.000Z");
+    const response = deferred<SendResult>();
+    const h = harness({ queue: [original], reply: (batch, call) => call === 1 ? response.promise : allSynced(batch) });
+    const flush = h.runner.flush();
+    expect(h.sent).toHaveLength(1);
+    h.store.enqueue(late);
+    response.resolve(allSynced(h.sent[0]!));
+
+    expect(await flush).toEqual({ outcome: "done", remaining: 0, persisted: true });
+    expect(h.sent.map((batch) => batch.map((post) => post.clientLocalId))).toEqual([
+      [original.clientLocalId], [late.clientLocalId],
+    ]);
+    expect(h.store.read().map((post) => ({ id: post.clientLocalId, status: post.status }))).toEqual([
+      { id: original.clientLocalId, status: "synced" },
+      { id: late.clientLocalId, status: "synced" },
+    ]);
+  });
+
+  it("regression_OFFLINE-LOSS-1_preserves_late_enqueue_without_retrying_an_all_pending_batch", async () => {
+    const original = item();
+    const late = item("2026-08-11T10:00:00.000Z");
+    const response = deferred<SendResult>();
+    const h = harness({ queue: [original], reply: () => response.promise });
+    const flush = h.runner.flush();
+    h.store.enqueue(late);
+    response.resolve({ ok: true, results: [{ clientLocalId: original.clientLocalId, status: "pending", errorReason: "internal_error" }] });
+
+    expect(await flush).toEqual({ outcome: "done", remaining: 2, persisted: true });
+    expect(h.sent).toHaveLength(1);
+    expect(h.store.read().map((post) => ({ id: post.clientLocalId, status: post.status, attempts: post.attempts }))).toEqual([
+      { id: original.clientLocalId, status: "pending", attempts: 1 },
+      { id: late.clientLocalId, status: "queued", attempts: 0 },
+    ]);
+  });
+
+  it("regression_OFFLINE-LOSS-1_ban_rejects_late_enqueue_and_counts_only_new_rejections", async () => {
+    const original = item();
+    const terminal: OutboxItem = { ...item(), status: "rejected", errorReason: "validation_failed" };
+    const late = item("2026-08-11T10:00:00.000Z");
+    const response = deferred<SendResult>();
+    const h = harness({ queue: [original, terminal], reply: () => response.promise });
+    const flush = h.runner.flush();
+    h.store.enqueue(late);
+    response.resolve({ ok: false, reason: "banned" });
+
+    expect(await flush).toEqual({ outcome: "banned", rejected: 2 });
+    expect(h.sent).toHaveLength(1);
+    expect(h.runner.pendingCount()).toBe(0);
+    expect(h.store.read()).toHaveLength(3);
+    expect(h.store.read().find((post) => post.clientLocalId === terminal.clientLocalId)).toEqual(terminal);
+    for (const post of [original, late]) {
+      expect(h.store.read().find((stored) => stored.clientLocalId === post.clientLocalId)).toMatchObject({
+        status: "rejected", errorReason: "account_banned",
+      });
+    }
+  });
+});
+
 describe("when there is no network", () => {
   it("test_offline_sends_nothing_and_keeps_the_queue", async () => {
     const h = harness({

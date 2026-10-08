@@ -26,6 +26,7 @@ import {
 import { newOutboxItem } from "../lib/outbox";
 import { createOutboxStore } from "../outbox-store";
 import { createDraftStore } from "../drafts-store";
+import { createTopicStore } from "../topic-store";
 import { createSyncRunner } from "../sync";
 import type { Draft } from "../lib/drafts";
 
@@ -109,6 +110,8 @@ export function mountAppShell(
   profile: ShellProfile,
   onSessionLost: () => void,
 ): void {
+  const topicStore = createTopicStore();
+  let topicsRefreshed = false;
   const state: ShellState = {
     route: "feed",
     feedPhase: "loading",
@@ -120,7 +123,7 @@ export function mountAppShell(
     answers: [],
     threadError: null,
     askPhase: "form",
-    topics: [],
+    topics: topicStore.read(),
     selectedTopic: null,
     askTitle: "",
     askBody: "",
@@ -394,16 +397,22 @@ export function mountAppShell(
       state.selectedTopic = draft.topic;
     }
     draw();
-    if (state.topics.length) return;
+    if (topicsRefreshed || (offline() && state.topics.length)) return;
     try {
       const { topics } = await listTopics();
       state.topics = topics;
+      topicsRefreshed = true;
+      topicStore.save(topics);
     } catch (err) {
       if (handleSessionLoss(err)) return;
       // Without the seeded slugs there is nothing safe to submit: the chips are display
       // labels and A3 wants slugs, so guessing by lowercasing would post to the wrong
       // topic or fail validation (README note 4).
-      state.askError = "Couldn't load topics just now. Give it another try in a moment.";
+      // Cached slugs are enough to queue an offline post; A10 validates them
+      // when connectivity returns. Without a cache, retain the existing error.
+      if (!state.topics.length) {
+        state.askError = "Couldn't load topics just now. Give it another try in a moment.";
+      }
     }
     if (state.route === "ask") draw();
   }

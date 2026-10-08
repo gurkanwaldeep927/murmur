@@ -134,6 +134,8 @@ export function renderQuestionFeed(p: QuestionFeedProps): HTMLElement {
       break;
   }
 
+  // A failed feed read must not remove the existing entry to T28's offline
+  // composer. Asking uses the local outbox and does not require a live feed.
   const root = elFromHTML(
     appShell(`
       ${HEADER(p.viewerPseudonym)}
@@ -141,7 +143,7 @@ export function renderQuestionFeed(p: QuestionFeedProps): HTMLElement {
         <h1 style="margin:6px 0 0; font-family:'Baloo 2',sans-serif; font-weight:600; font-size:23px; color:#3D2C26">Fresh from your campus</h1>
         ${body}
       </div>
-      ${p.phase === "error" ? "" : FAB}
+      ${FAB}
       ${NAV}
     `),
   );

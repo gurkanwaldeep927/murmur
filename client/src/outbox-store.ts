@@ -90,7 +90,9 @@ export function createOutboxStore(
       // as one — A10 refuses a batch containing one outright, which would stall the whole
       // queue rather than just this item.
       if (current.some((i) => i.clientLocalId === item.clientLocalId)) {
-        return { items: current, persisted: true };
+        // An earlier quota failure may have kept this id only in memory. Retry
+        // persistence rather than claiming an unverified durable save.
+        return persist(current);
       }
       return persist([...current, item]);
     },

@@ -53,9 +53,13 @@ export function createJsonSlot<T>(key: string, storage: KeyValueStorage | null):
   // Survives a storage that is absent, full, or throwing, so the app still works for one
   // run. It is not a substitute for persistence and the return value of `write` says so.
   let memory: T | null = null;
+  // A failed write leaves an older value in durable storage. Until persistence
+  // succeeds again, that value must not replace the latest in-memory post/draft.
+  let memoryIsAuthoritative = false;
 
   return {
     read(): T | null {
+      if (memoryIsAuthoritative) return memory;
       let raw: string | null = null;
       try {
         raw = storage?.getItem(key) ?? null;
@@ -64,7 +68,8 @@ export function createJsonSlot<T>(key: string, storage: KeyValueStorage | null):
       }
       if (raw === null) return memory;
       try {
-        return JSON.parse(raw) as T;
+        memory = JSON.parse(raw) as T;
+        return memory;
       } catch {
         // A corrupt entry is treated as absent AND removed. Left in place it would be
         // re-parsed and re-discarded on every read, and any later "why is this empty"
@@ -76,8 +81,10 @@ export function createJsonSlot<T>(key: string, storage: KeyValueStorage | null):
 
     write(value: T): boolean {
       memory = value;
+      memoryIsAuthoritative = true;
       try {
         storage?.setItem(key, JSON.stringify(value));
+        memoryIsAuthoritative = storage === null;
         return storage !== null;
       } catch {
         return false;
@@ -86,8 +93,10 @@ export function createJsonSlot<T>(key: string, storage: KeyValueStorage | null):
 
     clear(): void {
       memory = null;
+      memoryIsAuthoritative = true;
       try {
         storage?.removeItem(key);
+        memoryIsAuthoritative = storage === null;
       } catch {
         /* nothing else to do */
       }
