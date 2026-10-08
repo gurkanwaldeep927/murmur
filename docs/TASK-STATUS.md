@@ -19,7 +19,8 @@ fixes posts lost during an in-flight sync, stale storage after a quota failure, 
 first offline reload, and offline compose access after reopening. Independent unit
 verification passed **269 tests**, and local integration/NFR verification passed **219**.
 See `docs/PROGRESS-2026-10-08.md` for the evidence and remaining gates. These repairs do
-not close T62 or a new milestone; pushed-branch CI and the merge remain unverified.
+not close T62 or a new milestone. The code commit's pushed-branch CI passed; see the
+progress report for the exact run and the final delivery boundary.
 
 *The previous line here read "28 done · 45 not started · 4 waiting", which added up to 77 but
 was wrong on two of the three numbers — the half-done ones had nowhere to go and the waiting
@@ -1517,9 +1518,12 @@ A test suite that can't run is worth less than one that runs and fails.
    deployment findings. Trusted database TLS, a real production email configuration,
    and a human decision on old placeholder-key fingerprints remain required. Do not
    change T20 or T37 until the security gate is independently green or human-waived.
-3. **Verify branch CI before merging.** All local tests and builds passed, but the
-   GitHub Actions API returned `Forbidden` in this environment. A successful native
-   Git read does not establish API access. Do not report remote CI or a merge as done.
+3. **Finish the branch delivery without bypassing the security milestone.** All local
+   tests and builds passed, and pushed code commit `9668d51` passed CI run
+   `37802658217` (build/test, secrets scan, SAST and SCA). The GitHub API returned
+   `Forbidden`, but the run's own web page supplied its final `Success` result.
+   Verify later branch commits before the required merge; this is T28 repair evidence,
+   not a T62 security-gate pass or permission to start T20/T37.
 4. **Keep the human/design tracks explicit:** T49 staging deployment, T54 moderation
    vendor choice, T30 corrected sync-status design, T19/T39 returned design corrections,
    T42 officer details, T43 legal/retention decisions, and T72–T75 runbooks. The existing
